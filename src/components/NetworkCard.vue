@@ -8,21 +8,21 @@
       >
       <v-tabs-slider></v-tabs-slider>
 
-        <v-tab href="#interface">
+        <v-tab value="interface">
           {{ $t("components.NetworkCard.Interface") }}
         </v-tab>
 
-        <v-tab href="#mac">
+        <v-tab value="mac">
           {{ $t("components.NetworkCard.MAC") }}
         </v-tab>
 
-        <v-tab href="#dns">
+        <v-tab value="dns">
           {{ $t("components.NetworkCard.DNS") }}
         </v-tab>
       </v-tabs>
-      <v-tabs-items v-model="settings.MinionDetail.NetworkCard.tab">
-        <v-tab-item id="interface">
-          <v-simple-table>
+      <v-window v-model="settings.MinionDetail.NetworkCard.tab">
+        <v-window-item value="interface">
+          <v-table>
             <tbody>
               <tr v-for="(val, key) in minion.ip_interfaces" :key="key">
                 <td>{{ key }}</td>
@@ -37,29 +37,29 @@
                 <td class="text-right">{{ minion.ip6_gw }}</td>
               </tr>
             </tbody>
-          </v-simple-table>
-        </v-tab-item>
-        <v-tab-item id="mac">
-          <v-simple-table>
+          </v-table>
+        </v-window-item>
+        <v-window-item value="mac">
+          <v-table>
             <tbody>
               <tr v-for="(val, key) in minion.hwaddr_interfaces" :key="key">
                 <td>{{ key }}</td>
                 <td class="text-right">{{ val }}</td>
               </tr>
             </tbody>
-          </v-simple-table>
-        </v-tab-item>
-        <v-tab-item id="dns">
-          <v-simple-table>
+          </v-table>
+        </v-window-item>
+        <v-window-item value="dns">
+          <v-table>
             <tbody>
               <tr v-for="(val, key) in minion.dns" :key="key">
                 <td>{{ key }}</td>
                 <td class="text-right">{{ val.length >= 1 ? val : "" }}</td>
               </tr>
             </tbody>
-          </v-simple-table>
-        </v-tab-item>
-      </v-tabs-items>
+          </v-table>
+        </v-window-item>
+      </v-window>
     </v-card>
   </v-container>
 </template>

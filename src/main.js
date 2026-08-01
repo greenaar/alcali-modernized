@@ -1,18 +1,18 @@
-import Vue from "vue";
+import { createApp, h } from "vue";
 import App from "./App.vue";
+import LegacyDataTable from "./components/core/LegacyDataTable.vue";
 import vuetify from "./plugins/vuetify";
 import router from "./router";
 import axios from "axios";
 import store from "./store";
-import jwtDecode from "jwt-decode";
-import VueI18n from "vue-i18n";
+import { jwtDecode } from "jwt-decode";
+import DOMPurify from "dompurify";
+import { createI18n } from "vue-i18n";
 import { languages, defaultLocale } from "./i18n/index.js";
 
-Vue.config.productionTip = false;
-
-Vue.use(VueI18n);
 const messages = Object.assign(languages);
-const i18n = new VueI18n({
+const i18n = createI18n({
+  legacy: true,
   // modify $i18n.locale in App component to switch locale
   // see https://tutorialedge.net/javascript/vuejs/vuejs-i18n-basics-tutorial/#changing-locale-dynamically
   // change the localization in vuetify plugin too : $vuetify.lang.current
@@ -20,16 +20,15 @@ const i18n = new VueI18n({
   messages,
 });
 
-Vue.prototype.$http = axios;
-Vue.prototype.$http.defaults.xsrfCookieName = "csrftoken";
-Vue.prototype.$http.defaults.xsrfHeaderName = "X-CSRFToken";
-Vue.prototype.$http.defaults.headers.common["Content-Type"] =
+axios.defaults.xsrfCookieName = "csrftoken";
+axios.defaults.xsrfHeaderName = "X-CSRFToken";
+axios.defaults.headers.common["Content-Type"] =
   "application/json";
 
 const accessToken = localStorage.getItem("access");
 if (accessToken) {
-  Vue.prototype.$http.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  Vue.prototype.$http.defaults.withCredentials = true;
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  axios.defaults.withCredentials = true;
 }
 
 /// for multiple parallel requests
@@ -48,7 +47,7 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-Vue.prototype.$http.interceptors.request.use(
+axios.interceptors.request.use(
   (config) => {
     const originalRequest = config;
     // before request is sent check if refresh token is about to expire.
@@ -70,7 +69,7 @@ Vue.prototype.$http.interceptors.request.use(
   }
 );
 
-Vue.prototype.$http.interceptors.request.use(
+axios.interceptors.request.use(
   (config) => {
     const originalRequest = config;
     // before request is sent check if access token is expired.
@@ -105,11 +104,11 @@ Vue.prototype.$http.interceptors.request.use(
 
       const refreshToken = window.localStorage.getItem("refresh");
       return new Promise(function(resolve, reject) {
-        Vue.prototype.$http
+        axios
           .post("/api/token/refresh/", { refresh: refreshToken })
           .then(({ data }) => {
             window.localStorage.setItem("access", data.access);
-            Vue.prototype.$http.defaults.headers.common["Authorization"] =
+            axios.defaults.headers.common["Authorization"] =
               "Bearer " + data.access;
             originalRequest.headers["Authorization"] = "Bearer " + data.access;
             processQueue(null, data.access);
@@ -131,10 +130,31 @@ Vue.prototype.$http.interceptors.request.use(
   }
 );
 
-new Vue({
-  i18n,
-  vuetify,
-  router,
-  store,
-  render: (h) => h(App),
-}).$mount("#app");
+const toast = (message, color = "info") => {
+  window.dispatchEvent(new CustomEvent("alcali-toast", { detail: { message, color } }));
+};
+toast.error = (message) => toast(message, "error");
+
+const app = createApp(App);
+app.component("LegacyDataTable", LegacyDataTable);
+const legacyBlock = className => ({
+  inheritAttrs: false,
+  render() {
+    return h(
+      "div",
+      { ...this.$attrs, class: [className, this.$attrs.class] },
+      this.$slots.default ? this.$slots.default() : [],
+    );
+  },
+});
+app.component("VListItemContent", legacyBlock("legacy-list-item-content"));
+app.component("VListItemAction", legacyBlock("legacy-list-item-action"));
+app.component("VListItemAvatar", legacyBlock("legacy-list-item-avatar"));
+app.config.globalProperties.$http = axios;
+app.config.globalProperties.$sanitize = (html) => DOMPurify.sanitize(html);
+app.config.globalProperties.$toast = toast;
+app.use(i18n);
+app.use(vuetify);
+app.use(router);
+app.use(store);
+app.mount("#app");

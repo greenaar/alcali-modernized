@@ -1,31 +1,27 @@
 import os
 import json
-from urllib.error import URLError
-
-import urllib3
-
-from pepper import Pepper, PepperException
 from django_currentuser.middleware import get_current_user
 
+from .salt_api import SaltApiClient, SaltApiError
 from ..utils.input import RawCommand
 from ..models import Minions, Functions, MinionsCustomFields, Keys, Schedule
-
-urllib3.disable_warnings()
 
 url = os.environ.get("SALT_URL", "https://127.0.0.1:8080")
 
 
 def api_connect():
     user = get_current_user()
-    api = Pepper(url, ignore_ssl_errors=True)
+    if user is None or not user.is_authenticated:
+        raise SaltApiError("An authenticated Alcali user is required")
+    api = SaltApiClient(url)
     try:
         login_ret = api.login(
             str(user.username),
             user.user_settings.token,
-            os.environ.get("SALT_AUTH", "alcali"),
+            os.environ.get("SALT_AUTH", "rest"),
         )
-    except URLError:
-        raise PepperException("URL Error")
+    except SaltApiError:
+        raise
     user.user_settings.salt_permissions = json.dumps(login_ret["perms"])
     user.save()
     return api
@@ -44,7 +40,7 @@ def get_keys(refresh=False):
         try:
             api = api_connect()
             api_ret = api.wheel("key.list_all")["return"][0]["data"]["return"]
-        except PepperException as e:
+        except SaltApiError as e:
             return {"error": str(e)}
 
         Keys.objects.all().delete()
@@ -66,7 +62,7 @@ def refresh_minion(minion_id):
     try:
         api = api_connect()
         grain = api.local(minion_id, "grains.items")
-    except PepperException as e:
+    except SaltApiError as e:
         return {"error": str(e)}
     grain = grain["return"][0]
     # TODO: return smt useful, better error mgmt.
@@ -101,7 +97,7 @@ def run_raw(load):
     try:
         api = api_connect()
         api_ret = api.low(load)
-    except PepperException as e:
+    except SaltApiError as e:
         return {"error": str(e)}
     api_ret = api_ret["return"][0]
     return api_ret
@@ -110,7 +106,7 @@ def run_raw(load):
 def get_events():
     try:
         api = api_connect()
-    except PepperException as e:
+    except SaltApiError as e:
         return {"error": str(e)}
     return api.req_stream("/events")
 
@@ -149,7 +145,7 @@ def init_db(target):
             Functions.objects.update_or_create(
                 name=fun, type="wheel", description=doc or ""
             )
-    except PepperException as e:
+    except SaltApiError as e:
         return {"error": str(e)}
     return {"result": "refreshed modules using {}".format(target)}
 
@@ -158,7 +154,7 @@ def manage_key(action, target, kwargs):
     try:
         api = api_connect()
         response = api.wheel("key.{}".format(action), match=target, **kwargs)
-    except PepperException as e:
+    except SaltApiError as e:
         return {"error": str(e)}
     return response
 
@@ -168,7 +164,7 @@ def refresh_schedules(minion=None):
     try:
         api = api_connect()
         api_ret = api.local(minion, "schedule.list", kwarg={"return_yaml": False})
-    except PepperException as e:
+    except SaltApiError as e:
         return {"error": str(e)}
     for minion_id in api_ret["return"][0]:
         # TODO: error mgmt
@@ -188,7 +184,7 @@ def manage_schedules(action, name, minion):
     try:
         api = api_connect()
         api_ret = api.local(minion, "schedule.{}".format(action), arg=name)
-    except PepperException as e:
+    except SaltApiError as e:
         return {"error": str(e)}
     for target in api_ret["return"][0]:
         # If action was successful.

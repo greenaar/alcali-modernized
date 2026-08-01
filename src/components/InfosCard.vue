@@ -8,21 +8,21 @@
       >
         <v-tabs-slider></v-tabs-slider>
 
-        <v-tab href="#common">
+        <v-tab value="common">
           {{ $t("components.InfosCard.Common") }}
         </v-tab>
 
-        <v-tab href="#salt">
+        <v-tab value="salt">
           {{ $t("components.InfosCard.Salt") }}
         </v-tab>
 
-        <v-tab href="#hardware">
+        <v-tab value="hardware">
           {{ $t("components.InfosCard.Hardware") }}
         </v-tab>
       </v-tabs>
-      <v-tabs-items v-model="settings.MinionDetail.InfosCard.tab">
-        <v-tab-item id="common">
-          <v-simple-table>
+      <v-window v-model="settings.MinionDetail.InfosCard.tab">
+        <v-window-item value="common">
+          <v-table>
             <tbody>
               <tr v-for="item in common" :key="item.name">
                 <td>{{ $t(item.name) }}</td>
@@ -40,29 +40,29 @@
                 <td v-else class="text-right">{{ minion[item.grain] }}</td>
               </tr>
             </tbody>
-          </v-simple-table>
-        </v-tab-item>
-        <v-tab-item id="salt">
-          <v-simple-table>
+          </v-table>
+        </v-window-item>
+        <v-window-item value="salt">
+          <v-table>
             <tbody>
               <tr v-for="item in salt" :key="item.name">
                 <td>{{ item.name }}</td>
                 <td class="text-right">{{ minion[item.grain] }}</td>
               </tr>
             </tbody>
-          </v-simple-table>
-        </v-tab-item>
-        <v-tab-item id="hardware">
-          <v-simple-table>
+          </v-table>
+        </v-window-item>
+        <v-window-item value="hardware">
+          <v-table>
             <tbody>
               <tr v-for="item in hardware" :key="item.name">
                 <td>{{ item.name }}</td>
                 <td class="text-right">{{ minion[item.grain] }}</td>
               </tr>
             </tbody>
-          </v-simple-table>
-        </v-tab-item>
-      </v-tabs-items>
+          </v-table>
+        </v-window-item>
+      </v-window>
     </v-card>
   </v-container>
 </template>

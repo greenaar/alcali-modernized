@@ -11,7 +11,7 @@
               </v-list-item-content>
             </v-list-item>
             <v-divider></v-divider>
-            <v-simple-table>
+            <v-table>
               <tbody>
               <tr>
                 <td>{{$t("views.JobDetail.MinionID")}}</td>
@@ -49,7 +49,7 @@
                 <td class="text-right">{{ new Date(job.alter_time).toLocaleString("en-GB") }}</td>
               </tr>
               </tbody>
-            </v-simple-table>
+            </v-table>
           </v-card>
         </v-container>
       </v-col>
@@ -58,7 +58,7 @@
           <v-card>
             <v-card-title>{{$t("views.JobDetail.Results")}}</v-card-title>
             <v-divider></v-divider>
-            <div v-html="ansiResult" class="ansiStyle"></div>
+            <div v-html="$sanitize(ansiResult)" class="ansiStyle"></div>
           </v-card>
         </v-container>
       </v-col>

@@ -35,11 +35,11 @@
         >
           <v-expansion-panel-header>{{i}}
             <template v-slot:actions>
-              <v-icon color="green">$vuetify.icons.expand</v-icon>
+              <v-icon color="green">expand_more</v-icon>
             </template>
           </v-expansion-panel-header>
-          <v-expansion-panel-content v-html="item">
-          </v-expansion-panel-content>
+                  <v-expansion-panel-text v-html="$sanitize(item)">
+                  </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
 
@@ -51,11 +51,11 @@
         >
           <v-expansion-panel-header>{{i}}
             <template v-slot:actions>
-              <v-icon color="orange">$vuetify.icons.expand</v-icon>
+              <v-icon color="orange">expand_more</v-icon>
             </template>
           </v-expansion-panel-header>
-          <v-expansion-panel-content v-html="item">
-          </v-expansion-panel-content>
+                  <v-expansion-panel-text v-html="$sanitize(item)">
+                  </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
 
@@ -67,11 +67,11 @@
         >
           <v-expansion-panel-header>{{i}}
             <template v-slot:actions>
-              <v-icon color="red">$vuetify.icons.expand</v-icon>
+              <v-icon color="red">expand_more</v-icon>
             </template>
           </v-expansion-panel-header>
-          <v-expansion-panel-content v-html="item">
-          </v-expansion-panel-content>
+                  <v-expansion-panel-text v-html="$sanitize(item)">
+                  </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
     </v-card>

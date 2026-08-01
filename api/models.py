@@ -255,22 +255,23 @@ def generate_key():
     return binascii.hexlify(os.urandom(20)).decode()
 
 
+def default_user_settings():
+    settings_path = Path(__file__).parent / "migrations" / "usersettings.json"
+    with settings_path.open(encoding="utf-8") as fh:
+        return json.load(fh)
+
+
 class UserSettings(models.Model):
     """
     The default authorization token model.
     """
 
-    with open(
-        os.path.join(Path(__file__).parent.absolute(), "migrations/usersettings.json"),
-        "r",
-    ) as fh:
-        data = json.load(fh)
     user = models.OneToOneField(
         User, primary_key=True, related_name="user_settings", on_delete=models.CASCADE
     )
     token = models.CharField(max_length=40)
     created = models.DateTimeField(auto_now_add=True)
-    settings = models.JSONField(default=data)
+    settings = models.JSONField(default=default_user_settings)
     salt_permissions = models.TextField()
 
     def generate_token(self):

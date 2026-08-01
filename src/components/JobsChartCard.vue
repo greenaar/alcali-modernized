@@ -31,9 +31,11 @@
 </template>
 
 <script>
-import Chart from "chart.js";
+import { Chart, registerables } from "chart.js";
 import gradientLinePlugin from "../assets/js/utils/chart-line-gradient";
 import { mapState } from "vuex"
+
+Chart.register(...registerables);
 
 export default {
   name: "JobsChartCard",
@@ -111,7 +113,7 @@ export default {
             labels: this.labels,
             datasets: [
               {
-                lineTension: 0.1,
+                tension: 0.1,
                 pointRadius: 1,
                 data: this.chart_data[0], // fake data before update(needed for plugin).
                 fill: false,
@@ -119,7 +121,7 @@ export default {
                 colorEnd: "rgba(231, 18, 143, 1.0)",
               },
               {
-                lineTension: 0.1,
+                tension: 0.1,
                 pointRadius: 1,
                 data: this.chart_data[1],
                 fill: false,
@@ -130,29 +132,27 @@ export default {
           },
           options: {
             linearGradientLine: true,
-            legend: {
-              display: false,
+            plugins: {
+              legend: {
+                display: false,
+              },
             },
             scales: {
-              xAxes: [
-                {
-                  gridLines: {
-                    display: true,
-                  },
+              x: {
+                grid: {
+                  display: true,
                 },
-              ],
-              yAxes: [
-                {
-                  gridLines: {
-                    display: true,
-                  },
-                  ticks: {
-                    autoSkip: true,
-                    beginAtZero: true,
-                    maxTicksLimit: 6,
-                  },
+              },
+              y: {
+                beginAtZero: true,
+                grid: {
+                  display: true,
                 },
-              ],
+                ticks: {
+                  autoSkip: true,
+                  maxTicksLimit: 6,
+                },
+              },
             },
             responsive: true,
           },

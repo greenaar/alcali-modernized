@@ -13,7 +13,7 @@
           hide-details
         ></v-text-field>
       </v-card-title>
-      <v-data-table
+      <legacy-data-table
         :sort-by.sync="settings.EventsTable.table.sortBy"
         @update:sort-by="updateSettings"
         :sort-desc.sync="settings.EventsTable.table.sortDesc"
@@ -35,7 +35,7 @@
             <pre>{{ JSON.stringify(safeParse(item.data), null, 2) }}</pre>
           </td>
         </template>
-      </v-data-table>
+      </legacy-data-table>
     </v-card>
   </v-container>
 </template>

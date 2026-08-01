@@ -2,6 +2,10 @@
 *.md
 !README*.md
 **/node_modules
+.venv
+*.sqlite3
+smoke-server.*
+.coverage
 docs/*
 docker/saltconfig
 docker/sql

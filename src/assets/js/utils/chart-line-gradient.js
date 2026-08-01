@@ -3,7 +3,7 @@ let gradientLinePlugin = {
   afterLayout: function (chartInstance) {
     if (chartInstance.options.linearGradientLine) {
       // The context, needed for the creation of the linear gradient.
-      let ctx = chartInstance.chart.ctx;
+      let ctx = chartInstance.ctx;
       chartInstance.data.datasets.forEach((dataset) => {
         // Calculate min and max values of the dataset.
         let minValue = Number.MAX_VALUE;
@@ -14,7 +14,7 @@ let gradientLinePlugin = {
           if (maxValue < dataset.data[i])
             maxValue = dataset.data[i];
         }
-        let yAxis = chartInstance.scales['y-axis-0'];
+        let yAxis = chartInstance.scales.y;
         let minValueYPixel = yAxis.getPixelForValue(minValue) || 0;
         let maxValueYPixel = yAxis.getPixelForValue(maxValue) || 0;
         // Create the gradient.
@@ -28,7 +28,7 @@ let gradientLinePlugin = {
       })
     } else if (chartInstance.options.radialGradientDonut) {
       // The context, needed for the creation of the linear gradient.
-      let ctx = chartInstance.chart.ctx;
+      let ctx = chartInstance.ctx;
 
       chartInstance.data.datasets.forEach((dataset) => {
         let centerX = ((chartInstance.chartArea.left + chartInstance.chartArea.right) / 2);

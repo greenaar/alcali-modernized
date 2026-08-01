@@ -16,7 +16,7 @@
           >
             <v-img
                 class="elevation-0"
-                :src="require('../assets/img/logo.png')"
+                :src="logo"
                 width="100"
                 aspect-ratio="1"
                 style="float: right"
@@ -31,7 +31,7 @@
                 <v-toolbar-title>{{ $t('views.Login.LoginTitle') }}</v-toolbar-title>
                 <v-spacer></v-spacer>
               </v-toolbar>
-              <v-form @keyup.native.enter="authenticate">
+              <v-form @keyup.enter="authenticate">
                 <v-card-text>
                   <v-text-field
                       :label="$t('views.Login.Login')"
@@ -69,8 +69,7 @@
 </template>
 <script>
   import GoogleLogo from "../components/GoogleLogo"
-  import Vue from "vue"
-  import GAuth from "vue-google-oauth2"
+  import logo from "../assets/img/logo.png"
 
   export default {
     name: "Login",
@@ -83,6 +82,8 @@
       provider: null,
       clientId: null,
       redirectUri: null,
+      logo,
+      googleCodeClient: null,
     }),
     methods: {
       authenticate() {
@@ -96,9 +97,11 @@
           })
       },
       handleClickGetAuth() {
-        this.$gAuth.getAuthCode()
-          .then(authCode => {
-            // On success
+        if (this.googleCodeClient) {
+          this.googleCodeClient.requestCode()
+        }
+      },
+      submitGoogleCode(authCode) {
             let formData = new FormData()
             formData.set("provider", this.provider)
             formData.set("code", authCode)
@@ -108,10 +111,18 @@
               .catch(() => {
                 this.$toast.error(this.$t("views.Login.Unauthorized"))
               })
-          })
-          .catch(() => {
-            this.$toast.error(this.$t("views.Login.Unauthorized"))
-          })
+      },
+      loadGoogleIdentityServices() {
+        if (window.google && window.google.accounts) return Promise.resolve()
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script")
+          script.src = "https://accounts.google.com/gsi/client"
+          script.async = true
+          script.defer = true
+          script.onload = resolve
+          script.onerror = reject
+          document.head.appendChild(script)
+        })
       },
     },
     mounted() {
@@ -119,17 +130,21 @@
         this.provider = response.data.provider
         this.clientId = response.data.client_id
         this.redirectUri = response.data.redirect_uri
-        const gauthOption = {
-          clientId: this.clientId,
-          scope: "profile email",
-          prompt: "select_account",
-        }
-        Vue.use(GAuth, gauthOption)
-        let checkGauthLoad = setInterval(() => {
-          this.isInit = this.$gAuth.isInit
-          this.isSignIn = this.$gAuth.isAuthorized
-          if (this.isInit) clearInterval(checkGauthLoad)
-        }, 1000)
+        return this.loadGoogleIdentityServices()
+      }).then(() => {
+        this.googleCodeClient = window.google.accounts.oauth2.initCodeClient({
+          client_id: this.clientId,
+          scope: "openid profile email",
+          ux_mode: "popup",
+          callback: response => {
+            if (response.code) this.submitGoogleCode(response.code)
+            else this.$toast.error(this.$t("views.Login.Unauthorized"))
+          },
+        })
+        this.isInit = true
+      }).catch(() => {
+        // Social authentication is optional; local login remains available.
+        this.isInit = false
       })
     },
   }

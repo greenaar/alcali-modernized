@@ -13,7 +13,7 @@
           hide-details
         ></v-text-field>
       </v-card-title>
-      <v-data-table
+      <legacy-data-table
         :sort-by.sync="settings.KeysTable.table.sortBy"
         @update:sort-by="updateSettings"
         :sort-desc.sync="settings.KeysTable.table.sortDesc"
@@ -46,20 +46,19 @@
           }}</v-chip>
         </template>
         <template v-slot:item.action="{ item }">
-          <template v-for="action in keyAction(item.status)">
+          <template v-for="action in keyAction(item.status)" :key="action">
             <v-btn
               small
               class="ma-2"
               dark
               v-bind:color="keysRepr(action)"
               @click="manageKey(action, item.minion_id)"
-              :key="action"
             >
               {{ $t(`components.KeysTable.${action}`) }}
             </v-btn>
           </template>
         </template>
-      </v-data-table>
+      </legacy-data-table>
     </v-card>
   </v-container>
 </template>

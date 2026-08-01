@@ -7,15 +7,15 @@
           <v-tabs v-model="tab">
             <v-tabs-slider></v-tabs-slider>
 
-            <v-tab href="#formatted">
+            <v-tab value="formatted">
               {{ $t("components.RunCard.Formatted") }}
             </v-tab>
-            <v-tab href="#cli">
+            <v-tab value="cli">
               {{ $t("components.RunCard.Cli") }}
             </v-tab>
           </v-tabs>
-          <v-tabs-items v-model="tab">
-            <v-tab-item id="formatted" eager>
+          <v-window v-model="tab">
+            <v-window-item value="formatted" eager>
               <v-card>
                 <v-spacer></v-spacer>
                 <v-card-text>
@@ -118,8 +118,8 @@
                         >
                           <template v-slot:append-outer v-if="dummySelectedFunc">
                             <v-menu offset-y>
-                              <template v-slot:activator="{ on }">
-                                <v-icon color="black" v-on="on">info </v-icon>
+                              <template v-slot:activator="{ props }">
+                                <v-icon color="black" v-bind="props">info </v-icon>
                               </template>
                               <div class="desc">
                                 <pre>{{ dummySelectedFunc.description }}</pre>
@@ -175,11 +175,11 @@
                                         offset-y
                                         min-width="290px"
                                       >
-                                        <template v-slot:activator="{ on }">
+                                        <template v-slot:activator="{ props }">
                                           <v-text-field
                                             v-model="scheduleDate"
                                             readonly
-                                            v-on="on"
+                                            v-bind="props"
                                           ></v-text-field>
                                         </template>
                                         <v-date-picker
@@ -200,11 +200,11 @@
                                         max-width="290px"
                                         min-width="290px"
                                       >
-                                        <template v-slot:activator="{ on }">
+                                        <template v-slot:activator="{ props }">
                                           <v-text-field
                                             v-model="scheduleTime"
                                             readonly
-                                            v-on="on"
+                                            v-bind="props"
                                           ></v-text-field>
                                         </template>
                                         <v-time-picker
@@ -243,13 +243,12 @@
                             ></v-switch>
                           </v-col>
                           <v-col sm="12" v-show="pillarSwitch">
-                            <codemirror
+                            <yaml-editor
                               v-model="code"
-                              :options="cmOptions"
-                            ></codemirror>
+                            ></yaml-editor>
                           </v-col>
                           <v-col sm="12" v-show="pillarSwitch">
-                            <span v-html="pillarRendered"></span>
+                            <span v-html="$sanitize(pillarRendered)"></span>
                           </v-col>
                         </v-row>
                       </v-col>
@@ -302,15 +301,15 @@
                   >
                 </v-card-actions>
               </v-card>
-            </v-tab-item>
-            <v-tab-item id="cli">
+            </v-window-item>
+            <v-window-item value="cli">
               <TerminalCard
                 v-if="functions !== null"
                 :minions="minions"
                 :functions="functions"
               ></TerminalCard>
-            </v-tab-item>
-          </v-tabs-items>
+            </v-window-item>
+          </v-window>
         </v-card>
       </v-col>
     </v-row>
@@ -321,7 +320,7 @@
             <v-spacer></v-spacer>
             <v-btn color="primary" dark @click="results = ''">{{ $t("components.RunCard.Clear") }}</v-btn>
           </v-card-title>
-          <v-card-text v-html="results" class="ansiStyle"></v-card-text>
+          <v-card-text v-html="$sanitize(results)" class="ansiStyle"></v-card-text>
         </v-card>
       </v-col>
     </v-row>
@@ -331,28 +330,13 @@
 <script>
 import TerminalCard from "./TerminalCard";
 import CronUI from "../assets/js/utils/cron-ui";
-// require component
-import { codemirror } from "vue-codemirror";
-
-import "codemirror/addon/display/autorefresh.js";
-import "codemirror/addon/fold/foldcode.js";
-import "codemirror/addon/fold/brace-fold.js";
-import "codemirror/addon/fold/foldgutter.js";
-import "codemirror/addon/fold/indent-fold.js";
-import "codemirror/mode/javascript/javascript.js";
-
-// require styles
-import "codemirror/lib/codemirror.css";
-// language js
-import "codemirror/mode/yaml/yaml.js";
-// theme css
-import "../assets/css/made-of-code.css";
+import YamlEditor from "./YamlEditor";
 
 import yaml from "js-yaml";
 
 export default {
   name: "RunCard",
-  components: { TerminalCard, codemirror },
+  components: { TerminalCard, YamlEditor },
   data() {
     return {
       scheduleSwitch: false,
@@ -360,16 +344,6 @@ export default {
       saveJobSwitch: false,
       jobTemplateName: "",
       code: "# Type valid yaml to override pillars\n\n\n",
-      cmOptions: {
-        tabSize: 4,
-        mode: "yaml",
-        theme: "made-of-code",
-        line: true,
-        autoRefresh: true,
-        lineNumbers: false,
-        foldGutter: true,
-        gutters: ["CodeMirror-foldgutter"],
-      },
       tab: null,
       client: [
         { text: "Local", value: "local" },
@@ -452,7 +426,7 @@ export default {
       // Functions.
       if (
         this.selectedFunc &&
-        this.selectedFunc.hasOwnProperty("name")
+        Object.prototype.hasOwnProperty.call(this.selectedFunc, "name")
       ) {
         command += ` ${this.selectedFunc.name}`;
       } else {
@@ -553,7 +527,7 @@ export default {
     },
     pillarRendered: function () {
       return `${JSON.stringify(
-        yaml.safeLoad(this.code) === null ? {} : yaml.safeLoad(this.code)
+        yaml.load(this.code) === null ? {} : yaml.load(this.code)
       )}`;
     },
   },
@@ -577,7 +551,7 @@ export default {
     }
     this.batch = this.$route.query.batch ? this.$route.query.batch : null;
     this.target = this.$route.query.tgt;
-    if (this.$route.query.hasOwnProperty("fun") === true) {
+    if (Object.prototype.hasOwnProperty.call(this.$route.query, "fun")) {
       this.selectedFunc = { name: this.$route.query.fun }
       this.dummySelectedFunc = this.$route.query.fun
     }

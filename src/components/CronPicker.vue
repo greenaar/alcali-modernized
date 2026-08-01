@@ -6,8 +6,8 @@
         :nudge-width="200"
         offset-x
     >
-      <template v-slot:activator="{ on }">
-        <v-text-field label="cron" v-on="on" v-model="cron"></v-text-field>
+      <template v-slot:activator="{ props }">
+        <v-text-field label="cron" v-bind="props" v-model="cron"></v-text-field>
       </template>
       <v-card>
         <v-tabs
@@ -17,15 +17,17 @@
           <v-tab
               v-for="item in crondata"
               :key="item.name"
+              :value="item.name"
           >
             {{ item.name }}
           </v-tab>
         </v-tabs>
 
-        <v-tabs-items v-model="tab">
-          <v-tab-item
+    <v-window v-model="tab">
+      <v-window-item
               v-for="item in crondata"
               :key="item.name"
+              :value="item.name"
           >
             <v-card flat>
               <v-card-text v-if="item.name !== 'Week'&&item.name !== 'Day'">
@@ -91,8 +93,8 @@
                 </v-radio-group>
               </v-card-text>
             </v-card>
-          </v-tab-item>
-        </v-tabs-items>
+      </v-window-item>
+    </v-window>
         <v-divider></v-divider>
         <v-card-actions>
           <div class="flex-grow-1"></div>

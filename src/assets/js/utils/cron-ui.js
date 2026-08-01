@@ -156,7 +156,7 @@ CronUI.prototype.periodChanged = function() {
   }
 
   // Show only blocks that needs to be shown by the period chosen
-  if (CronUI.displayMatrix.hasOwnProperty(period)) {
+  if (Object.prototype.hasOwnProperty.call(CronUI.displayMatrix, period)) {
     let b = CronUI.displayMatrix[period]
     for (let i = 0; i < b.length; i++) {
       blocks[b[i]].style.display = ""

@@ -2,45 +2,38 @@
 Django settings for Alcali project.
 
 """
-import errno
 import os
 
 # If there's our env var, it means that env file was loaded somehow(docker).
 from os.path import join
 from pathlib import Path
-from distutils.util import strtobool
-
 from dotenv import load_dotenv
 
-DB_BACKEND = os.environ.get("DB_BACKEND")
-if not DB_BACKEND:
+
+def env_bool(name, default=False):
+    """Read a boolean environment variable without the removed distutils module."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "t", "yes", "y", "on"}
+
+if not os.environ.get("DB_BACKEND"):
     # Load env file
     ENV_PATH = os.environ.get("ENV_PATH", os.getcwd())
     if not ENV_PATH:
         raise FileNotFoundError("ENV_PATH is not set")
     dotenv_path = join(ENV_PATH, ".env")
     env_file = Path(dotenv_path)
-    if not env_file.exists():
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), env_file)
-    load_dotenv(dotenv_path)
+    if env_file.exists():
+        load_dotenv(dotenv_path)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ["SECRET_KEY"]
+SECRET_KEY = os.environ.get("SECRET_KEY", "alcali-development-only-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DJANGO_DEBUG = os.environ.get("DJANGO_DEBUG")
-if DJANGO_DEBUG:
-    try:
-        # lower('y', 'yes', 't', 'true', 'on', '1')
-        DJANGO_DEBUG = strtobool(DJANGO_DEBUG)
-    # None, empty, bool...
-    except (AttributeError, TypeError, ValueError):
-        DJANGO_DEBUG = False
-else:
-    DJANGO_DEBUG = False
-DEBUG = DJANGO_DEBUG
+DEBUG = env_bool("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "127.0.0.1").split(" ")
 
@@ -61,9 +54,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # TODO: check priority
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -93,17 +86,27 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.{}".format(os.environ["DB_BACKEND"]),
-        "ATOMIC_REQUESTS": True,
-        "NAME": os.environ.get("DB_NAME"),
-        "USER": os.environ.get("DB_USER"),
-        "PASSWORD": os.environ.get("DB_PASS"),
-        "HOST": os.environ.get("DB_HOST"),
-        "PORT": os.environ.get("DB_PORT"),
+DB_BACKEND = os.environ.get("DB_BACKEND", "sqlite3")
+if DB_BACKEND == "sqlite3":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.environ.get("DB_NAME", os.path.join(BASE_DIR, "alcali.sqlite3")),
+            "ATOMIC_REQUESTS": True,
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": f"django.db.backends.{DB_BACKEND}",
+            "ATOMIC_REQUESTS": True,
+            "NAME": os.environ.get("DB_NAME"),
+            "USER": os.environ.get("DB_USER"),
+            "PASSWORD": os.environ.get("DB_PASS"),
+            "HOST": os.environ.get("DB_HOST"),
+            "PORT": os.environ.get("DB_PORT"),
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators
@@ -124,7 +127,7 @@ LANGUAGE_CODE = "en-us"
 
 USE_I18N = True
 
-USE_L10N = True
+USE_TZ = env_bool("USE_TZ", default=False)
 
 # Static files (CSS, JavaScript, Images)
 # Place static in the same location as webpack build files
@@ -132,7 +135,23 @@ STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "dist", "static")
 STATICFILES_DIRS = []
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
+}
+
+# Secure reverse-proxy defaults. TLS verification for Salt itself is configured
+# separately with SALT_VERIFY_TLS and SALT_CA_BUNDLE.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE")
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE")
+CSRF_TRUSTED_ORIGINS = [
+    origin
+    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split()
+    if origin
+]
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),

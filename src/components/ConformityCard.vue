@@ -2,7 +2,7 @@
   <v-container fluid>
     <v-card>
       <v-card-title>{{minion_id}}</v-card-title>
-      <v-simple-table>
+      <v-table>
         <tbody>
         <tr>
           <td>{{ $t('components.ConformityCard.Highstate') }}</td>
@@ -25,7 +25,7 @@
           </td>
         </tr>
         </tbody>
-      </v-simple-table>
+      </v-table>
     </v-card>
   </v-container>
 </template>

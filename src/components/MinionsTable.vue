@@ -5,8 +5,8 @@
         {{ $t("components.MinionsTable.Minion") }}
         <v-spacer></v-spacer>
         <v-menu v-model="menu" :close-on-content-click="false" offset-y offset-x left>
-          <template v-slot:activator="{ on }">
-            <v-btn color="primary" dark v-on="on" class="mr-5">
+          <template v-slot:activator="{ props }">
+            <v-btn color="primary" v-bind="props" class="mr-5">
               {{ $t("components.MinionsTable.Column") }}
             </v-btn>
           </template>
@@ -15,8 +15,8 @@
             <v-card-text>
               <v-container fluid>
                 <v-row no-gutters>
-                  <template v-for="(item, index) in available_headers">
-                    <v-col :key="index" cols="4">
+                  <template v-for="(item, index) in available_headers" :key="index">
+                    <v-col cols="4">
                       <v-checkbox :label="item" :value="item" v-model="settings.MinionsTable.table.columns"
                                   @change="updateSettings" hide-details></v-checkbox>
                     </v-col>
@@ -35,7 +35,7 @@
           class="search"
         ></v-text-field>
       </v-card-title>
-      <v-data-table
+      <legacy-data-table
         :sort-by.sync="settings.MinionsTable.table.sortBy"
         @update:sort-by="updateSettings"
         :headers="customHeaders"
@@ -78,7 +78,7 @@
             </v-btn>
           </div>
         </template>
-      </v-data-table>
+      </legacy-data-table>
     </v-card>
     <div class="text-center">
       <v-dialog v-model="dialog" width="500">

@@ -1,10 +1,6 @@
-# Alcali
+# Alcali (modernized)
 
-[![Build](https://github.com/latenighttales/alcali/actions/workflows/test_on_push.yml/badge.svg?branch=develop)](https://github.com/latenighttales/alcali/actions/workflows/test_on_push.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=latenighttales/alcali)](https://dependabot.com)
-[![codecov](https://codecov.io/gh/latenighttales/alcali/branch/2019.2.0/graph/badge.svg)](https://codecov.io/gh/latenighttales/alcali)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 
 <img align="right" height="300" src="https://upload.wikimedia.org/wikipedia/commons/5/5f/Logo_du_Mois_de_la_contribution_sans_texte.svg">
 
@@ -12,6 +8,48 @@
 ## What's Alcali?
 
 Alcali is a web based tool for monitoring and administrating **Saltstack** Salt.
+
+## Modernization status
+
+This branch is a community-maintenance baseline for evaluating a new home for
+Alcali. It updates the core application to Python 3.12, Django 5.2 LTS, Vue 3,
+Vuetify 3, Node 22 and pnpm. It also replaces the unmaintained `salt-pepper`
+client with a small HTTPS client whose certificate verification is enabled by
+default.
+
+The self-contained backend suite and production frontend build are expected to
+pass in CI. A live deployment must still be tested against the exact Salt
+master, REST API and returner database schema used by the operator. LDAP and
+Google authentication remain optional compatibility paths and are not part of
+the core CI gate.
+
+| Area | Supported baseline |
+| --- | --- |
+| Python / Django | Python 3.12+, Django 5.2 LTS |
+| Frontend | Node 22, Vue 3, Vuetify 3, pnpm 11 |
+| Database | SQLite for development; MariaDB/MySQL for Salt returner data |
+| Salt API | REST (`rest_cherrypy`), HTTPS verification on by default |
+
+### Local verification
+
+```commandline
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements/prod.txt -r requirements/test.txt
+DB_BACKEND=sqlite3 SECRET_KEY=development-only .venv/bin/python manage.py migrate
+DB_BACKEND=sqlite3 SECRET_KEY=development-only .venv/bin/python manage.py runserver
+```
+
+In a second terminal:
+
+```commandline
+corepack enable
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm build
+```
+
+For production, copy `env.sample`, replace every credential, provide a trusted
+CA with `SALT_CA_BUNDLE` when Salt uses an internal certificate authority, and
+build the multi-stage `Dockerfile`.
 
 ## Features
 
@@ -27,9 +65,11 @@ Alcali is a web based tool for monitoring and administrating **Saltstack** Salt.
 
 - **LDAP** and **Google OAuth2** authentication.
 
-## Try it!
+## Historical demo stack
 
-If you just want to have a look, just clone the [repository](https://github.com/latenighttales/alcali.git) and use [docker-compose](https://docs.docker.com/compose/):
+The repository still contains the original all-in-one Salt demo compose files.
+They are useful as integration fixtures, but their Salt images and optional
+authentication paths need separate validation before production use.
 
 ```commandline
 git clone https://github.com/latenighttales/alcali.git

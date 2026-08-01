@@ -3,7 +3,7 @@
     <v-row>
       <v-col sm="12">
         <v-card>
-          <v-data-table
+          <legacy-data-table
               :sort-by.sync="settings.UserCard.table.sortBy"
               @update:sort-by="updateSettings"
               :sort-desc.sync="settings.UserCard.table.sortDesc"
@@ -19,8 +19,8 @@
                 <v-toolbar-title class="headline">{{$t('components.mixins.UserCard.Users')}}</v-toolbar-title>
                 <div class="flex-grow-1"></div>
                 <v-dialog v-model="dialog" max-width="500px">
-                  <template v-slot:activator="{ on }">
-                    <v-btn color="primary" dark class="mb-2" v-on="on" @click="user = {}" :disabled="!isStaff">{{$t('components.mixins.UserCard.Create')}}</v-btn>
+                  <template v-slot:activator="{ props }">
+                    <v-btn color="primary" class="mb-2" v-bind="props" @click="user = {}" :disabled="!isStaff">{{$t('components.mixins.UserCard.Create')}}</v-btn>
                   </template>
                   <v-card>
                     <v-card-title>{{ editing === true ? `${$t('components.mixins.UserCard.UpdateUser')}` : `${$t('components.mixins.UserCard.CreateUser')}` }}</v-card-title>
@@ -145,7 +145,7 @@
                 </v-btn>
               </div>
             </template>
-          </v-data-table>
+          </legacy-data-table>
         </v-card>
       </v-col>
     </v-row>

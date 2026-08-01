@@ -3,6 +3,8 @@ from django.urls import reverse
 
 from api.models import Keys, Minions, Functions, Schedule, SaltReturns
 
+pytestmark = pytest.mark.integration
+
 
 def test_demo_default_admin(admin_client):
     """

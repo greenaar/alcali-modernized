@@ -18,8 +18,8 @@
         <v-list-item v-for="route in routes" :key="route.name" :to="`${route.path}`">
           <v-list-item-action v-if="settings.Layout.mini">
             <v-tooltip right>
-              <template v-slot:activator="{ on }">
-                <v-icon v-on="on">{{ route.icon }}</v-icon>
+              <template v-slot:activator="{ props }">
+                <v-icon v-bind="props">{{ route.icon }}</v-icon>
               </template>
               <span>{{ $t(route.name) }}</span>
             </v-tooltip>
@@ -37,8 +37,8 @@
         <v-list-item to="/users">
           <v-list-item-action v-if="settings.Layout.mini">
             <v-tooltip right>
-              <template v-slot:activator="{ on }">
-                <v-icon v-on="on">group</v-icon>
+              <template v-slot:activator="{ props }">
+                <v-icon v-bind="props">group</v-icon>
               </template>
               <span>{{ $t("components.core.Layout.Users") }}</span>
             </v-tooltip>
@@ -53,8 +53,8 @@
         <v-list-item to="/settings">
           <v-list-item-action v-if="settings.Layout.mini">
             <v-tooltip right>
-              <template v-slot:activator="{ on }">
-                <v-icon v-on="on">settings</v-icon>
+              <template v-slot:activator="{ props }">
+                <v-icon v-bind="props">settings</v-icon>
               </template>
               <span>{{ $t("components.core.Layout.Settings") }}</span>
             </v-tooltip>
@@ -99,12 +99,12 @@
         <v-icon>search</v-icon>
       </v-btn>
       <v-menu v-model="notif_menu" bottom left offset-y offset-x>
-        <template v-slot:activator="{ on }">
+        <template v-slot:activator="{ props }">
           <v-badge :color="notif_nb > 0 ? 'primary' : 'transparent'" overlap>
             <template v-slot:badge>
               <span v-if="notif_nb > 0">{{ notif_nb }}</span>
             </template>
-            <v-icon v-on="on" @click="notif_nb = 0">notifications</v-icon>
+            <v-icon v-bind="props" @click="notif_nb = 0">notifications</v-icon>
           </v-badge>
         </template>
         <v-card min-width="500px" max-width="500px">
@@ -132,8 +132,8 @@
         </v-card>
       </v-menu>
       <v-menu bottom left offset-y offset-x close-on-click>
-        <template v-slot:activator="{ on }">
-          <v-btn v-on="on" icon>
+        <template v-slot:activator="{ props }">
+          <v-btn v-bind="props" icon>
             <v-icon>more_vert</v-icon>
           </v-btn>
         </template>
@@ -224,7 +224,7 @@ export default {
     updateDomAndSettings(val) {
       this.settings.Layout[val] = !this.settings.Layout[val]
       if (val === 'dark') {
-        this.$vuetify.theme.dark = this.settings.Layout[val]
+        this.$vuetify.theme.global.name = this.settings.Layout[val] ? "dark" : "light"
       }
       this.$store.commit("updateSettings")
     },
@@ -243,7 +243,7 @@ export default {
     },
     toggleTheme() {
       this.$store.dispatch("toggleTheme").then(() => {
-        this.$vuetify.theme.dark = JSON.parse(this.$store.state.theme);
+        this.$vuetify.theme.global.name = JSON.parse(this.$store.state.theme) ? "dark" : "light";
       });
     },
     saltStatus() {
@@ -272,7 +272,7 @@ export default {
               data.icon = "keyboard_tab";
               data.link = "";
               let target = "";
-              if (data.data.hasOwnProperty("tgt")) {
+              if (Object.prototype.hasOwnProperty.call(data.data, "tgt")) {
                 target = data.data.tgt;
               } else {
                 target = data.data.minions.length + " minion(s)";
@@ -344,7 +344,7 @@ export default {
   created() {
     this.getPrefs()
     this.saltStatus()
-    this.$vuetify.theme.dark = this.settings.Layout.dark
+    this.$vuetify.theme.global.name = this.settings.Layout.dark ? "dark" : "light"
   },
   computed: {
     ...mapState({

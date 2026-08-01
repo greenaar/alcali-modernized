@@ -13,7 +13,7 @@
           hide-details
         ></v-text-field>
       </v-card-title>
-      <v-data-table
+      <legacy-data-table
         :sort-by.sync="settings.ScheduleTable.table.sortBy"
         @update:sort-by="updateSettings"
         :sort-desc.sync="settings.ScheduleTable.table.sortDesc"
@@ -65,7 +65,7 @@
             </v-btn>
           </div>
         </template>
-      </v-data-table>
+      </legacy-data-table>
     </v-card>
   </v-container>
 </template>

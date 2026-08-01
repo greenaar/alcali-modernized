@@ -14,7 +14,7 @@ with open("requirements/social.txt", "r") as fh:
     social_requirements = fh.read().splitlines()
 
 with open("VERSION", "r", encoding="utf-8") as fh:
-    version = fh.read()
+    version = fh.read().strip()
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -30,13 +30,16 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/latenighttales/alcali.git",
     packages=find_packages(),
+    python_requires=">=3.12",
     classifiers=[
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Development Status :: 5 - Production/Stable",
         "Environment :: Web Environment",
-        "Framework :: Django",
+        "Framework :: Django :: 5.2",
         "Intended Audience :: Developers",
         "Intended Audience :: Information Technology",
         "Intended Audience :: System Administrators",

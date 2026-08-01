@@ -20,7 +20,7 @@
                 hide-details
               ></v-text-field>
             </v-card-title>
-            <v-data-table
+          <legacy-data-table
               sort-by="jid"
               sort-desc
               :headers="jobs_headers"
@@ -59,7 +59,7 @@
               <template v-slot:item.alter_time="{ item }">
                 {{ new Date(item.alter_time).toLocaleString("en-GB") }}
               </template>
-            </v-data-table>
+          </legacy-data-table>
           </v-card>
         </v-container>
       </v-col>
@@ -77,7 +77,7 @@
                 hide-details
               ></v-text-field>
             </v-card-title>
-            <v-data-table
+          <legacy-data-table
               :headers="minions_headers"
               :items="minions"
               :items-per-page="5"
@@ -112,7 +112,7 @@
                     : new Date(item.last_highstate).toLocaleString("en-GB")
                 }}
               </template>
-            </v-data-table>
+          </legacy-data-table>
           </v-card>
         </v-container>
       </v-col>

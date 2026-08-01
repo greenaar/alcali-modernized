@@ -2,7 +2,7 @@
   <v-container fluid>
     <v-card>
       <v-card-title>{{ $t('components.KeysStatusCard.keys') }}</v-card-title>
-      <v-simple-table>
+      <v-table>
         <tbody>
         <tr v-for="(count, status) in keys_status" :key="status">
           <td class="pr-0">
@@ -12,7 +12,7 @@
           <td class="text-right">{{ count }} / {{keys_total}}</td>
         </tr>
         </tbody>
-      </v-simple-table>
+      </v-table>
     </v-card>
   </v-container>
 </template>

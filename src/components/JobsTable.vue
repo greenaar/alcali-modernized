@@ -19,12 +19,12 @@
                 offset-y
                 min-width="290px"
               >
-                <template v-slot:activator="{ on }">
+                <template v-slot:activator="{ props }">
                   <v-text-field
                     v-model="dateRangeText"
                     :label="$t('components.JobsTable.SelectDate')"
                     readonly
-                    v-on="on"
+                    v-bind="props"
                   ></v-text-field>
                 </template>
                 <v-date-picker
@@ -116,7 +116,7 @@
               hide-details
             ></v-text-field>
           </v-card-title>
-          <v-data-table
+          <legacy-data-table
             :sort-by.sync="settings.JobsTable.table.sortBy"
             @update:sort-by="updateSettings"
             :sort-desc.sync="settings.JobsTable.table.sortDesc"
@@ -204,7 +204,7 @@
                 </v-btn>
               </div>
             </template>
-          </v-data-table>
+          </legacy-data-table>
         </v-card>
       </v-col>
     </v-row>
@@ -261,7 +261,7 @@ export default {
       return this.selectedDate.join(" ~ ");
     },
     filteredHeaders() {
-      if (this.filter && this.filter.hasOwnProperty("target[]")) {
+      if (this.filter && Object.prototype.hasOwnProperty.call(this.filter, "target[]")) {
         let newHeaders = this.headers
         if (newHeaders[1].value === "id") {
           newHeaders.splice(1, 1);

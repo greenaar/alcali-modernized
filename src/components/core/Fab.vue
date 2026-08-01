@@ -17,14 +17,14 @@
         <v-icon v-else>menu</v-icon>
       </v-btn>
     </template>
-    <template v-for="f in fabs">
-      <v-tooltip left :key="f.tooltip">
-        <template v-slot:activator="{ on }">
+    <template v-for="f in fabs" :key="f.tooltip">
+      <v-tooltip location="left">
+        <template v-slot:activator="{ props }">
           <v-btn
               fab
               dark
               small
-              v-on="on"
+              v-bind="props"
               :color="f.color"
               @click="emit('fab_action', f.action)"
           >

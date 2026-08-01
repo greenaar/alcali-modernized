@@ -28,6 +28,7 @@ def test_keys_list(key, admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_keys_refresh(key, admin_client, jwt):
     response = admin_client.post("/api/keys/refresh/", {}, **jwt)
     assert response.json()["result"] == "refreshed"
@@ -42,6 +43,7 @@ def test_keys_status(key, admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_keys_manage(key, admin_client, jwt):
     response = admin_client.post(
         "/api/keys/manage_keys/", {"target": "master", "action": "reject"}, **jwt
@@ -64,6 +66,7 @@ def test_minions_delete(minion, admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_minions_refresh(minion, admin_client, jwt):
     response = admin_client.post(
         "/api/minions/refresh_minions/", {"minion_id": minion.minion_id}, **jwt
@@ -143,6 +146,7 @@ def test_schedules_list(schedule, admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_schedules_refresh(admin_client, jwt):
     response = admin_client.post("/api/schedules/refresh/", {}, **jwt)
     assert "result" in response.json()
@@ -150,6 +154,7 @@ def test_schedules_refresh(admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_schedules_manage(admin_client, jwt):
     response = admin_client.post(
         "/api/run/",
@@ -259,6 +264,7 @@ def test_get_events(admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_run_scheduled_cron(admin_client, jwt):
     response = admin_client.post(
         "/api/run/",
@@ -275,6 +281,7 @@ def test_run_scheduled_cron(admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_run_scheduled_once(admin_client, jwt):
     response = admin_client.post(
         "/api/run/",
@@ -298,6 +305,7 @@ def test_get_functions(admin_client, jwt):
 
 
 @pytest.mark.django_db()
+@pytest.mark.integration
 def test_wheel_raw(admin_client, jwt):
     response = admin_client.post(
         "/api/run/",

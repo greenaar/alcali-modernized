@@ -2,7 +2,7 @@
   <v-container fluid>
     <v-card>
       <v-card-title>{{ $t('components.AlcaliStatusCard.Status') }}</v-card-title>
-      <v-simple-table>
+      <v-table>
         <tbody>
         <tr>
           <td>{{ $t('components.KeysStatusCard.saltWebsocket') }}</td>
@@ -20,7 +20,7 @@
           <td class="text-right">{{ count }}</td>
         </tr>
         </tbody>
-      </v-simple-table>
+      </v-table>
     </v-card>
   </v-container>
 </template>

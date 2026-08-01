@@ -7,22 +7,33 @@ from django.conf import settings
 
 
 @pytest.mark.django_db
-def test_check():
+def test_check(monkeypatch):
+    for name, value in {
+        "MASTER_MINION_ID": "master",
+        "DB_BACKEND": "sqlite3",
+        "DB_NAME": ":memory:",
+        "SECRET_KEY": "test-secret",
+        "ALLOWED_HOSTS": "localhost",
+        "SALT_URL": "https://salt.example.test:8080",
+        "SALT_AUTH": "rest",
+    }.items():
+        monkeypatch.setenv(name, value)
     out = StringIO()
-    call_command("check", stdout=out)
+    call_command("alcali_check", stdout=out)
     assert "db:\tok" in out.getvalue()
     assert "env:\tok" in out.getvalue()
 
 
 @pytest.mark.django_db
-def test_check_env_fail():
+def test_check_env_fail(monkeypatch):
     out = StringIO()
-    salt_url = os.environ["SALT_URL"]
-    del os.environ["SALT_URL"]
-    call_command("check", stdout=out)
+    salt_url = os.environ.get("SALT_URL")
+    monkeypatch.delenv("SALT_URL", raising=False)
+    call_command("alcali_check", stdout=out)
     assert "db:\tok" in out.getvalue()
     assert "SALT_URL" in out.getvalue()
-    os.environ["SALT_URL"] = str(salt_url)
+    if salt_url is not None:
+        monkeypatch.setenv("SALT_URL", salt_url)
 
 
 @pytest.mark.django_db
@@ -58,4 +69,4 @@ def test_current_version():
 def test_location():
     out = StringIO()
     call_command("location", stdout=out)
-    assert "/opt/alcali/code" in out.getvalue()
+    assert os.path.abspath(os.getcwd()) in out.getvalue()

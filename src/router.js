@@ -1,5 +1,4 @@
-import Vue from "vue"
-import Router from "vue-router"
+import { createRouter, createWebHistory } from "vue-router"
 import store from "./store"
 import Home from "./views/Home.vue"
 import Login from "./views/Login"
@@ -19,9 +18,8 @@ import NotFound from "./components/NotFound"
 import Search from "./views/Search"
 import JobTemplates from "./views/JobTemplates"
 
-Vue.use(Router)
-
-const router = new Router({
+const router = createRouter({
+  history: createWebHistory(),
   routes: [
     {
       path: "/",
@@ -115,7 +113,7 @@ const router = new Router({
         plainLayout: true,
       },
     },
-    { path: "*", component: NotFound },
+    { path: "/:pathMatch(.*)*", component: NotFound },
     /*
         {
           path: '/about',

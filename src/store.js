@@ -1,19 +1,14 @@
-import Vue from "vue"
-import Vuex from "vuex"
-import createPersistedState from "vuex-persistedstate"
+import { createStore } from "vuex"
 import axios from "axios"
 
-Vue.use(Vuex)
-
-export default new Vuex.Store({
-  plugins: [createPersistedState()],
+export default createStore({
   state: {
-    username: "",
-    email: "",
-    id: "",
-    access: "",
-    refresh: "",
-    is_staff: false,
+    username: localStorage.getItem("username") || "",
+    email: localStorage.getItem("email") || "",
+    id: localStorage.getItem("id") || "",
+    access: localStorage.getItem("access") || "",
+    refresh: localStorage.getItem("refresh") || "",
+    is_staff: localStorage.getItem("is_staff") === "true",
     ws_status: false,
     settings: {},
   },

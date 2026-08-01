@@ -75,7 +75,7 @@ urlpatterns = [
     path("api/jobs/graph", jobs_graph, name="jobs_graph"),
 ]
 
-if os.environ.get("SALT_AUTH") == "rest":
+if os.environ.get("SALT_AUTH", "rest") == "rest":
     urlpatterns += [path("api/token/verify/", verify, name="token_verify")]
 
 if os.environ.get("AUTH_BACKEND") and os.environ["AUTH_BACKEND"].lower() == "social":

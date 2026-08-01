@@ -1,14 +1,12 @@
-version: '3'
-
 services:
   db:
-    image: mariadb
+    image: mariadb:11.4
     restart: always
     environment:
       MYSQL_DATABASE: salt
-      MYSQL_ROOT_PASSWORD: superdupersecretpassword
-      MYSQL_USER: alcali
-      MYSQL_PASSWORD: alcali
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-development-root-password}
+      MYSQL_USER: ${DB_USER:-alcali}
+      MYSQL_PASSWORD: ${DB_PASS:-alcali}
     volumes:
       - ./docker/sql/mysql:/docker-entrypoint-initdb.d
     ports:

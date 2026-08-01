@@ -7,104 +7,75 @@
       >
       <v-tabs-slider></v-tabs-slider>
 
-        <v-tab href="#grain">
+        <v-tab value="grain">
           {{ $t("components.MinionDetailCard.Grains") }}
         </v-tab>
 
-        <v-tab href="#pillar">
+        <v-tab value="pillar">
           {{ $t("components.MinionDetailCard.Pillar") }}
         </v-tab>
-        <v-tab href="#history">
+        <v-tab value="history">
           {{ $t("components.MinionDetailCard.History") }}
         </v-tab>
-        <v-tab href="#graph">
+        <v-tab value="graph">
           {{ $t("components.MinionDetailCard.Graph") }}
         </v-tab>
-        <v-tab v-for="field in minion.custom_fields" v-bind:key="field.name">
+        <v-tab v-for="field in minion.custom_fields" :key="field.name" :value="field.name">
           {{ field.name }}
         </v-tab>
       </v-tabs>
-      <v-tabs-items v-model="settings.MinionDetail.MinionDetailCard.tab">
-        <v-tab-item id="grain">
+      <v-window v-model="settings.MinionDetail.MinionDetailCard.tab">
+        <v-window-item value="grain">
           <div class="text-right">
             <v-btn @click="fold('grainCm')" class="overlayedBtn">{{
               grainCmFolded ? $t("components.MinionDetailCard.Unfold") : $t("components.MinionDetailCard.Fold")
             }}</v-btn>
           </div>
-          <codemirror v-model="code" ref="grainCm" :options="cmOptions"></codemirror>
-        </v-tab-item>
-        <v-tab-item id="pillar">
+          <yaml-editor v-model="code" :read-only="true" :collapsed="grainCmFolded"></yaml-editor>
+        </v-window-item>
+        <v-window-item value="pillar">
           <div class="text-right">
             <v-btn @click="fold('pillarCm')" class="overlayedBtn">{{
               pillarCmFolded ? $t("components.MinionDetailCard.Unfold") : $t("components.MinionDetailCard.Fold")
             }}</v-btn>
           </div>
-          <codemirror v-model="codepillar" ref="pillarCm" :options="cmOptions"></codemirror>
-        </v-tab-item>
-        <v-tab-item id="history">
+          <yaml-editor v-model="codepillar" :read-only="true" :collapsed="pillarCmFolded"></yaml-editor>
+        </v-window-item>
+        <v-window-item value="history">
           <JobsTable :filter="{ 'target[]': minion.minion_id }"></JobsTable>
-        </v-tab-item>
-        <v-tab-item id="graph" eager>
+        </v-window-item>
+        <v-window-item value="graph" eager>
           <JobsChartCard v-if="minion" :minion="minion.minion_id"></JobsChartCard>
-        </v-tab-item>
-        <v-tab-item v-for="field in minion.custom_fields" v-bind:key="field.name">
-          <codemirror :options="cmOptions" :value="yamlRepr(field.value)"></codemirror>
-        </v-tab-item>
-      </v-tabs-items>
+        </v-window-item>
+        <v-window-item v-for="field in minion.custom_fields" :key="field.name" :value="field.name">
+          <yaml-editor :read-only="true" :model-value="yamlRepr(field.value)"></yaml-editor>
+        </v-window-item>
+      </v-window>
     </v-card>
   </v-container>
 </template>
 
 <script>
-// require component
-import CodeMirror from "codemirror";
-import { codemirror } from "vue-codemirror";
 import { mapState } from "vuex"
-
-import "codemirror/addon/display/autorefresh.js";
-import "codemirror/addon/fold/foldcode.js";
-import "codemirror/addon/fold/brace-fold.js";
-import "codemirror/addon/fold/foldgutter.js";
-import "codemirror/addon/fold/indent-fold.js";
-import "codemirror/mode/javascript/javascript.js";
-
-// require styles
-import "codemirror/lib/codemirror.css";
-// language js
-import "codemirror/mode/yaml/yaml.js";
-// theme css
-import "../assets/css/made-of-code.css";
 
 import yaml from "js-yaml";
 import JobsChartCard from "./JobsChartCard";
 import JobsTable from "./JobsTable";
+import YamlEditor from "./YamlEditor";
 
 export default {
   name: "MinionDetailCard",
   components: {
     JobsTable,
     JobsChartCard,
-    codemirror,
+    YamlEditor,
   },
   data() {
     return {
-      code: yaml.safeDump(JSON.parse(this.minion.grain)),
-      codepillar: yaml.safeDump(JSON.parse(this.minion.pillar)),
+      code: yaml.dump(JSON.parse(this.minion.grain)),
+      codepillar: yaml.dump(JSON.parse(this.minion.pillar)),
       grainCmFolded: false,
       pillarCmFolded: false,
-      cmOptions: {
-        tabSize: 4,
-        mode: "yaml",
-        theme: "made-of-code",
-        line: true,
-        autoRefresh: true,
-        lineNumbers: false,
-        readOnly: true,
-        cursorBlinkRate: 0,
-        //viewportMargin: Infinity,
-        foldGutter: true,
-        gutters: ["CodeMirror-foldgutter"],
-      },
     };
   },
   methods: {
@@ -112,16 +83,10 @@ export default {
       this.$store.commit("updateSettings")
     },
     yamlRepr(data) {
-      return yaml.safeDump(JSON.parse(data));
+      return yaml.dump(JSON.parse(data));
     },
     fold(ref) {
-      if (this[ref + "Folded"] === true) {
-        CodeMirror.commands.unfoldAll(this.$refs[ref].codemirror);
-        this[ref + "Folded"] = false;
-      } else {
-        CodeMirror.commands.foldAll(this.$refs[ref].codemirror);
-        this[ref + "Folded"] = true;
-      }
+      this[ref + "Folded"] = !this[ref + "Folded"];
     },
   },
   computed: {

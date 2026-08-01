@@ -1,39 +1,36 @@
-FROM python:3.10-bullseye
+FROM node:22-bookworm-slim AS frontend
 
-MAINTAINER Matt Melquiond
+WORKDIR /build
+RUN corepack enable && corepack prepare pnpm@11.18.0 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY babel.config.js vue.config.js ./
+COPY public ./public
+COPY src ./src
+RUN pnpm build
 
-# Used in travis
+FROM python:3.12-slim-bookworm AS runtime
+
 ARG USER_ID=1000
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/alcali/.local/bin:${PATH}"
 
-# Upgrade System and Install dependencies
 RUN apt-get update \
-  && seq 1 8 | xargs -I{} mkdir -p /usr/share/man/man{} \
-  && apt-get install -y --no-install-recommends -o DPkg::Options::=--force-confold netcat default-libmysqlclient-dev libpq-dev build-essential libldap2-dev libsasl2-dev ldap-utils git pkg-config
+    && apt-get install -y --no-install-recommends ca-certificates default-libmysqlclient-dev build-essential pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid "${USER_ID}" --create-home --home-dir /opt/alcali --shell /usr/sbin/nologin alcali
 
-# Upgrade pip
-RUN pip install --upgrade pip
-
-# Create unprivileged user
-RUN useradd -u ${USER_ID} -ms /bin/bash -d /opt/alcali alcali
-
-# Set default user
-USER alcali
-
-# Add env var and fix path
-ENV PYTHONUNBUFFERED=1 PATH="/opt/alcali/.local/bin:${PATH}"
-
-# Copy project
-COPY --chown=alcali . /opt/alcali/code
-
-# Set work directory
 WORKDIR /opt/alcali/code
+COPY requirements ./requirements
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir -r requirements/prod.txt "mysqlclient>=2.2,<3"
 
-# Install dependencies
-RUN pip install --user -U setuptools
+COPY . .
+COPY --from=frontend /build/dist ./dist
+RUN chown -R alcali:alcali /opt/alcali
 
-# Install project
-RUN pip install --user .[ldap,social] mysqlclient psycopg2
-
+USER alcali
 EXPOSE 8000
-
 ENTRYPOINT ["/opt/alcali/code/docker/utils/entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", "-c", "/opt/alcali/code/docker/gunicorn_config.py"]

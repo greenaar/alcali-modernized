@@ -4,23 +4,23 @@
       <v-card-title>{{ $t('components.ConformityChart.conformity') }}</v-card-title>
       <v-card-text>
         <v-container fluid>
-          <template v-for="name in conformitynames">
-            <v-row no-gutters :key="name" align="center" justify="center">
+          <template v-for="name in conformitynames" :key="name">
+            <v-row no-gutters align="center" justify="center">
               <v-col sm="2">{{name}}</v-col>
               <v-col sm="10">
                 <v-menu open-on-hover max-width="250px">
-                  <template v-slot:activator="{ on }">
-                    <canvas :ref="name" height="15" v-on="on"></canvas>
+                  <template v-slot:activator="{ props }">
+                    <canvas :ref="name" height="15" v-bind="props"></canvas>
                   </template>
-                  <v-simple-table dense>
+                  <v-table density="compact">
                     <thead>
                     <tr>
                       <th>{{name}}</th>
                     </tr>
                     </thead>
-                    <tbody v-html="customTool">
+                    <tbody v-html="$sanitize(customTool)">
                     </tbody>
-                  </v-simple-table>
+                  </v-table>
                 </v-menu>
               </v-col>
             </v-row>
@@ -32,10 +32,12 @@
 </template>
 
 <script>
-  import Chart from "chart.js"
-  import "chartjs-plugin-stacked100"
+  import { Chart, registerables } from "chart.js"
+  import ChartjsPluginStacked100 from "chartjs-plugin-stacked100"
 
-  import colors from "vuetify/lib/util/colors"
+  import colors from "vuetify/util/colors"
+
+  Chart.register(...registerables, ChartjsPluginStacked100)
 
   export default {
     name: "ConformityChart",
@@ -71,7 +73,7 @@
               } else if (["conform", "true"].indexOf(value) >= 0) {
                 color = "#41f40e"
               } else if (["None", "unknown", "null"].indexOf(value) >= 0) {
-                color = this.$vuetify.theme.themes.light.primary
+                color = this.$vuetify.theme.current.colors.primary
               } else {
                 let keys = Object.keys(colors)
                 color = colors[keys[keys.length * Math.random() << 0]].darken2
@@ -83,18 +85,19 @@
               })
             })
             new Chart(this.$refs[this.conformitynames[idx]], {
-              type: "horizontalBar",
+              type: "bar",
               data: chart_data,
               options: {
                 animation: false,
+                indexAxis: "y",
                 plugins: {
                   stacked100: { enable: true },
-                },
-                tooltips: {
-                  enabled: false,
-                  mode: "index",
-                  intersect: false,
-                  custom: (tooltip) => {
+                  legend: { display: false },
+                  tooltip: {
+                    enabled: false,
+                    mode: "index",
+                    intersect: false,
+                    external: ({ tooltip }) => {
                     if (!tooltip) {
                       return
                     }
@@ -115,12 +118,12 @@
                     }
                   },
                 },
-                legend: { display: false },
+                },
                 scales: {
-                  xAxes: [{
+                  x: {
                     stacked: true,
-                    display: false, //this will remove all the x-axis grid lines
-                    gridLines: {
+                    display: false,
+                    grid: {
                       display: false,
                       drawTicks: false,
                       drawBorder: false,
@@ -129,20 +132,20 @@
                       display: false,
                       padding: -20,
                     },
-                  }],
-                  yAxes: [{
+                  },
+                  y: {
                     stacked: true,
-                    display: false, //this will remove all the x-axis grid lines
+                    display: false,
                     ticks: {
                       display: false,
                       padding: -20,
                     },
-                    gridLines: {
+                    grid: {
                       drawTicks: false,
                       display: false,
                       drawBorder: false,
                     },
-                  }],
+                  },
                 },
               },
             })

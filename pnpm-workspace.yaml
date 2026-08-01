@@ -1,0 +1,10 @@
+packages:
+  - '.'
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - core-js
+  - yorkie
+allowBuilds:
+  core-js: set this to true or false
+  yorkie: set this to true or false
