@@ -70,13 +70,22 @@ jobs:
             *) prerelease=false ;;
           esac
 
+          image="${host}/${owner}/alcali"
+
           {
             echo "version=${version}"
             echo "prerelease=${prerelease}"
             echo "registry=${host}"
             echo "server=${scheme}://${host}"
             echo "pypi=${scheme}://${host}/api/packages/${owner}/pypi"
-            echo "image=${host}/${owner}/alcali"
+            echo "image=${image}"
+            # A prerelease must not move :latest.
+            echo "tags<<EOF"
+            echo "${image}:${version}"
+            if [ "${prerelease}" = "false" ]; then
+              echo "${image}:latest"
+            fi
+            echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Run unit tests
@@ -115,9 +124,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.version }}
-            ${{ steps.release.outputs.image }}:latest
+          tags: ${{ steps.release.outputs.tags }}
 
       - name: Attach the distributions to the release
         uses: https://code.forgejo.org/actions/forgejo-release@v2.13.4

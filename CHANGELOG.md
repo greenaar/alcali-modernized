@@ -1,5 +1,27 @@
 # Changelog
 
+## [3008.2.0] - 2026-08-19
+
+First release from the Forgejo fork.
+
+- int: Python 3.12, Django 5.2 LTS, Vue 3, Vuetify 3, Node 22, pnpm 11
+
+- int: replaced the unmaintained salt-pepper client with an HTTPS client that
+  verifies certificates by default
+
+- int: CI, docs and release pipelines moved to Forgejo Actions
+
+- fix: container image could not build (the eslint ignore list never reached
+  the frontend stage) and could not start (CRLF, non-executable entrypoint)
+
+- fix: test suite migrated the development database and passed only once per
+  checkout
+
+- fix: sdist omitted `requirements/`, and `pyproject.toml` was not valid TOML,
+  so no PEP 517 build succeeded
+
+- fix: frontend advisories in dompurify, js-yaml, nanoid and fast-uri
+
 ## [3003.1.0] - 2021-04-23
 
 - int: updated deps (#317)

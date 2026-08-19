@@ -12,6 +12,10 @@ name: CI
 
 on:
   push:
+    # Tag pushes are handled by release.yml, which runs the same gates before
+    # it publishes anything.
+    tags-ignore:
+      - '**'
   pull_request:
   workflow_dispatch:
 
