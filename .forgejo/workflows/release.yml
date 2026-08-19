@@ -23,6 +23,7 @@ on:
       tag:
         description: 'Existing tag to release, e.g. v3008.2.0'
         required: true
+        type: string
 
 # No `permissions:` block: Forgejo ignores it and warns about it. The automatic
 # FORGEJO_TOKEN has deliberately limited capabilities; if the registry uploads

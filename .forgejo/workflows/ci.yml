@@ -12,9 +12,12 @@ name: CI
 
 on:
   push:
-    # Tag pushes are handled by release.yml, which runs the same gates before
-    # it publishes anything.
-    tags-ignore:
+    # Every branch, but no tags: release.yml runs the same gates before it
+    # publishes anything. Expressed as a branch pattern rather than
+    # tags-ignore, because Forgejo requires each declared condition to match
+    # and a tag condition never matches a branch push -- with tags-ignore
+    # alone, branch pushes stop triggering CI altogether.
+    branches:
       - '**'
   pull_request:
   workflow_dispatch:
