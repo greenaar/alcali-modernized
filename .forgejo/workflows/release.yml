@@ -1,0 +1,132 @@
+# Release pipeline: builds the Python distributions and the container image for
+# a tagged version, publishes both to this Forgejo instance's package
+# registries, and attaches the Python files to the Forgejo release entry.
+#
+# Runner requirements: the `ubuntu-latest` label, plus access to a Docker
+# daemon for the image build (same requirement as the `container` job in
+# ci.yml).
+#
+# Tokens: the automatic FORGEJO_TOKEN is used for both registries and for the
+# release entry. If the instance does not let the automatic token write
+# packages, add a PACKAGES_TOKEN secret holding a personal access token with
+# the `write:package` scope; it takes precedence when present.
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: https://code.forgejo.org/actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve version and registry
+        id: release
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          declared="$(tr -d '[:space:]' < VERSION)"
+          if [ "${version}" != "${declared}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} declares version ${version}, but the VERSION" >&2
+            echo "file contains ${declared}. Update VERSION in the same commit the tag" >&2
+            echo "points at, otherwise the published package would carry a version that" >&2
+            echo "does not match the release." >&2
+            exit 1
+          fi
+
+          # Same reasoning as the docs workflow: trust the address the checkout
+          # actually used rather than an instance ROOT_URL that may not resolve
+          # from the runner.
+          origin="$(git remote get-url origin)"
+          case "${origin}" in
+            http://*|https://*)
+              scheme="${origin%%://*}"
+              host="${origin#*://}"
+              host="${host#*@}"
+              host="${host%%/*}"
+              ;;
+            *)
+              scheme="${GITHUB_SERVER_URL%%://*}"
+              host="${GITHUB_SERVER_URL#*://}"
+              host="${host%%/*}"
+              ;;
+          esac
+          owner="${GITHUB_REPOSITORY%%/*}"
+
+          case "${version}" in
+            *dev*|*a[0-9]*|*b[0-9]*|*rc*) prerelease=true ;;
+            *) prerelease=false ;;
+          esac
+
+          {
+            echo "version=${version}"
+            echo "prerelease=${prerelease}"
+            echo "registry=${host}"
+            echo "server=${scheme}://${host}"
+            echo "pypi=${scheme}://${host}/api/packages/${owner}/pypi"
+            echo "image=${host}/${owner}/alcali"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Run unit tests
+        env:
+          DB_BACKEND: sqlite3
+          SECRET_KEY: ci-only
+        run: |
+          python -m pip install -r requirements/prod.txt -r requirements/test.txt
+          pytest
+
+      # dist/ holds the committed frontend bundle, so the Python build has to
+      # write somewhere else or it would land inside the shipped assets.
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install build twine
+          python -m build --outdir build/release
+          python -m twine check build/release/*
+
+      - name: Publish to the package registry
+        env:
+          TWINE_USERNAME: ${{ github.actor }}
+          TWINE_PASSWORD: ${{ secrets.PACKAGES_TOKEN || secrets.FORGEJO_TOKEN }}
+          TWINE_REPOSITORY_URL: ${{ steps.release.outputs.pypi }}
+        run: python -m twine upload --non-interactive build/release/*
+
+      - uses: https://code.forgejo.org/docker/setup-buildx-action@v3
+
+      - uses: https://code.forgejo.org/docker/login-action@v3
+        with:
+          registry: ${{ steps.release.outputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.PACKAGES_TOKEN || secrets.FORGEJO_TOKEN }}
+
+      - name: Build and push the container image
+        uses: https://code.forgejo.org/docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.version }}
+            ${{ steps.release.outputs.image }}:latest
+
+      - name: Attach the distributions to the release
+        uses: https://code.forgejo.org/actions/forgejo-release@v2.13.4
+        with:
+          direction: upload
+          url: ${{ steps.release.outputs.server }}
+          repo: ${{ github.repository }}
+          tag: ${{ github.ref_name }}
+          token: ${{ secrets.FORGEJO_TOKEN }}
+          release-dir: build/release
+          prerelease: ${{ steps.release.outputs.prerelease }}
+          override: true

@@ -1,5 +1,7 @@
 include LICENSE
 include VERSION
+# setup.py reads these at build time, so the sdist is unbuildable without them.
+include requirements/*.txt
 include README.md
 include api/migrations/*
 recursive-include dist *

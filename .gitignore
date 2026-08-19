@@ -9,3 +9,6 @@ htmlcov/
 *.sqlite3
 smoke-server.*
 docs/site/
+# Python build output (the release workflow writes build/release/).
+build/
+*.egg-info/

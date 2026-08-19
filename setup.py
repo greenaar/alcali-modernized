@@ -29,7 +29,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://forge.thatserver.ca/salt/alcali-modernized",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests", "tests.*"]),
     python_requires=">=3.12",
     classifiers=[
         "Programming Language :: Python :: 3",
