@@ -24,6 +24,10 @@ on:
         description: 'Existing tag to release, e.g. v3008.2.0'
         required: true
         type: string
+      registry_host:
+        description: 'Registry host for the image, e.g. forge.thatserver.ca (overrides the variable)'
+        required: false
+        type: string
 
 # No `permissions:` block: Forgejo ignores it and warns about it. The automatic
 # FORGEJO_TOKEN has deliberately limited capabilities; if the registry uploads
@@ -56,8 +60,14 @@ jobs:
           #                 by the daemon. Set this to the public name when the
           #                 internal address is plain HTTP, otherwise the push
           #                 needs dockerd --insecure-registry.
-          FORGE_URL: ${{ vars.FORGE_URL }}
-          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+          # Taken from a dispatch input, an Actions variable or a secret,
+          # in that order: variables and secrets are separate stores and it is
+          # easy to add one where the other is read from.
+          VAR_FORGE_URL: ${{ vars.FORGE_URL }}
+          SECRET_FORGE_URL: ${{ secrets.FORGE_URL }}
+          VAR_REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+          SECRET_REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
+          INPUT_REGISTRY_HOST: ${{ github.event.inputs.registry_host }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           ref_name="${INPUT_TAG:-${GITHUB_REF_NAME}}"
@@ -74,6 +84,24 @@ jobs:
           # Same reasoning as the docs workflow: trust the address the checkout
           # actually used rather than an instance ROOT_URL that may not resolve
           # from the runner.
+          if [ -n "${VAR_FORGE_URL}" ]; then
+            FORGE_URL="${VAR_FORGE_URL}"; forge_src="variable"
+          elif [ -n "${SECRET_FORGE_URL}" ]; then
+            FORGE_URL="${SECRET_FORGE_URL}"; forge_src="secret"
+          else
+            FORGE_URL=""; forge_src="unset, using the checkout address"
+          fi
+
+          if [ -n "${INPUT_REGISTRY_HOST}" ]; then
+            REGISTRY_HOST="${INPUT_REGISTRY_HOST}"; registry_src="dispatch input"
+          elif [ -n "${VAR_REGISTRY_HOST}" ]; then
+            REGISTRY_HOST="${VAR_REGISTRY_HOST}"; registry_src="variable"
+          elif [ -n "${SECRET_REGISTRY_HOST}" ]; then
+            REGISTRY_HOST="${SECRET_REGISTRY_HOST}"; registry_src="secret"
+          else
+            REGISTRY_HOST=""; registry_src="unset, using the forge host"
+          fi
+
           origin="${FORGE_URL:-$(git remote get-url origin)}"
           case "${origin}" in
             http://*|https://*)
@@ -102,6 +130,7 @@ jobs:
             echo "version=${version}"
             echo "prerelease=${prerelease}"
             echo "registry=${registry}"
+            echo "host=${host}"
             echo "server=${scheme}://${host}"
             echo "pypi=${scheme}://${host}/api/packages/${owner}/pypi"
             echo "image=${image}"
@@ -119,8 +148,8 @@ jobs:
           # otherwise only visible once a later step talks to the wrong host.
           echo "tag           : ${ref_name}"
           echo "version       : ${version} (prerelease=${prerelease})"
-          echo "forge url     : ${scheme}://${host}   (FORGE_URL ${FORGE_URL:-unset})"
-          echo "registry host : ${registry}   (REGISTRY_HOST ${REGISTRY_HOST:-unset})"
+          echo "forge url     : ${scheme}://${host}   (FORGE_URL from ${forge_src})"
+          echo "registry host : ${registry}   (REGISTRY_HOST from ${registry_src})"
           echo "image         : ${image}:${version}"
 
       - name: Run unit tests
@@ -169,6 +198,21 @@ jobs:
               exit 1
             fi
           fi
+
+      - name: Refuse to push to a plain-HTTP registry
+        run: |
+          case "${{ steps.release.outputs.server }}" in
+            http://*)
+              if [ "${{ steps.release.outputs.registry }}" = "${{ steps.release.outputs.host }}" ]; then
+                echo "The image would be pushed to ${{ steps.release.outputs.registry }}," >&2
+                echo "which serves plain HTTP: the daemon will refuse it unless it was" >&2
+                echo "started with --insecure-registry for that host." >&2
+                echo "Set REGISTRY_HOST (Settings -> Actions -> Variables) to the public" >&2
+                echo "name, or pass registry_host when dispatching this workflow." >&2
+                exit 1
+              fi
+              ;;
+          esac
 
       - uses: https://code.forgejo.org/docker/setup-buildx-action@v3
 
