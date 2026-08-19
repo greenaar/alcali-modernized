@@ -1,0 +1,28 @@
+# Normalize every text file to LF in the repository and in the working tree.
+# CRLF shell scripts are unusable as container entrypoints ("/usr/bin/env:
+# 'bash\r': No such file or directory").
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.py   text eol=lf
+*.vue  text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.sls  text eol=lf
+
+docker/utils/wait-for text eol=lf
+docker/utils/Procfile text eol=lf
+
+# Binary assets: never touched by end-of-line conversion.
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.eot  binary
+*.ttf  binary
+*.map  binary

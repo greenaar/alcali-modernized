@@ -11,9 +11,9 @@ Alcali is a web based tool for monitoring and administrating **Saltstack** Salt.
 
 ## Modernization status
 
-This branch is a community-maintenance baseline for evaluating a new home for
-Alcali. It updates the core application to Python 3.12, Django 5.2 LTS, Vue 3,
-Vuetify 3, Node 22 and pnpm. It also replaces the unmaintained `salt-pepper`
+This repository is the community-maintenance fork of Alcali, hosted on
+Forgejo at `salt/alcali-modernized`. It updates the core application to
+Python 3.12, Django 5.2 LTS, Vue 3, Vuetify 3, Node 22 and pnpm. It also replaces the unmaintained `salt-pepper`
 client with a small HTTPS client whose certificate verification is enabled by
 default.
 
@@ -72,8 +72,8 @@ They are useful as integration fixtures, but their Salt images and optional
 authentication paths need separate validation before production use.
 
 ```commandline
-git clone https://github.com/latenighttales/alcali.git
-cd alcali
+git clone ssh://git@forge.thatserver.ca:8222/salt/alcali-modernized.git
+cd alcali-modernized
 docker compose up --scale minion=2
 ```
 
@@ -98,9 +98,13 @@ and follow the [walkthrough](https://alcali.dev/walkthrough/).
 
 ## Installation
 
-The easiest way to install it is to use the salt [formula](https://github.com/latenighttales/alcali-formula).
+The easiest way to install it is to use the companion `alcali-formula` Salt
+formula, which pins this repository and revision and deploys it as a systemd
+service. Read the formula's own README before the first run: it also covers the
+Salt returner database and the salt-api/eAuth configuration Alcali depends on.
 
-Make sure to check the [installation](https://alcali.dev/installation/) docs first!
+The upstream [installation](https://alcali.dev/installation/) docs still apply
+to everything outside the formula.
 
 ## Screenshots
 
@@ -123,7 +127,10 @@ More [here](https://github.com/latenighttales/alcali/blob/2019.2/docs/docs/scree
 
 ## Contributing
 
-If you'd like to contribute, check the [contribute](https://alcali.dev/contribute/) documentation on how to install a dev environment and submit PR!
+If you'd like to contribute, check the [contribute](https://alcali.dev/contribute/)
+documentation on how to install a dev environment, then open the pull request on
+this Forgejo instance rather than upstream GitHub. CI runs through Forgejo
+Actions; see `.forgejo/workflows/`.
 
 And if you like this project, consider donating:
 

@@ -8,4 +8,4 @@ node_modules/
 htmlcov/
 *.sqlite3
 smoke-server.*
-dist/__init__.py
+docs/site/

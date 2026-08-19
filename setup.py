@@ -28,7 +28,7 @@ setup(
     include_package_data=True,
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/latenighttales/alcali.git",
+    url="https://forge.thatserver.ca/salt/alcali-modernized",
     packages=find_packages(),
     python_requires=">=3.12",
     classifiers=[

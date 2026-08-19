@@ -1,4 +1,7 @@
 .*
+# ...but the frontend stage needs the eslint ignore list, otherwise
+# vue-cli-service lints the vendored local-echo sources and the build fails.
+!.eslintignore
 *.md
 !README*.md
 **/node_modules

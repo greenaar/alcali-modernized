@@ -4,7 +4,7 @@ WORKDIR /build
 RUN corepack enable && corepack prepare pnpm@11.18.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
-COPY babel.config.js vue.config.js ./
+COPY babel.config.js vue.config.js .eslintignore ./
 COPY public ./public
 COPY src ./src
 RUN pnpm build

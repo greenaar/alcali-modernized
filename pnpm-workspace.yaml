@@ -1,3 +1,10 @@
+overrides:
+  # ajv (via the webpack build chain) resolves a fast-uri older than the
+  # host-confusion fix, GHSA-7p8r-x3mc-p8w7 / CVE-2026-18446. No release
+  # upstream of it has bumped the range yet, so pin the patched version here.
+  # Drop this once `pnpm why fast-uri` shows >=3.1.5 without the override.
+  fast-uri: ">=3.1.5"
+
 packages:
   - '.'
 
