@@ -16,6 +16,13 @@ on:
   push:
     tags:
       - v*
+  # Re-run a release without moving the tag: the workflow file comes from the
+  # default branch, the code from the tag named here.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release, e.g. v3008.2.0'
+        required: true
 
 # No `permissions:` block: Forgejo ignores it and warns about it. The automatic
 # FORGEJO_TOKEN has deliberately limited capabilities; if the registry uploads
@@ -29,6 +36,7 @@ jobs:
       - uses: https://code.forgejo.org/actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
 
       - uses: https://code.forgejo.org/actions/setup-python@v5
         with:
@@ -49,11 +57,13 @@ jobs:
           #                 needs dockerd --insecure-registry.
           FORGE_URL: ${{ vars.FORGE_URL }}
           REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          ref_name="${INPUT_TAG:-${GITHUB_REF_NAME}}"
+          version="${ref_name#v}"
           declared="$(tr -d '[:space:]' < VERSION)"
           if [ "${version}" != "${declared}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} declares version ${version}, but the VERSION" >&2
+            echo "Tag ${ref_name} declares version ${version}, but the VERSION" >&2
             echo "file contains ${declared}. Update VERSION in the same commit the tag" >&2
             echo "points at, otherwise the published package would carry a version that" >&2
             echo "does not match the release." >&2
@@ -95,6 +105,7 @@ jobs:
             echo "pypi=${scheme}://${host}/api/packages/${owner}/pypi"
             echo "image=${image}"
             # A prerelease must not move :latest.
+            echo "tag=${ref_name}"
             echo "tags<<EOF"
             echo "${image}:${version}"
             if [ "${prerelease}" = "false" ]; then
@@ -102,6 +113,14 @@ jobs:
             fi
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
+
+          # Print what was resolved: an unset FORGE_URL/REGISTRY_HOST is
+          # otherwise only visible once a later step talks to the wrong host.
+          echo "tag           : ${ref_name}"
+          echo "version       : ${version} (prerelease=${prerelease})"
+          echo "forge url     : ${scheme}://${host}   (FORGE_URL ${FORGE_URL:-unset})"
+          echo "registry host : ${registry}   (REGISTRY_HOST ${REGISTRY_HOST:-unset})"
+          echo "image         : ${image}:${version}"
 
       - name: Run unit tests
         env:
@@ -132,7 +151,11 @@ jobs:
             echo "packages." >&2
             exit 1
           }
-          python -m twine upload --non-interactive build/release/*
+          # --skip-existing keeps a re-run from failing on a version that is
+          # already published. It also means a moved tag will NOT replace the
+          # published files: delete the version in the registry first if the
+          # contents actually changed.
+          python -m twine upload --non-interactive --skip-existing build/release/*
 
       - uses: https://code.forgejo.org/docker/setup-buildx-action@v3
 
@@ -155,7 +178,7 @@ jobs:
           direction: upload
           url: ${{ steps.release.outputs.server }}
           repo: ${{ github.repository }}
-          tag: ${{ github.ref_name }}
+          tag: ${{ steps.release.outputs.tag }}
           token: ${{ secrets.FORGEJO_TOKEN }}
           release-dir: build/release
           prerelease: ${{ steps.release.outputs.prerelease }}
