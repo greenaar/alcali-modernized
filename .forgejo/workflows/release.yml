@@ -214,7 +214,15 @@ jobs:
               ;;
           esac
 
+      # network=host puts the buildkit container in the dind container's own
+      # network namespace, so the push resolves through the resolvers set on
+      # that container (compose `dns:`) and reaches the internal endpoint whose
+      # certificate is valid for the forge hostname. Setting --dns on dockerd
+      # instead would apply to every container it spawns, which costs job
+      # containers the embedded DNS they need for compose aliases.
       - uses: https://code.forgejo.org/docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
 
       - uses: https://code.forgejo.org/docker/login-action@v3
         with:
