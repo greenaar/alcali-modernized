@@ -17,9 +17,10 @@ on:
     tags:
       - v*
 
-permissions:
-  contents: write
-  packages: write
+# No `permissions:` block: Forgejo ignores it and warns about it. The automatic
+# FORGEJO_TOKEN has deliberately limited capabilities; if the registry uploads
+# or the release upload are refused, grant them with an Authorized Integration
+# (Settings -> Authorized Integrations) rather than a permissions field.
 
 jobs:
   release:
@@ -35,6 +36,14 @@ jobs:
 
       - name: Resolve version and registry
         id: release
+        env:
+          # Optional repository variable, e.g. https://forge.thatserver.ca.
+          # Set it when the address the runner uses to reach Forgejo is not the
+          # address everyone else uses: the runner may clone from an internal
+          # http://host:3000, but the container image has to be tagged with the
+          # public name, and a plain-HTTP registry push fails unless dockerd
+          # was started with --insecure-registry for that host.
+          FORGE_URL: ${{ vars.FORGE_URL }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           declared="$(tr -d '[:space:]' < VERSION)"
@@ -49,7 +58,7 @@ jobs:
           # Same reasoning as the docs workflow: trust the address the checkout
           # actually used rather than an instance ROOT_URL that may not resolve
           # from the runner.
-          origin="$(git remote get-url origin)"
+          origin="${FORGE_URL:-$(git remote get-url origin)}"
           case "${origin}" in
             http://*|https://*)
               scheme="${origin%%://*}"
@@ -109,7 +118,15 @@ jobs:
           TWINE_USERNAME: ${{ github.actor }}
           TWINE_PASSWORD: ${{ secrets.PACKAGES_TOKEN || secrets.FORGEJO_TOKEN }}
           TWINE_REPOSITORY_URL: ${{ steps.release.outputs.pypi }}
-        run: python -m twine upload --non-interactive build/release/*
+        run: |
+          test -n "${TWINE_PASSWORD}" || {
+            echo "No token resolved for the package registry." >&2
+            echo "Add a PACKAGES_TOKEN secret holding an access token with the" >&2
+            echo "write:package scope; the automatic FORGEJO_TOKEN cannot write" >&2
+            echo "packages." >&2
+            exit 1
+          }
+          python -m twine upload --non-interactive build/release/*
 
       - uses: https://code.forgejo.org/docker/setup-buildx-action@v3
 

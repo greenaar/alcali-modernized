@@ -1,0 +1,57 @@
+# Throwaway diagnostic: works out which address for Forgejo is usable from the
+# two places the release workflow needs it -- the job container (twine, the
+# release upload) and the Docker daemon (the image push). Run it by hand from
+# the Actions tab, then delete this file.
+name: diagnose
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reachability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: What the runner tells us
+        run: |
+          echo "GITHUB_SERVER_URL = ${GITHUB_SERVER_URL}"
+          echo "origin            = $(git remote get-url origin)"
+
+      - name: Reachable from the job container?
+        run: |
+          probe() {
+            printf '%-40s ' "$1"
+            if command -v curl >/dev/null 2>&1; then
+              curl -sS -o /dev/null -m 10 -w 'HTTP %{http_code}\n' "$1/api/v1/version" \
+                || echo "unreachable"
+            else
+              wget -q -T 10 -O - "$1/api/v1/version" >/dev/null 2>&1 \
+                && echo "reachable" || echo "unreachable"
+            fi
+          }
+          probe "https://forge.thatserver.ca"
+          probe "http://server:3000"
+
+      - name: Reachable from the Docker daemon?
+        run: |
+          # Runs in the daemon's own network namespace, which is what performs
+          # the registry push.
+          for url in https://forge.thatserver.ca http://server:3000; do
+            printf '%-40s ' "${url}"
+            docker run --rm alpine:3 sh -c \
+              "wget -q -T 10 -O - ${url}/api/v1/version >/dev/null 2>&1 && echo reachable || echo unreachable" \
+              2>/dev/null || echo "docker run failed"
+          done
+
+      - name: Which protocol does the daemon negotiate?
+        run: |
+          # The image does not exist yet, so "not found"/"unauthorized" is the
+          # good outcome: it proves the daemon spoke the right protocol to the
+          # registry. "http: server gave HTTP response to HTTPS client" means
+          # dockerd needs --insecure-registry server:3000, or the release has to
+          # go through FORGE_URL instead.
+          for ref in forge.thatserver.ca/salt/alcali:latest server:3000/salt/alcali:latest; do
+            echo "--- ${ref}"
+            docker pull "${ref}" 2>&1 | tail -2 || true
+          done

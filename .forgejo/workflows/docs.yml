@@ -20,8 +20,9 @@ on:
       - .forgejo/workflows/docs.yml
   workflow_dispatch:
 
-permissions:
-  contents: write
+# No `permissions:` block: Forgejo ignores it and warns about it. What the
+# automatic FORGEJO_TOKEN may do is set on the instance, and anything beyond it
+# needs an Authorized Integration (Settings -> Authorized Integrations).
 
 defaults:
   run:
