@@ -37,13 +37,18 @@ jobs:
       - name: Resolve version and registry
         id: release
         env:
-          # Optional repository variable, e.g. https://forge.thatserver.ca.
-          # Set it when the address the runner uses to reach Forgejo is not the
-          # address everyone else uses: the runner may clone from an internal
-          # http://host:3000, but the container image has to be tagged with the
-          # public name, and a plain-HTTP registry push fails unless dockerd
-          # was started with --insecure-registry for that host.
+          # Optional repository variables. The job container and the Docker
+          # daemon do not necessarily reach Forgejo the same way, so they get
+          # separate overrides; both default to the address the checkout used.
+          #
+          # FORGE_URL     - used by twine and the release upload, which run in
+          #                 the job container.
+          # REGISTRY_HOST - host the image is tagged with and pushed to, used
+          #                 by the daemon. Set this to the public name when the
+          #                 internal address is plain HTTP, otherwise the push
+          #                 needs dockerd --insecure-registry.
           FORGE_URL: ${{ vars.FORGE_URL }}
+          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           declared="$(tr -d '[:space:]' < VERSION)"
@@ -79,12 +84,13 @@ jobs:
             *) prerelease=false ;;
           esac
 
-          image="${host}/${owner}/alcali"
+          registry="${REGISTRY_HOST:-${host}}"
+          image="${registry}/${owner}/alcali"
 
           {
             echo "version=${version}"
             echo "prerelease=${prerelease}"
-            echo "registry=${host}"
+            echo "registry=${registry}"
             echo "server=${scheme}://${host}"
             echo "pypi=${scheme}://${host}/api/packages/${owner}/pypi"
             echo "image=${image}"
