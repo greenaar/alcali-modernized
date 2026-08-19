@@ -152,11 +152,23 @@ jobs:
             echo "packages." >&2
             exit 1
           }
-          # --skip-existing keeps a re-run from failing on a version that is
-          # already published. It also means a moved tag will NOT replace the
-          # published files: delete the version in the registry first if the
-          # contents actually changed.
-          python -m twine upload --non-interactive --skip-existing build/release/*
+          # Not --skip-existing: twine only honours that for repositories on
+          # its own allow-list and refuses a Forgejo registry URL outright.
+          # Tolerate the registry's 409 instead, so a re-run of an already
+          # published version continues to the image and release steps.
+          if python -m twine upload --non-interactive build/release/* >/tmp/twine.log 2>&1; then
+            cat /tmp/twine.log
+            echo "=> published"
+          else
+            cat /tmp/twine.log
+            if grep -qiE '409|conflict|already exist' /tmp/twine.log; then
+              echo "=> this version is already in the registry; its existing files"
+              echo "   are kept. Delete the version in the Packages UI first if the"
+              echo "   contents changed."
+            else
+              exit 1
+            fi
+          fi
 
       - uses: https://code.forgejo.org/docker/setup-buildx-action@v3
 
