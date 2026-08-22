@@ -1,0 +1,130 @@
+# Production stack for Alcali.
+#
+# This file deploys the *application only*: the Django/gunicorn service, a
+# one-shot migration job, and — optionally — the MariaDB instance that holds
+# Salt's returner data. There is deliberately no salt-master and no
+# salt-minion here. Alcali is a view onto a Salt installation you already
+# run; it is not a way to run one.
+#
+# Alcali needs exactly two things from that installation:
+#
+#   1. the returner database (jids / salt_returns / salt_events), which the
+#      master must be writing to via master_job_cache and event_return, and
+#   2. salt-api (rest_cherrypy) reachable over HTTPS, with an external_auth
+#      backend that Alcali's users can log in against.
+#
+# Both are configured through the environment file. See docs/docs/docker.md
+# for the master-side configuration and the supported topologies.
+#
+#   cp env.prod.sample .env      # then edit every credential
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# To let this stack run the database too, add the bundled-db profile:
+#
+#   docker compose -f docker-compose.prod.yml --profile bundled-db up -d
+
+name: alcali
+
+# The released image is preferred; `--build` builds the same Dockerfile
+# locally when you are running an unreleased revision.
+x-alcali: &alcali
+  image: ${ALCALI_IMAGE:-forge.thatserver.ca/salt/alcali:3008.2.0}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file:
+    - .env
+  volumes:
+    - alcali-tls:/etc/alcali/tls:ro
+  networks:
+    - alcali
+
+services:
+  # Only started with `--profile bundled-db`. Omit the profile when the Salt
+  # master already has a returner database; Alcali should then point at that
+  # one rather than owning a second copy.
+  db:
+    profiles:
+      - bundled-db
+    image: ${ALCALI_DB_IMAGE:-mariadb:11.4}
+    restart: unless-stopped
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    # Plain substitution rather than ${VAR:?...}: Compose interpolates the
+    # whole file before it filters by profile, so a required-variable guard
+    # here would also break the external-database topology, where none of
+    # these are set. MariaDB itself refuses to initialise without a root
+    # password, which fails loudly at the only point it matters.
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASS}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+      # Creates the three Salt returner tables on an empty volume. Unlike the
+      # demo stack's salt.sql this never drops anything, so re-running the
+      # entrypoint against existing data is inert.
+      - ./docker/sql/production/mysql:/docker-entrypoint-initdb.d:ro
+    ports:
+      # The Salt master writes returns here, so unless the master runs in
+      # this same compose project the port has to be reachable from it.
+      # Defaults to loopback: widen DB_PUBLISH_ADDRESS deliberately, and put
+      # TLS on the connection when it leaves the host.
+      - "${DB_PUBLISH_ADDRESS:-127.0.0.1}:${DB_PUBLISH_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - alcali
+
+  # Runs to completion before web starts, so schema changes never race
+  # between gunicorn workers. Alcali's own tables live alongside Salt's in
+  # the same database; the Salt tables are unmanaged models and are left
+  # untouched by migrate.
+  #
+  # It waits for the database itself rather than declaring depends_on: db,
+  # because db is behind a profile and is absent in the far more common
+  # external-database topology. The same wait then covers both.
+  migrate:
+    <<: *alcali
+    restart: "no"
+    command: ["/opt/alcali/code/docker/utils/migrate.sh"]
+
+  web:
+    <<: *alcali
+    restart: unless-stopped
+    # Bound to loopback because gunicorn is not the TLS terminator. Put nginx
+    # or Caddy in front of it and set CSRF_TRUSTED_ORIGINS accordingly; see
+    # docs/docs/docker.md.
+    ports:
+      - "${ALCALI_PUBLISH_ADDRESS:-127.0.0.1}:${ALCALI_PUBLISH_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "/opt/alcali/code/docker/utils/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  db-data:
+  # Holds SALT_CA_BUNDLE when the Salt master uses an internal CA. Populate it
+  # by pointing this at a host directory instead:
+  #
+  #   alcali-tls:
+  #     driver: local
+  #     driver_opts:
+  #       type: none
+  #       o: bind
+  #       device: /etc/ssl/salt
+  alcali-tls:
+
+networks:
+  alcali:

@@ -47,9 +47,24 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm build
 ```
 
-For production, copy `env.sample`, replace every credential, provide a trusted
-CA with `SALT_CA_BUNDLE` when Salt uses an internal certificate authority, and
-build the multi-stage `Dockerfile`.
+### Deploying
+
+`docker-compose.prod.yml` runs Alcali against a Salt installation you already
+have: the application, a one-shot migration job, and optionally the returner
+database. No master, no minion.
+
+```commandline
+cp env.prod.sample .env      # then replace every credential
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml run --rm web python manage.py createsuperuser
+```
+
+Alcali needs two things from Salt, and neither is configured by that stack:
+the master must return to the database Alcali reads (`master_job_cache` and
+`event_return`), and salt-api must be reachable over HTTPS with an
+`external_auth` backend. [docs/docs/docker.md](docs/docs/docker.md) covers the
+master-side configuration, the reverse proxy, the supported topologies and
+what breaks when each piece is missing.
 
 ## Features
 
@@ -67,9 +82,9 @@ build the multi-stage `Dockerfile`.
 
 ## Historical demo stack
 
-The repository still contains the original all-in-one Salt demo compose files.
-They are useful as integration fixtures, but their Salt images and optional
-authentication paths need separate validation before production use.
+`docker-compose.yml` is the original all-in-one demo: it runs its own Salt
+master and minions so the UI has something to show. It is an integration
+fixture, not a deployment - use `docker-compose.prod.yml` for that.
 
 ```commandline
 git clone ssh://git@forge.thatserver.ca:8222/salt/alcali-modernized.git

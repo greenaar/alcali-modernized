@@ -29,7 +29,11 @@ def test_check_env_fail(monkeypatch):
     out = StringIO()
     salt_url = os.environ.get("SALT_URL")
     monkeypatch.delenv("SALT_URL", raising=False)
-    call_command("alcali_check", stdout=out)
+    # A missing required variable has to be a non-zero exit, otherwise the
+    # command cannot gate a deployment.
+    with pytest.raises(SystemExit) as exit_info:
+        call_command("alcali_check", stdout=out)
+    assert exit_info.value.code == 1
     assert "db:\tok" in out.getvalue()
     assert "SALT_URL" in out.getvalue()
     if salt_url is not None:

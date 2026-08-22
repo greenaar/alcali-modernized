@@ -12,5 +12,6 @@ smoke-server.*
 docs/*
 docker/saltconfig
 docker/sql
-docker-compose.yml
+docker-compose*.yml
+env.prod.sample
 **/tests
