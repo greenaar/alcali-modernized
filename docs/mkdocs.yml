@@ -32,8 +32,8 @@ site_description: 'A web based tool for monitoring and administrating Saltstack'
 site_author: 'Matt Melquiond'
 
 # Repository
-repo_name: 'latenighttales/alcali'
-repo_url: 'https://github.com/latenighttales/alcali'
+repo_name: 'greenaar/alcali-modernized'
+repo_url: 'https://github.com/greenaar/alcali-modernized'
 edit_uri: ''
 
 # Copyright

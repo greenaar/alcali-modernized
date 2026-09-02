@@ -75,7 +75,7 @@ under `/etc/salt/master.d/`.
 
 !!!note
 
-    The [alcali-formula](https://forge.thatserver.ca/salt/alcali-formula) writes
+    The [alcali-formula](https://github.com/greenaar/alcali-formula) writes
     exactly this file for you, and can do so for a containerised Alcali it does
     not otherwise manage — see its `deploy:method: docker` and
     `deploy:method: external` modes. Use it if the master is already

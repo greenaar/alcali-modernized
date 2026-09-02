@@ -28,7 +28,7 @@ name: alcali
 # The released image is preferred; `--build` builds the same Dockerfile
 # locally when you are running an unreleased revision.
 x-alcali: &alcali
-  image: ${ALCALI_IMAGE:-forge.thatserver.ca/salt/alcali:3008.2.0}
+  image: ${ALCALI_IMAGE:-alcali:local}
   build:
     context: .
     dockerfile: Dockerfile

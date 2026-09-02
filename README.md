@@ -11,8 +11,8 @@ Alcali is a web based tool for monitoring and administrating **Saltstack** Salt.
 
 ## Modernization status
 
-This repository is the community-maintenance fork of Alcali, hosted on
-Forgejo at `salt/alcali-modernized`. It updates the core application to
+This repository is the community-maintenance fork of Alcali, at
+`greenaar/alcali-modernized`. It updates the core application to
 Python 3.12, Django 5.2 LTS, Vue 3, Vuetify 3, Node 22 and pnpm. It also replaces the unmaintained `salt-pepper`
 client with a small HTTPS client whose certificate verification is enabled by
 default.
@@ -87,7 +87,7 @@ master and minions so the UI has something to show. It is an integration
 fixture, not a deployment - use `docker-compose.prod.yml` for that.
 
 ```commandline
-git clone ssh://git@forge.thatserver.ca:8222/salt/alcali-modernized.git
+git clone https://github.com/greenaar/alcali-modernized.git
 cd alcali-modernized
 docker compose up --scale minion=2
 ```
@@ -143,9 +143,14 @@ More [here](https://github.com/latenighttales/alcali/blob/2019.2/docs/docs/scree
 ## Contributing
 
 If you'd like to contribute, check the [contribute](https://alcali.dev/contribute/)
-documentation on how to install a dev environment, then open the pull request on
-this Forgejo instance rather than upstream GitHub. CI runs through Forgejo
-Actions; see `.forgejo/workflows/`.
+documentation on how to install a dev environment, then open a pull request
+against this repository rather than the original upstream.
+
+This mirror carries no CI configuration: development happens on a private
+Forgejo instance where the pipelines live, and shipping workflow files that
+GitHub would silently ignore is worse than shipping none. Run the checks
+locally before opening a pull request - `pytest`, `pytest -m smoke`,
+`pnpm lint --no-fix src`, `pnpm test:unit` and `pnpm build`.
 
 And if you like this project, consider donating:
 

@@ -28,7 +28,7 @@ setup(
     include_package_data=True,
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://forge.thatserver.ca/salt/alcali-modernized",
+    url="https://github.com/greenaar/alcali-modernized",
     packages=find_packages(exclude=["tests", "tests.*"]),
     python_requires=">=3.12",
     classifiers=[
