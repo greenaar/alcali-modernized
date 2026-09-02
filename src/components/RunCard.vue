@@ -347,6 +347,7 @@ import CronUI from "../assets/js/utils/cron-ui";
 import YamlEditor from "./YamlEditor";
 
 import yaml from "js-yaml";
+import { commonFunctions } from "../assets/js/utils/common-functions";
 
 export default {
   name: "RunCard",
@@ -580,12 +581,17 @@ export default {
       ]);
     },
     filteredFunction: function () {
-      if (this.functions === null) {
-        return;
-      }
-      return this.functions.filter((item) => {
-        return item.type === this.selected_client;
-      });
+      // The master's own list is only available once Settings has parsed the
+      // modules, which needs a working local client. Offer the common ones
+      // regardless, and let anything the master reported replace them.
+      let known = (this.functions || []).filter(
+        (item) => item.type === this.selected_client
+      );
+      let names = new Set(known.map((item) => item.name));
+      let builtins = commonFunctions(this.selected_client).filter(
+        (item) => !names.has(item.name)
+      );
+      return known.concat(builtins).sort((a, b) => a.name.localeCompare(b.name));
     },
     pillarRendered: function () {
       return `${JSON.stringify(
@@ -603,6 +609,13 @@ export default {
       if (this.$route.query.client.split("_").length > 1) {
         this["client_" + this.$route.query.client.split("_")[1]] = true;
       }
+    }
+    // Deep link from the Job Templates page: arrive with the template switch
+    // already on and the name focused, so "create a template" is one link
+    // rather than "go to Run and find the right toggle".
+    if (this.$route.query.save_template) {
+      this.saveJobSwitch = true;
+      this.jobTemplateName = this.$route.query.name || "";
     }
     if (this.$route.query.tgt_type) {
       this.target_type.forEach((tgt_type) => {

@@ -34,9 +34,58 @@
         item-value="state"
         sort-by="total_ms"
         sort-desc
+        show-expand
+        v-model:expanded="expanded"
         class="elevation-1"
         :loading="loading"
+        @update:expanded="loadDetail"
       >
+        <template v-slot:expanded-row="{ columns, item }">
+          <tr>
+            <td :colspan="columns.length" class="pa-0">
+              <div v-if="!detail[item.state]" class="pa-4 text-medium-emphasis">
+                {{ $t("components.StateDurationsTable.Loading") }}
+              </div>
+              <v-table v-else density="compact" class="state-detail">
+                <thead>
+                  <tr>
+                    <th>{{ $t("components.StateDurationsTable.Minion") }}</th>
+                    <th>{{ $t("components.StateDurationsTable.Sls") }}</th>
+                    <th class="text-right">{{ $t("components.StateDurationsTable.Duration") }}</th>
+                    <th>{{ $t("components.StateDurationsTable.Result") }}</th>
+                    <th>{{ $t("components.StateDurationsTable.Comment") }}</th>
+                    <th>{{ $t("components.StateDurationsTable.When") }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in detail[item.state]" :key="row.minion + row.jid">
+                    <td>
+                      <router-link :to="'/minions/' + row.minion" class="text-primary">
+                        {{ row.minion }}
+                      </router-link>
+                    </td>
+                    <td>{{ row.sls }}</td>
+                    <td class="text-right">{{ seconds(row.duration_ms) }}</td>
+                    <td>
+                      <v-chip :color="resultColor(row)" size="small" label>
+                        {{ resultText(row) }}
+                      </v-chip>
+                    </td>
+                    <td class="text-medium-emphasis">{{ row.comment }}</td>
+                    <td>
+                      <router-link
+                        :to="'/jobs/' + row.jid + '/' + row.minion"
+                        class="text-primary"
+                      >
+                        {{ new Date(row.when).toLocaleString("en-GB") }}
+                      </router-link>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </td>
+          </tr>
+        </template>
         <template v-slot:item.total_ms="{ item }">
           {{ seconds(item.total_ms) }}
         </template>
@@ -74,6 +123,8 @@ export default {
     return {
       search: "",
       states: [],
+      expanded: [],
+      detail: {},
       highstates: 0,
       days: 7,
       loading: true,
@@ -101,6 +152,7 @@ export default {
   methods: {
     loadData() {
       this.loading = true
+      this.detail = {}
       let params = { days: this.days }
       if (this.minion) {
         params.id = this.minion
@@ -115,6 +167,36 @@ export default {
         .catch(() => {
           this.loading = false
         })
+    },
+    // Fetched per state on expand rather than up front: the fleet aggregate
+    // is one pass over the highstates, and doing that per row would repeat it.
+    loadDetail(expanded) {
+      const list = expanded || []
+      list.forEach((state) => {
+        if (this.detail[state]) {
+          return
+        }
+        this.$http
+          .get("api/states/durations/", {
+            params: { days: this.days, state: state, id: this.minion },
+          })
+          .then((response) => {
+            this.detail = { ...this.detail, [state]: response.data.minions }
+          })
+          .catch(() => {
+            this.detail = { ...this.detail, [state]: [] }
+          })
+      })
+    },
+    resultColor(row) {
+      if (row.result === false) return "error"
+      return row.changed ? "warning" : "success"
+    },
+    resultText(row) {
+      if (row.result === false) return this.$t("components.StateDurationsTable.Failed")
+      return row.changed
+        ? this.$t("components.StateDurationsTable.Changed")
+        : this.$t("components.StateDurationsTable.Clean")
     },
     seconds(ms) {
       if (ms >= 1000) {
@@ -136,5 +218,9 @@ export default {
 <style scoped>
 .window {
   max-width: 120px;
+}
+
+.state-detail {
+  background: rgba(128, 128, 128, 0.06);
 }
 </style>

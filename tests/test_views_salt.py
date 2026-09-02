@@ -229,3 +229,56 @@ def test_state_durations_can_scope_to_one_minion(admin_client, jwt):
     body = admin_client.get("/api/states/durations/?id=minion1", **jwt).json()
     assert body["highstates"] == 1
     assert body["states"][0]["minions"] == 1
+
+
+@pytest.mark.django_db()
+def test_state_detail_lists_each_minion(admin_client, jwt):
+    from django.utils import timezone
+
+    states = {
+        "pkg_|-nginx_|-nginx_|-installed": {
+            "result": True, "duration": 30000.0, "changes": {},
+            "__sls__": "web.nginx", "__id__": "nginx", "comment": "already installed",
+        },
+    }
+    failed = {
+        "pkg_|-nginx_|-nginx_|-installed": {
+            "result": False, "duration": 900.0, "changes": {"new": "x"},
+            "__sls__": "web.nginx", "__id__": "nginx", "comment": "boom",
+        },
+    }
+    for i, (minion, payload) in enumerate((("minion1", states), ("minion2", failed))):
+        SaltReturns.objects.create(
+            fun="state.apply", jid="2020010100000000005{}".format(i),
+            return_field="{}", id=minion, success="1",
+            full_ret=_highstate_return(payload), alter_time=timezone.now(),
+        )
+    body = admin_client.get("/api/states/durations/?state=nginx", **jwt).json()
+    assert body["state"] == "nginx"
+    assert [m["minion"] for m in body["minions"]] == ["minion1", "minion2"]
+    slow, quick = body["minions"]
+    assert slow["duration_ms"] == 30000.0 and slow["result"] is True
+    assert quick["result"] is False and quick["changed"] is True
+    assert quick["comment"] == "boom"
+
+
+@pytest.mark.django_db()
+def test_state_detail_keeps_only_the_newest_run_per_minion(admin_client, jwt):
+    import datetime
+
+    from django.utils import timezone
+
+    now = timezone.now()
+    for i, (age, duration) in enumerate(((2, 100.0), (0, 200.0))):
+        SaltReturns.objects.create(
+            fun="state.apply", jid="2020010100000000006{}".format(i),
+            return_field="{}", id="minion1", success="1",
+            full_ret=_highstate_return({
+                "pkg_|-a_|-a_|-installed": {
+                    "result": True, "duration": duration, "changes": {},
+                    "__sls__": "s", "__id__": "a"}}),
+            alter_time=now - datetime.timedelta(days=age),
+        )
+    body = admin_client.get("/api/states/durations/?state=a", **jwt).json()
+    assert len(body["minions"]) == 1
+    assert body["minions"][0]["duration_ms"] == 200.0

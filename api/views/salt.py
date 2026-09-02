@@ -206,6 +206,38 @@ def state_durations(request):
     if minion:
         rows = rows.filter(id=minion)
 
+    # A single state's per-minion detail rather than the fleet aggregate:
+    # which minions run it, what it costs each of them, and where it last
+    # failed or last made changes.
+    wanted = request.query_params.get("state")
+    if wanted:
+        detail = []
+        for row in rows.order_by("-alter_time").iterator():
+            payload = row.loaded_ret().get("return")
+            if not isinstance(payload, dict):
+                continue
+            for key, result in payload.items():
+                if not isinstance(result, dict):
+                    continue
+                if (result.get("__id__") or _state_name(key)) != wanted:
+                    continue
+                if any(seen["minion"] == row.id for seen in detail):
+                    continue  # newest run per minion
+                detail.append(
+                    {
+                        "minion": row.id,
+                        "jid": row.jid,
+                        "when": row.alter_time,
+                        "sls": result.get("__sls__") or "",
+                        "duration_ms": round(result.get("duration") or 0, 1),
+                        "result": result.get("result"),
+                        "changed": bool(result.get("changes")),
+                        "comment": (result.get("comment") or "")[:400],
+                    }
+                )
+        detail.sort(key=lambda row: row["duration_ms"], reverse=True)
+        return Response({"state": wanted, "days": days, "minions": detail})
+
     states = {}
     runs = 0
     for row in rows.iterator():

@@ -113,7 +113,8 @@
       "Succeeded": "Réussi",
       "Unchanged": "Inchangé",
       "Failed": "En échec",
-      "Actions": "Actions"
+      "Actions": "Actions",
+      "NewCheck": "Nouveau contrôle"
     },
     "CronPicker": {
       "Cancel": "Annuler",
@@ -187,7 +188,9 @@
       "KeywordArguments": "Mots clés Arguments",
       "Batch": "Groupe",
       "Actions": "Actions",
-      "TemplateDeleted": "Modèle supprimé"
+      "TemplateDeleted": "Modèle supprimé",
+      "Empty": "Aucun modèle. Composez une tâche sur la page Run, activez « Save as Template », nommez-la et enregistrez.",
+      "New": "Nouveau modèle"
     },
     "KeysStatusCard": {
       "keys": "Clés",
@@ -223,7 +226,8 @@
       "JobAll": "Lancer une tâche sur tous les minions",
       "Refreshing": "Actualisation des minions",
       "NbMinionsRefreshed": "{0} minions actualisés",
-      "NoMinionsReplied": "Le master a répondu, mais aucun minion. Vérifiez que le master peut lire son cache de tâches (manage.py alcali_check)."
+      "NoMinionsReplied": "Le master a répondu, mais aucun minion. Vérifiez que le master peut lire son cache de tâches (manage.py alcali_check).",
+      "RefreshedFromCache": "{0} minion(s) chargés depuis le cache du master ; aucun minion n'a répondu directement"
     },
     "MinionDetail": {
       "RefreshMinion": "Actualiser ",
@@ -359,10 +363,18 @@
       "Runs": "Exécutions",
       "Minions": "Minions",
       "Changing": "Modifiant",
-      "Failed": "Échoués",
+      "Failed": "Échoué",
       "Day": "24 heures",
       "Week": "7 jours",
-      "Month": "30 jours"
+      "Month": "30 jours",
+      "Loading": "Chargement...",
+      "Minion": "Minion",
+      "Duration": "Durée",
+      "Result": "Résultat",
+      "Comment": "Commentaire",
+      "When": "Dernière exécution",
+      "Changed": "Modifié",
+      "Clean": "Inchangé"
     },
     "AuditLogTable": {
       "Title": "Journal d'audit",

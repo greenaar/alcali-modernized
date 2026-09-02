@@ -9,6 +9,26 @@ from ..models import Minions, Functions, MinionsCustomFields, Keys, Schedule
 url = os.environ.get("SALT_URL", "https://127.0.0.1:8080")
 
 
+def first_return(api_ret, what="the Salt API"):
+    """The first element of a Salt response's `return` list.
+
+    salt-api answers with an empty list when a client collected nothing - which
+    the local client does whenever the master cannot read the job back - so
+    indexing straight into it raised IndexError and surfaced as a Django 500
+    page rather than as the Salt failure it is.
+    """
+    if not isinstance(api_ret, dict):
+        raise SaltApiError("{} returned {}, not a mapping".format(what, type(api_ret).__name__))
+    returned = api_ret.get("return")
+    if not isinstance(returned, list) or not returned:
+        raise SaltApiError(
+            "{} returned no result. The master accepted the call and collected "
+            "nothing, which for a minion-targeted call usually means it could "
+            "not read the job back from its job cache.".format(what)
+        )
+    return returned[0]
+
+
 def api_connect():
     user = get_current_user()
     if user is None or not user.is_authenticated:
@@ -64,11 +84,14 @@ def refresh_minion(minion_id):
         grain = api.local(minion_id, "grains.items")
     except SaltApiError as e:
         return {"error": str(e)}
-    grain = grain["return"][0]
+    try:
+        grain = first_return(grain, "grains.items")
+    except SaltApiError as e:
+        return {"error": str(e)}
     # TODO: return smt useful, better error mgmt.
     if grain.get(minion_id):
         pillar = api.local(minion_id, "pillar.items")
-        pillar = pillar["return"][0]
+        pillar = first_return(pillar, "pillar.items")
         minion, _ = Minions.objects.update_or_create(
             minion_id=minion_id,
             defaults={
@@ -111,8 +134,12 @@ def refresh_minions_from_cache():
         # The runner client takes its arguments from `kwarg`; a top level
         # `tgt` is dropped on the floor, and cache.grains with no target
         # returns nothing at all rather than failing.
-        grains = api.runner("cache.grains", kwarg={"tgt": "*"})["return"][0]
-        pillars = api.runner("cache.pillar", kwarg={"tgt": "*"})["return"][0]
+        grains = first_return(
+            api.runner("cache.grains", kwarg={"tgt": "*"}), "cache.grains"
+        )
+        pillars = first_return(
+            api.runner("cache.pillar", kwarg={"tgt": "*"}), "cache.pillar"
+        )
     except SaltApiError as e:
         return {"error": str(e)}
     except (KeyError, IndexError, TypeError) as e:
@@ -143,8 +170,10 @@ def run_raw(load):
         api_ret = api.low(load)
     except SaltApiError as e:
         return {"error": str(e)}
-    api_ret = api_ret["return"][0]
-    return api_ret
+    try:
+        return first_return(api_ret, "the Salt API")
+    except SaltApiError as e:
+        return {"error": str(e)}
 
 
 def get_events():
@@ -214,9 +243,14 @@ def refresh_schedules(minion=None):
         api_ret = api.local(minion, "schedule.list", kwarg={"return_yaml": False})
     except SaltApiError as e:
         return {"error": str(e)}
-    for minion_id in api_ret["return"][0]:
-        # TODO: error mgmt
-        minion_jobs = api_ret["return"][0][minion_id]
+    try:
+        schedules = first_return(api_ret, "schedule.list")
+    except SaltApiError as e:
+        return {"error": str(e)}
+    if not isinstance(schedules, dict):
+        return {"error": "schedule.list returned {}".format(type(schedules).__name__)}
+    for minion_id in schedules:
+        minion_jobs = schedules[minion_id]
         Schedule.objects.filter(minion=minion_id).delete()
         for job_name in minion_jobs:
             if job_name != "schedule":
@@ -225,7 +259,7 @@ def refresh_schedules(minion=None):
                     name=job_name,
                     job=json.dumps(minion_jobs[job_name]),
                 )
-    return api_ret["return"][0]
+    return schedules
 
 
 def manage_schedules(action, name, minion):
@@ -234,9 +268,13 @@ def manage_schedules(action, name, minion):
         api_ret = api.local(minion, "schedule.{}".format(action), arg=name)
     except SaltApiError as e:
         return {"error": str(e)}
-    for target in api_ret["return"][0]:
+    try:
+        results = first_return(api_ret, "schedule.{}".format(action))
+    except SaltApiError as e:
+        return {"error": str(e)}
+    for target in results:
         # If action was successful.
-        if api_ret["return"][0][target]["result"]:
+        if results[target]["result"]:
             if "delete" in action:
                 Schedule.objects.filter(minion=minion, name=name).delete()
             else:

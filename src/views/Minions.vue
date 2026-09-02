@@ -44,9 +44,16 @@
         this.$http.post("/api/minions/refresh_minions/").then((response) => {
           // "0 minions refreshed" reads like success. A master that answers
           // with nobody almost always means it could not read the job back.
-          if (response.data.no_minions_replied) {
-            // Include why the master's own cache did not help either, rather
-            // than reporting this the same way as a fleet with no minions.
+          if (response.data.source === "master cache") {
+            // The fallback populated the table. Reporting that as a failure,
+            // which it did, is worse than saying nothing: the page fills in
+            // while the toast says nothing replied.
+            this.$toast(
+              this.$i18n.t("components.Minions.RefreshedFromCache", [
+                response.data.refreshed.length,
+              ])
+            )
+          } else if (response.data.no_minions_replied) {
             let detail = response.data.cache_error
             this.$toast.error(
               this.$i18n.t("components.Minions.NoMinionsReplied") +

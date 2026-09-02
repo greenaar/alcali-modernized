@@ -113,7 +113,8 @@
       "Succeeded": "Succeeded",
       "Unchanged": "Unchanged",
       "Failed": "Failed",
-      "Actions": "Actions"
+      "Actions": "Actions",
+      "NewCheck": "New check"
     },
     "CronPicker": {
       "Cancel": "Cancel",
@@ -187,7 +188,9 @@
       "KeywordArguments": "Keyword Arguments",
       "Batch": "Batch",
       "Actions": "Actions",
-      "TemplateDeleted": "Template deleted"
+      "TemplateDeleted": "Template deleted",
+      "Empty": "No job templates yet. Build a job on the Run page, switch on \"Save as Template\", name it and save.",
+      "New": "New template"
     },
     "KeysStatusCard": {
       "keys": "Keys",
@@ -223,7 +226,8 @@
       "JobAll": "Run job on all minions",
       "Refreshing": "Refreshing minions",
       "NbMinionsRefreshed": "{0} minions refreshed",
-      "NoMinionsReplied": "The master answered, but no minion replied. Check the master can read its job cache (manage.py alcali_check)."
+      "NoMinionsReplied": "The master answered, but no minion replied. Check the master can read its job cache (manage.py alcali_check).",
+      "RefreshedFromCache": "{0} minion(s) loaded from the master's cache; no minion answered directly, so this is as fresh as the master made it"
     },
     "MinionDetail": {
       "RefreshMinion": "Refresh ",
@@ -362,7 +366,15 @@
       "Failed": "Failed",
       "Day": "24 hours",
       "Week": "7 days",
-      "Month": "30 days"
+      "Month": "30 days",
+      "Loading": "Loading...",
+      "Minion": "Minion",
+      "Duration": "Duration",
+      "Result": "Result",
+      "Comment": "Comment",
+      "When": "Last run",
+      "Changed": "Changed",
+      "Clean": "No change"
     },
     "AuditLogTable": {
       "Title": "Audit log",

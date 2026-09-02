@@ -113,7 +113,8 @@
             "Succeeded": "成功",
             "Unchanged": "为改变",
             "Failed": "失败",
-            "Actions": "行动"
+            "Actions": "行动",
+            "NewCheck": "新建检查"
         },
         "CronPicker": {
             "Cancel": "取消",
@@ -187,7 +188,9 @@
             "KeywordArguments": "关键词",
             "Batch": "批处理",
             "Actions": "执行",
-            "TemplateDeleted": "模板已删除"
+            "TemplateDeleted": "模板已删除",
+            "Empty": "暂无作业模板。在 Run 页面配置作业，打开“Save as Template”，命名并保存。",
+            "New": "新建模板"
         },
         "KeysStatusCard": {
             "keys": "密钥",
@@ -223,7 +226,8 @@
             "JobAll": "在客户端上执行所有Job",
             "Refreshing": "刷新客户端",
             "NbMinionsRefreshed": "{0} 个客户端已刷新",
-            "NoMinionsReplied": "master 已响应，但没有客户端回复。请检查 master 能否读取其作业缓存（manage.py alcali_check）。"
+            "NoMinionsReplied": "master 已响应，但没有客户端回复。请检查 master 能否读取其作业缓存（manage.py alcali_check）。",
+            "RefreshedFromCache": "已从 master 缓存加载 {0} 个客户端；没有客户端直接响应"
         },
         "MinionDetail": {
             "RefreshMinion": "刷新",
@@ -362,7 +366,15 @@
             "Failed": "失败",
             "Day": "24 小时",
             "Week": "7 天",
-            "Month": "30 天"
+            "Month": "30 天",
+            "Loading": "加载中...",
+            "Minion": "客户端",
+            "Duration": "耗时",
+            "Result": "结果",
+            "Comment": "说明",
+            "When": "最近执行",
+            "Changed": "已变更",
+            "Clean": "无变更"
         },
         "AuditLogTable": {
             "Title": "审计日志",

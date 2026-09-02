@@ -5,6 +5,16 @@
         <v-card>
           <v-card-title class="d-flex align-center flex-wrap ga-3">
             {{ $t("components.JobTemplatesTable.JobTemplate") }}
+            <!-- Templates are made here rather than synced, so the page has to
+                 offer the way to make one. -->
+            <v-btn
+              color="primary"
+              variant="tonal"
+              prepend-icon="add"
+              to="/run?save_template=1"
+            >
+              {{ $t("components.JobTemplatesTable.New") }}
+            </v-btn>
             <v-spacer></v-spacer>
             <v-text-field
               class="search"
@@ -63,6 +73,14 @@
                 >
                   {{ $t("components.JobTemplatesTable.Delete") }}
                 </v-btn>
+              </div>
+            </template>
+            <template v-slot:no-data>
+              <!-- Templates are created here, not synced from the master, so
+                   an empty table is the normal starting state rather than a
+                   sign that something failed to load. -->
+              <div class="py-6 text-medium-emphasis">
+                {{ $t("components.JobTemplatesTable.Empty") }}
               </div>
             </template>
       </legacy-data-table>

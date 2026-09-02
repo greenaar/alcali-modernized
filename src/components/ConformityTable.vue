@@ -3,6 +3,16 @@
     <v-card>
       <v-card-title class="d-flex align-center flex-wrap ga-3">
         {{ $t("components.ConformityTable.Conformity") }}
+        <!-- The custom conformity checks in this table are defined in
+             Settings, which is not discoverable from here otherwise. -->
+        <v-btn
+          color="primary"
+          variant="tonal"
+          prepend-icon="add"
+          to="/settings"
+        >
+          {{ $t("components.ConformityTable.NewCheck") }}
+        </v-btn>
         <v-spacer></v-spacer>
         <v-text-field
           class="search"

@@ -1,5 +1,34 @@
 # Changelog
 
+## [3008.8.0] - 2026-09-02
+
+### Added
+
+- The Run page suggests common Salt functions per client type. The master's
+  full list needs `sys.list_functions`, which needs a working local client, so
+  the box offered nothing at all on a master where jobs cannot be collected.
+  Anything the master reports replaces the built-ins, and the field still
+  accepts a function that is not listed.
+
+- The States table expands to per-minion detail: which minions run a state,
+  what it costs each, whether it last failed or last made changes, linking to
+  that minion and that job.
+
+- Job Templates and Conformity carry a button to create what they list, since
+  those records are made in Alcali rather than synced from the master. The
+  templates one lands on the Run page with "Save as Template" already on.
+
+### Fixed
+
+- An empty response from Salt raised IndexError and surfaced as a Django 500
+  page. salt-api answers with an empty list when a client collected nothing,
+  which is exactly what the local client does when the master cannot read the
+  job back, so refreshing schedules returned a 500 HTML page rather than the
+  Salt failure. Every place that unwrapped a Salt response is guarded.
+
+- Refreshing minions reported "no minion replied" even when the fallback to
+  the master's cache had just populated the table.
+
 ## [3008.7.1] - 2026-09-02
 
 ### Fixed

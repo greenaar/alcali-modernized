@@ -128,3 +128,37 @@ def test_cache_refresh_reports_a_salt_failure(monkeypatch):
 
     monkeypatch.setattr(netapi, "api_connect", boom)
     assert "connection refused" in netapi.refresh_minions_from_cache()["error"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"return": []},          # a client that collected nothing
+        {"return": None},
+        {},
+        "not a mapping",
+    ],
+)
+def test_an_empty_salt_response_is_an_error_not_a_crash(payload):
+    """salt-api answers with an empty list when a client collects nothing, and
+    indexing into it produced an IndexError that surfaced as a Django 500 page
+    instead of the Salt failure it is."""
+    from api.backend.netapi import first_return
+    from api.backend.salt_api import SaltApiError
+
+    with pytest.raises(SaltApiError):
+        first_return(payload, "schedule.list")
+
+
+@pytest.mark.django_db()
+def test_refresh_schedules_reports_an_empty_response(monkeypatch):
+    from api.backend import netapi
+
+    class FakeApi:
+        def local(self, *a, **k):
+            return {"return": []}
+
+    monkeypatch.setattr(netapi, "api_connect", lambda: FakeApi())
+    result = netapi.refresh_schedules()
+    assert "error" in result
+    assert "job cache" in result["error"]
