@@ -125,7 +125,8 @@
       "Target": "Cible",
       "Function": "Fonction",
       "Arguments": "Arguments",
-      "Date": "Date"
+      "Date": "Date",
+      "ShowingLatest": "affichage des {0} derniers sur {1}"
     },
     "InfosCard": {
       "Common": "Général",

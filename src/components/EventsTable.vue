@@ -3,6 +3,9 @@
     <v-card>
       <v-card-title>
         {{ $t("components.EventsTable.Events") }}
+        <span v-if="total > events.length" class="text-caption text-medium-emphasis ml-3">
+          {{ $t("components.EventsTable.ShowingLatest", [events.length, total]) }}
+        </span>
         <v-spacer></v-spacer>
         <v-text-field
           class="search"
@@ -97,6 +100,7 @@ export default {
         },
       ],
       events: [],
+      total: 0,
       loading: true,
     };
   },
@@ -108,8 +112,11 @@ export default {
       this.$store.commit("updateSettings")
     },
     loadData() {
-      this.$http.get("api/events/").then((response) => {
+      this.$http.get("api/events/", { params: { limit: 500 } }).then((response) => {
         this.events = addedData(response.data);
+        // The endpoint returns a window on the newest rows; the header carries
+        // how many there are in total so the count below is honest.
+        this.total = Number(response.headers["x-total-count"]) || this.events.length;
         this.loading = false;
       });
     },

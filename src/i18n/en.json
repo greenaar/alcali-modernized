@@ -125,7 +125,8 @@
       "Target": "Target",
       "Function": "Function",
       "Arguments": "Arguments",
-      "Date": "Date"
+      "Date": "Date",
+      "ShowingLatest": "showing latest {0} of {1}"
     },
     "InfosCard": {
       "Common": "Common",

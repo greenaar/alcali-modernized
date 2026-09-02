@@ -76,7 +76,9 @@ class SaltReturns(models.Model):
                 return ret["return"]["success"]
             if "result" in ret["return"]:
                 return ret["return"]["result"]
-        return self.jid
+        # Nothing in the payload says either way, so fall back to the returner's
+        # own success column rather than reporting an unknown result as success.
+        return str(self.success).strip().lower() in {"1", "true", "yes"}
 
     class Meta:
         managed = False
@@ -142,6 +144,12 @@ class Minions(models.Model):
         )
 
     def last_highstate(self):
+        # Memoised: the serializer asks for it, and conformity() asks again.
+        if not hasattr(self, "_last_highstate_cache"):
+            self._last_highstate_cache = self._compute_last_highstate()
+        return self._last_highstate_cache
+
+    def _compute_last_highstate(self):
         # Get all potential jobs.
         states = SaltReturns.objects.filter(
             Q(fun="state.apply") | Q(fun="state.highstate"), id=self.minion_id

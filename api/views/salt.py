@@ -1,3 +1,5 @@
+import json
+
 from ansi2html import Ansi2HTMLConverter
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, viewsets
@@ -7,6 +9,23 @@ from rest_framework.response import Response
 from api.models import SaltReturns, SaltEvents, Jids
 from api.serializers import SaltReturnsSerializer, EventsSerializer
 from api.utils.output import highstate_output, nested_output
+
+
+def jid_users(jids):
+    """Map jid -> submitting user in one query.
+
+    `SaltReturns.user()` otherwise fetches the jids row per result, which turns
+    a page of jobs into one query per row against the returner database.
+    """
+    users = {}
+    for jid, load in Jids.objects.filter(jid__in=list(jids)).values_list(
+        "jid", "load"
+    ):
+        try:
+            users[jid] = json.loads(load).get("user", "")
+        except (TypeError, ValueError):
+            users[jid] = ""
+    return users
 
 
 class MultipleFieldLookupMixin(object):
@@ -46,10 +65,16 @@ class SaltReturnsList(generics.ListAPIView):
         if start and end:
             qry["alter_time__date__range"] = [start, end]
 
-        queryset = queryset.filter(**qry).order_by("-alter_time")[:limit]
+        queryset = list(queryset.filter(**qry).order_by("-alter_time")[:limit])
+        self._jid_users = jid_users({i.jid for i in queryset})
         if users:
-            queryset = [i for i in queryset if i.user() in users]
+            queryset = [i for i in queryset if self._jid_users.get(i.jid, "") in users]
         return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["jid_users"] = getattr(self, "_jid_users", None)
+        return context
 
 
 class SaltReturnsListJid(generics.ListAPIView):
@@ -57,14 +82,18 @@ class SaltReturnsListJid(generics.ListAPIView):
 
     def get_queryset(self):
         jid = self.kwargs["jid"]
-        queryset = SaltReturns.objects.filter(jid=jid).order_by("-alter_time")
-        return queryset
+        return SaltReturns.objects.filter(jid=jid).order_by("-alter_time")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["jid_users"] = jid_users([self.kwargs["jid"]])
+        return context
 
 
 @api_view(["GET"])
 def jobs_filters(request):
     # Filter options.
-    user_list = list({i.user() for i in Jids.objects.all()})
+    user_list = list(set(jid_users(Jids.objects.values_list("jid", flat=True)).values()))
     minion_list = SaltReturns.objects.values_list("id", flat=True).distinct()
     return Response({"users": user_list, "minions": minion_list})
 
@@ -93,9 +122,30 @@ def job_rendered(request, jid, minion_id):
 
 
 class EventsViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    A simple ViewSet for viewing accounts.
+    """The most recent Salt events.
+
+    The returner table grows without bound, so this is always a window on the
+    newest rows. `limit` moves the window; the total is reported in the
+    X-Total-Count header so a caller can tell it is seeing a truncated view.
     """
 
-    queryset = SaltEvents.objects.all().order_by("-alter_time")[:50]
+    DEFAULT_LIMIT = 100
+    MAX_LIMIT = 1000
+
+    queryset = SaltEvents.objects.all().order_by("-alter_time")
     serializer_class = EventsSerializer
+
+    def get_limit(self):
+        try:
+            limit = int(self.request.query_params.get("limit", self.DEFAULT_LIMIT))
+        except (TypeError, ValueError):
+            return self.DEFAULT_LIMIT
+        return max(1, min(limit, self.MAX_LIMIT))
+
+    def get_queryset(self):
+        return SaltEvents.objects.all().order_by("-alter_time")[: self.get_limit()]
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response["X-Total-Count"] = str(SaltEvents.objects.count())
+        return response

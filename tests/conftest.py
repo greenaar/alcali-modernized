@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 from django.conf import settings
@@ -29,3 +30,24 @@ def django_db_setup(django_db_setup, django_db_blocker):
             for model in (Jids, SaltReturns, SaltEvents):
                 schema_editor.create_model(model)
     yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def frontend_shell():
+    """Guarantee dist/index.html exists for the views that render it.
+
+    dist/ is build output and no longer tracked, so a fresh checkout has none
+    until `pnpm build` runs. The index and SPA-fallback tests assert on URL
+    routing rather than bundle contents, so a placeholder is enough for them;
+    a real build is left alone.
+    """
+    index = Path(settings.BASE_DIR) / "dist" / "index.html"
+    if index.exists():
+        yield
+        return
+    index.parent.mkdir(parents=True, exist_ok=True)
+    index.write_text("<!doctype html><title>alcali</title><div id=app></div>")
+    try:
+        yield
+    finally:
+        index.unlink()

@@ -6,6 +6,7 @@ from ansi2html import Ansi2HTMLConverter
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.utils.crypto import constant_time_compare
 from django.http import (
     HttpResponse,
     JsonResponse,
@@ -47,7 +48,7 @@ from api.models import (
     Functions,
     JobTemplate,
 )
-from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser
+from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser, IsAdminUserOrReadOnly
 from api.renderer import StreamingRenderer
 from api.serializers import (
     ConformitySerializer,
@@ -110,13 +111,22 @@ class KeysViewSet(viewsets.ReadOnlyModelViewSet):
 class MinionsViewSet(viewsets.ModelViewSet):
     queryset = Minions.objects.all()
     serializer_class = MinionsSerializer
+    permission_classes = [IsAdminUserOrReadOnly]
     lookup_field = "minion_id"
     lookup_value_regex = "[^/]+"
 
+    def get_permissions(self):
+        # Refreshing runs test.ping and grains.items through the caller's own
+        # Salt credentials, so the master applies their eauth ACL. Deleting a
+        # minion only touches Alcali's table, and stays staff only.
+        if self.action in ("refresh_minions", "conformity", "conformity_detail"):
+            return []
+        return super().get_permissions()
+
     @action(detail=False, methods=["post"])
     def refresh_minions(self, request):
-        if request.POST.get("minion_id"):
-            minion_id = request.POST.get("minion_id")
+        if request.data.get("minion_id"):
+            minion_id = request.data.get("minion_id")
             ret = refresh_minion(minion_id)
             if "error" in ret:
                 return Response(ret["error"], status=401)
@@ -146,9 +156,10 @@ class MinionsViewSet(viewsets.ModelViewSet):
     def conformity(self, request):
         highstate_conformity = {"conform": 0, "conflict": 0, "unknown": 0}
         for minion in Minions.objects.all():
-            if minion.conformity() is True:
+            conformity = minion.conformity()
+            if conformity is True:
                 highstate_conformity["conform"] += 1
-            elif minion.conformity() is False:
+            elif conformity is False:
                 highstate_conformity["conflict"] += 1
             else:
                 highstate_conformity["unknown"] += 1
@@ -212,6 +223,7 @@ class MinionsViewSet(viewsets.ModelViewSet):
 class MinionsCustomFieldsViewSet(viewsets.ModelViewSet):
     queryset = MinionsCustomFields.objects.all()
     serializer_class = MinionsCustomFieldsSerializer
+    permission_classes = [IsAdminUserOrReadOnly]
 
     def perform_create(self, serializer):
         for minion in Minions.objects.all():
@@ -227,6 +239,7 @@ class MinionsCustomFieldsViewSet(viewsets.ModelViewSet):
 class ConformityViewSet(viewsets.ModelViewSet):
     queryset = Conformity.objects.all()
     serializer_class = ConformitySerializer
+    permission_classes = [IsAdminUserOrReadOnly]
     lookup_value_regex = "[0-9a-zA-Z.]+"
 
     @action(detail=False)
@@ -369,10 +382,19 @@ class UserSettingsViewSet(viewsets.ModelViewSet):
     queryset = UserSettings.objects.all()
     serializer_class = UserSettingsSerializer
 
+    def get_queryset(self):
+        # These rows hold each user's Salt token, which is the credential they
+        # authenticate to the master with. Without this filter any logged in
+        # user could read - and overwrite - everyone else's.
+        if self.request.user.is_staff:
+            return UserSettings.objects.all()
+        return UserSettings.objects.filter(user=self.request.user)
+
 
 class JobTemplateViewSet(viewsets.ModelViewSet):
     queryset = JobTemplate.objects.all()
     serializer_class = JobTemplateSerializer
+    permission_classes = [IsAdminUserOrReadOnly]
 
 
 @api_view(["GET"])
@@ -451,78 +473,79 @@ def event_stream(request):
 
 @api_view(["POST"])
 def run(request):
-    if request.POST.get("raw"):
-        command = RawCommand(request.POST.get("command"))
-        parsed_command = command.parse()
-        # Schedules.
-        if request.POST.get("schedule_type"):
-            schedule_type = request.POST.get("schedule_type")
-            schedule_name = request.POST.get(
-                "schedule_name", datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            )
-            schedule_parsed = [
-                {
-                    "client": "local",
-                    "batch": None,
-                    "tgt_type": parsed_command[0]["tgt_type"],
-                    "tgt": parsed_command[0]["tgt"],
-                    "fun": "schedule.add",
-                    "arg": [
-                        schedule_name,
-                        "function={}".format(parsed_command[0]["fun"]),
-                        "job_args={}".format(parsed_command[0]["arg"]),
-                    ],
-                }
-            ]
-            if schedule_type == "once":
-                schedule_date = request.POST.get("schedule")
-                schedule_parsed[0]["arg"].append("once={}".format(schedule_date))
-                schedule_parsed[0]["arg"].append("once_fmt=%Y-%m-%d %H:%M:%S")
-            else:
-                cron = request.POST.get("cron")
-                schedule_parsed[0]["arg"].append("cron={}".format(cron))
-            ret = run_raw(schedule_parsed)
-            if "error" in ret:
-                return Response(ret["error"], status=401)
-            formatted = nested_output.output(ret)
-            conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
-            html = conv.convert(formatted, ensure_trailing_newline=True)
-            return HttpResponse(html)
-
-        cli_ret = request.POST.get("cli")
-        conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
-        ret = run_raw(parsed_command)
+    if not request.data.get("raw"):
+        return Response({"error": "no command submitted"}, status=400)
+    command = RawCommand(request.data.get("command"))
+    parsed_command = command.parse()
+    # Schedules.
+    if request.data.get("schedule_type"):
+        schedule_type = request.data.get("schedule_type")
+        schedule_name = request.data.get(
+            "schedule_name", datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        )
+        schedule_parsed = [
+            {
+                "client": "local",
+                "batch": None,
+                "tgt_type": parsed_command[0]["tgt_type"],
+                "tgt": parsed_command[0]["tgt"],
+                "fun": "schedule.add",
+                "arg": [
+                    schedule_name,
+                    "function={}".format(parsed_command[0]["fun"]),
+                    "job_args={}".format(parsed_command[0]["arg"]),
+                ],
+            }
+        ]
+        if schedule_type == "once":
+            schedule_date = request.data.get("schedule")
+            schedule_parsed[0]["arg"].append("once={}".format(schedule_date))
+            schedule_parsed[0]["arg"].append("once_fmt=%Y-%m-%d %H:%M:%S")
+        else:
+            cron = request.data.get("cron")
+            schedule_parsed[0]["arg"].append("cron={}".format(cron))
+        ret = run_raw(schedule_parsed)
         if "error" in ret:
             return Response(ret["error"], status=401)
-        formatted = "\n"
-
-        # Error.
-        if isinstance(ret, str):
-            item_ret = nested_output.output(ret)
-            formatted += item_ret + "\n\n"
-        # runner or wheel client.
-        elif isinstance(ret, list):
-            for item in ret:
-                item_ret = nested_output.output(item)
-                formatted += item_ret + "\n\n"
-        # Highstate.
-        elif (
-            parsed_command[0]["fun"] in ["state.apply", "state.highstate"]
-            and parsed_command[0]["client"] != "local_async"
-        ):
-            for state, out in ret.items():
-                minion_ret = highstate_output.output({state: out})
-                formatted += minion_ret + "\n\n"
-        # Everything else.
-        else:
-            for state, out in ret.items():
-                minion_ret = nested_output.output({state: out})
-                formatted += minion_ret + "\n\n"
-
-        if cli_ret:
-            return JsonResponse({"results": formatted})
+        formatted = nested_output.output(ret)
+        conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
         html = conv.convert(formatted, ensure_trailing_newline=True)
         return HttpResponse(html)
+
+    cli_ret = request.data.get("cli")
+    conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
+    ret = run_raw(parsed_command)
+    if "error" in ret:
+        return Response(ret["error"], status=401)
+    formatted = "\n"
+
+    # Error.
+    if isinstance(ret, str):
+        item_ret = nested_output.output(ret)
+        formatted += item_ret + "\n\n"
+    # runner or wheel client.
+    elif isinstance(ret, list):
+        for item in ret:
+            item_ret = nested_output.output(item)
+            formatted += item_ret + "\n\n"
+    # Highstate.
+    elif (
+        parsed_command[0]["fun"] in ["state.apply", "state.highstate"]
+        and parsed_command[0]["client"] != "local_async"
+    ):
+        for state, out in ret.items():
+            minion_ret = highstate_output.output({state: out})
+            formatted += minion_ret + "\n\n"
+    # Everything else.
+    else:
+        for state, out in ret.items():
+            minion_ret = nested_output.output({state: out})
+            formatted += minion_ret + "\n\n"
+
+    if cli_ret:
+        return JsonResponse({"results": formatted})
+    html = conv.convert(formatted, ensure_trailing_newline=True)
+    return HttpResponse(html)
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
@@ -532,14 +555,19 @@ class MyTokenObtainPairView(TokenObtainPairView):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def verify(request):
-    if request.POST.get("username") and request.POST.get("password"):
-        try:
-            user = User.objects.get(username=request.POST.get("username"))
-        except User.DoesNotExist:
-            return HttpResponse("Unauthorized", status=401)
-        if request.POST.get("password") == user.user_settings.token:
-            return Response([])
+    username = request.data.get("username")
+    password = request.data.get("password")
+    if not username or not password:
         return HttpResponse("Unauthorized", status=401)
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return HttpResponse("Unauthorized", status=401)
+    # Compared in constant time: this is the Salt token, and a plain ==
+    # leaks its length and prefix through the response timing.
+    if constant_time_compare(password, user.user_settings.token):
+        return Response([])
+    return HttpResponse("Unauthorized", status=401)
 
 
 @api_view(["GET"])

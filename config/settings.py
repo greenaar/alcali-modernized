@@ -29,11 +29,22 @@ if not os.environ.get("DB_BACKEND"):
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY", "alcali-development-only-key")
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool("DJANGO_DEBUG")
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# It also signs the JWTs, so a deployment that fell back to a key published in
+# this repository would let anyone mint a valid token. Refuse to start instead.
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured(
+            "SECRET_KEY is not set. Generate one and pass it in the environment; "
+            "it signs session cookies and JWTs, so it must not be a shared default."
+        )
+    SECRET_KEY = "alcali-development-only-key"
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "127.0.0.1").split(" ")
 

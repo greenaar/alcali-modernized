@@ -60,8 +60,26 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm lint --no-fix src
+      - run: pnpm test:unit
       - run: pnpm build
       - run: pnpm audit --prod
+
+      # Drive the bundle just built: the Vue 2 leftovers that survived the
+      # migration all compiled cleanly and only failed in the browser.
+      - uses: https://code.forgejo.org/actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+      - name: Frontend smoke test
+        env:
+          DB_BACKEND: sqlite3
+          SECRET_KEY: ci-only
+        run: |
+          python -m pip install -r requirements/prod.txt -r requirements/test.txt
+          python -m playwright install --with-deps chromium
+          pytest -m smoke
 
   container:
     runs-on: ubuntu-latest

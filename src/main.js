@@ -59,14 +59,24 @@ axios.interceptors.request.use(
     const originalRequest = config;
     // before request is sent check if refresh token is about to expire.
     const refresh = window.localStorage.getItem("refresh");
-    if (
-      refresh &&
-      jwtDecode(refresh).exp - Math.floor(Date.now() / 1000) < 60
-    ) {
-      // cleanup local storage and reroute to login.
-      return store.dispatch("logout").then(() => {
-        return router.push({ path: "/login", name: "Login" });
+    let expiring = false;
+    try {
+      expiring =
+        !!refresh && jwtDecode(refresh).exp - Math.floor(Date.now() / 1000) < 60;
+    } catch (e) {
+      // An unreadable refresh token is as good as an expired one.
+      expiring = !!refresh;
+    }
+    if (expiring) {
+      // Clean up local storage and reroute to login. A request interceptor has
+      // to resolve with a config or reject; returning the router's promise
+      // instead handed axios a bad config and produced a malformed request.
+      store.dispatch("logout").then(() => {
+        router.push({ path: "/login", name: "Login" });
       });
+      return Promise.reject(
+        new axios.Cancel("Session expired, redirecting to login")
+      );
     }
     return originalRequest;
   },

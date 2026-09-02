@@ -1,3 +1,5 @@
 pytest>=8.4,<9
 pytest-cov>=6,<7
 pytest-django>=4.11,<5
+# Drives the built frontend in tests/test_frontend_smoke.py (pytest -m smoke).
+playwright>=1.49,<2

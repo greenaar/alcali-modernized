@@ -12,3 +12,7 @@ docs/site/
 # Python build output (the release workflow writes build/release/).
 build/
 *.egg-info/
+# Frontend build output. Built by `pnpm build` (and by the Dockerfile and the
+# release workflow); keeping it in the tree made every frontend change carry a
+# large generated diff and let the bundle drift from src/.
+/dist/

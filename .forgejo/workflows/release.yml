@@ -160,8 +160,23 @@ jobs:
           python -m pip install -r requirements/prod.txt -r requirements/test.txt
           pytest
 
-      # dist/ holds the committed frontend bundle, so the Python build has to
-      # write somewhere else or it would land inside the shipped assets.
+      # dist/ is build output and not tracked, so the bundle the wheel ships
+      # has to be produced here, from this tag's sources.
+      - uses: https://code.forgejo.org/pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+      - uses: https://code.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Build the frontend
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm build
+          test -f dist/index.html
+
+      # The Python build writes somewhere other than dist/, which now holds the
+      # frontend bundle it is about to package.
       - name: Build sdist and wheel
         run: |
           python -m pip install build twine

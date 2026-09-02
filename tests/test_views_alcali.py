@@ -384,3 +384,121 @@ def test_verify_token(admin_client, admin_user, jwt):
         **jwt
     )
     assert response.status_code == 401
+
+
+# --- authorization -------------------------------------------------------
+#
+# Every viewset below used to run on the project-wide IsAuthenticated default,
+# so any signed-in account could reach records that are not its own.
+
+
+@pytest.mark.django_db()
+def test_user_settings_hides_other_users(dummy_client, admin_user, dummy_user, jwt_dummy_user):
+    # UserSettings.token is the password this user authenticates to Salt with.
+    response = dummy_client.get("/api/userssettings/", **jwt_dummy_user)
+    assert response.status_code == 200
+    assert [row["user"] for row in response.json()] == [dummy_user.id]
+
+    response = dummy_client.get(
+        "/api/userssettings/{}/".format(admin_user.id), **jwt_dummy_user
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db()
+def test_user_settings_rejects_writing_another_users_token(
+    dummy_client, admin_user, dummy_user, jwt_dummy_user
+):
+    response = dummy_client.patch(
+        "/api/userssettings/{}/".format(admin_user.id),
+        {"token": "attacker-chosen"},
+        content_type="application/json",
+        **jwt_dummy_user
+    )
+    assert response.status_code == 404
+    admin_user.user_settings.refresh_from_db()
+    assert admin_user.user_settings.token != "attacker-chosen"
+
+
+@pytest.mark.django_db()
+def test_user_settings_token_is_read_only(dummy_client, dummy_user, jwt_dummy_user):
+    original = dummy_user.user_settings.token
+    response = dummy_client.patch(
+        "/api/userssettings/{}/".format(dummy_user.id),
+        {"token": "self-chosen", "settings": {"Layout": {"dark": True}}},
+        content_type="application/json",
+        **jwt_dummy_user
+    )
+    assert response.status_code == 200
+    dummy_user.user_settings.refresh_from_db()
+    # Preferences save; the Salt credential does not.
+    assert dummy_user.user_settings.token == original
+    assert dummy_user.user_settings.settings["Layout"]["dark"] is True
+
+
+@pytest.mark.django_db()
+def test_non_staff_cannot_change_alcali_records(
+    dummy_client, dummy_user, jwt_dummy_user, minion
+):
+    # Reading stays open to any signed-in user.
+    assert dummy_client.get("/api/minions/", **jwt_dummy_user).status_code == 200
+    # Writing does not.
+    assert (
+        dummy_client.delete(
+            "/api/minions/{}/".format(minion.minion_id), **jwt_dummy_user
+        ).status_code
+        == 403
+    )
+    assert (
+        dummy_client.post(
+            "/api/conformity/",
+            {"name": "x", "function": "cmd.run"},
+            content_type="application/json",
+            **jwt_dummy_user
+        ).status_code
+        == 403
+    )
+
+
+@pytest.mark.django_db()
+def test_staff_can_still_change_alcali_records(admin_client, jwt):
+    response = admin_client.post(
+        "/api/conformity/",
+        {"name": "staffrule", "function": "cmd.run"},
+        content_type="application/json",
+        **jwt
+    )
+    assert response.status_code == 201
+
+
+# --- request bodies ------------------------------------------------------
+
+
+@pytest.mark.django_db()
+def test_run_rejects_an_empty_body(admin_client, jwt):
+    # The frontend sends JSON; these views read request.POST, which is empty for
+    # a JSON body, and the view then returned None -> AssertionError -> 500.
+    response = admin_client.post(
+        "/api/run/", {}, content_type="application/json", **jwt
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db()
+def test_refresh_minions_reads_a_json_minion_id(admin_client, jwt, monkeypatch):
+    seen = {}
+
+    def fake_refresh(minion_id):
+        seen["minion_id"] = minion_id
+        return {"result": "refreshed"}
+
+    monkeypatch.setattr("api.views.alcali.refresh_minion", fake_refresh)
+    response = admin_client.post(
+        "/api/minions/refresh_minions/",
+        {"minion_id": "minion1"},
+        content_type="application/json",
+        **jwt
+    )
+    assert response.status_code == 200
+    # Without this the view fell through to the refresh-everything branch.
+    assert seen == {"minion_id": "minion1"}

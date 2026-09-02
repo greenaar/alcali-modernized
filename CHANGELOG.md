@@ -1,5 +1,72 @@
 # Changelog
 
+## [3008.3.0] - 2026-09-01
+
+### Security
+
+- **Any signed-in user could read and overwrite every other user's Salt token.**
+  `UserSettingsViewSet` had no permission class and no queryset filter, and its
+  serializer exposed `token` — the credential Alcali authenticates to the master
+  with. `GET /api/userssettings/` returned every user's token, and a PATCH could
+  replace one. Settings are now scoped to the requesting user, and `token` is
+  read-only there (the token endpoints still manage it).
+
+- Alcali's own records could be changed by any signed-in user. Minions,
+  conformity rules, minion custom fields and job templates now require staff to
+  modify and stay readable to everyone. Actions delegated to the master
+  (running a job, refreshing minions, managing keys and schedules) are
+  unchanged: salt-api applies the caller's own eauth ACL to those.
+
+- `SECRET_KEY` no longer falls back to a value published in this repository.
+  It signs the JWTs, so a deployment that fell back to it could have its tokens
+  forged. Alcali now refuses to start without one unless `DJANGO_DEBUG` is set.
+
+- The Salt token comparison in the eauth `verify` endpoint is now constant time.
+
+### Fixed
+
+- The Run page could not run anything, and per-minion Refresh refreshed every
+  minion. The frontend sends JSON, while thirteen view sites read
+  `request.POST`, which is only populated for form bodies: `POST /api/run/`
+  returned 500 and `refresh_minions` silently took the refresh-everything
+  branch. All of them now read `request.data`.
+
+- `run` and `verify` returned `None` on some paths, which DRF turns into a 500.
+
+- A job whose payload said nothing about success was reported as succeeded:
+  `success_bool` fell back to returning the jid, a non-empty string that a
+  BooleanField serialises as true. It now falls back to the returner's own
+  success column.
+
+- The jobs list issued one query per row against the returner database
+  (`SaltReturns.user()` fetching a jids row each time), so the 1000-row option
+  cost about a thousand round trips. It is now two queries regardless of size;
+  `jobs_filters` no longer instantiates every jids row, and `last_highstate` is
+  memoised so the minions and conformity views stop computing it twice.
+
+- The events table was hard-capped at 50 rows with nothing saying so. The
+  window is now settable with `?limit=` (default 100, max 1000), the total is
+  returned in `X-Total-Count`, and the table says how many of how many it shows.
+
+- A near-expired refresh token produced a malformed request instead of a clean
+  redirect: the interceptor returned the router's promise where axios wanted a
+  request config.
+
+### Changed
+
+- `dist/` is no longer tracked. It is build output; keeping it in the tree made
+  every frontend change carry a large generated diff and let the shipped bundle
+  drift from `src/`. The container already built it from source, and the release
+  workflow now does too, so the wheel is built from the tag's sources.
+
+- CI runs the frontend lint, the frontend unit tests, and a browser smoke test
+  that loads every route against the built bundle and fails on any console
+  error. Every defect fixed in 3008.2.1 compiled cleanly and only showed up in
+  a browser. Run it locally with `pnpm build && pytest -m smoke`.
+
+- `pnpm test:unit` runs the Jest suite that had been sitting in the tree with no
+  runner configured.
+
 ## [3008.2.1] - 2026-09-01
 
 Fixes for the Vue 3 / Vuetify 3 migration: several Vue 2 and Vuetify 2 APIs had

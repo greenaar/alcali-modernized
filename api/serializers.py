@@ -20,7 +20,7 @@ from .models import (
 
 
 class SaltReturnsSerializer(serializers.ModelSerializer):
-    user = serializers.CharField()
+    user = serializers.SerializerMethodField()
     arguments = serializers.CharField()
     keyword_arguments = serializers.CharField()
     success = serializers.BooleanField(source="success_bool")
@@ -28,6 +28,15 @@ class SaltReturnsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaltReturns
         fields = "__all__"
+
+    def get_user(self, obj):
+        # SaltReturns.user() reads the jids table one row at a time. The list
+        # views put every jid's user in the context up front so a page of
+        # results costs one query instead of one per row.
+        users = self.context.get("jid_users")
+        if users is not None:
+            return users.get(obj.jid, "")
+        return obj.user()
 
 
 class EventsSerializer(serializers.ModelSerializer):
@@ -84,6 +93,10 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSettings
         fields = "__all__"
+        # `token` is the password this user authenticates to Salt with, so only
+        # the token endpoints may change it. A settings PATCH carries the
+        # preferences blob and nothing else.
+        read_only_fields = ("user", "token", "created", "salt_permissions")
 
 
 class JobTemplateSerializer(serializers.ModelSerializer):
