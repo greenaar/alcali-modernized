@@ -1,5 +1,21 @@
 # Changelog
 
+## [3008.6.1] - 2026-09-02
+
+### Fixed
+
+- An unreachable master had every open page hammering salt-api. The event
+  stream is served by the polyfill, which reconnects from one second and caps
+  its backoff at sixteen, and every attempt costs the server a full Salt login.
+  The reconnection is now handled directly: five seconds, doubling to a minute,
+  reset as soon as a stream connects. Deployments whose master is misconfigured
+  were generating a continuous stream of login attempts against it.
+
+- The frontend smoke run timed out on a shared runner. The reconnection above
+  was the load behind it; navigation is also retried once and, when it does
+  fail, the error now says whether the server was still answering, so the next
+  failure identifies which side stalled instead of only reporting a timeout.
+
 ## [3008.6.0] - 2026-09-02
 
 ### Added

@@ -167,6 +167,8 @@ export default {
     notif_menu: false,
     searchInput: "",
     eventSource: null,
+    streamBackoff: 0,
+    streamTimer: null,
     messages: [],
     notif_nb: 0,
     routes: [
@@ -251,6 +253,23 @@ export default {
         this.applyTheme();
       });
     },
+    scheduleReconnect() {
+      if (this.streamTimer || this.destroyed) {
+        return;
+      }
+      if (this.eventSource) {
+        // The polyfill retries on its own otherwise, from one second.
+        this.eventSource.close();
+        this.eventSource = null;
+      }
+      // 5s, then doubling to a minute: quick enough to notice a master coming
+      // back, slow enough not to be a login flood while it is down.
+      this.streamBackoff = Math.min(this.streamBackoff ? this.streamBackoff * 2 : 5000, 60000);
+      this.streamTimer = setTimeout(() => {
+        this.streamTimer = null;
+        this.saltStatus();
+      }, this.streamBackoff);
+    },
     saltStatus() {
       // Various Salt event tag matchers.
       let isJobEvent = helpersMixin.methods.fnmatch("salt/job/*");
@@ -263,13 +282,17 @@ export default {
         },
       });
       es.addEventListener("open", () => {
+        this.streamBackoff = 0;
         this.$store.dispatch("updateWs", true);
       });
-      // The endpoint answers 503 when the master cannot be reached, and the
-      // polyfill then retries; without this the indicator sat on whatever it
-      // last showed until the page was reloaded.
+      // The endpoint answers 503 when the master cannot be reached. The
+      // polyfill would then reconnect from one second, and every attempt costs
+      // the server a full Salt login - so an unreachable master had every open
+      // page hammering salt-api for as long as it stayed open. Take the
+      // reconnection over ourselves and back off properly instead.
       es.addEventListener("error", () => {
         this.$store.dispatch("updateWs", false);
+        this.scheduleReconnect();
       });
       this.eventSource = es;
       es.addEventListener(
@@ -359,6 +382,8 @@ export default {
     this.applyTheme()
   },
   beforeUnmount() {
+    this.destroyed = true
+    clearTimeout(this.streamTimer)
     if (this.eventSource) {
       this.eventSource.close()
     }

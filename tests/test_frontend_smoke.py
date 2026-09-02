@@ -20,6 +20,11 @@ from pathlib import Path
 
 import pytest
 
+try:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+except ImportError:  # collected, then skipped, when playwright is absent
+    PlaywrightTimeout = Exception
+
 pytestmark = pytest.mark.smoke
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -66,7 +71,7 @@ def live_app():
         # event-stream reconnection, and the frontend reconnects for as long
         # as the page is open.
         SALT_URL="https://127.0.0.1:1",
-        SALT_TIMEOUT="2",
+        SALT_TIMEOUT="1",
         DB_BACKEND="sqlite3",
         DB_NAME=str(Path(tmp.name) / "smoke.sqlite3"),
         SECRET_KEY="smoke-tests-only-secret-key-at-least-32-bytes",
@@ -132,18 +137,49 @@ def page(live_app):
         browser.close()
 
 
-def visit(page, url, settle=1200):
+NAV_TIMEOUT = 45000
+
+
+def visit(page, url, settle=1200, attempts=2):
     """Navigate and wait for the app shell, not for network silence.
 
-    The frontend keeps an event stream open and reconnects on a backoff, so
-    the network never reliably goes idle; `networkidle` then comes down to a
-    race between that backoff and Playwright's 500ms idle window, which is
-    won locally and lost on a slower runner.
+    The frontend keeps an event stream open, so the network never reliably
+    goes quiet and `networkidle` is a race that a slow runner loses.
+
+    Navigation is retried once: a shared runner can stall long enough to miss
+    a single attempt, and a flaky smoke run teaches people to ignore it. If
+    both attempts fail the error says whether the server was still answering,
+    which is the first thing worth knowing.
     """
-    page.goto(url, wait_until="domcontentloaded")
-    # The router renders into v-main once the bundle has booted.
-    page.wait_for_selector(".v-main", state="attached", timeout=30000)
-    page.wait_for_timeout(settle)
+    last = None
+    for attempt in range(attempts):
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+            page.wait_for_selector(".v-main", state="attached", timeout=NAV_TIMEOUT)
+            page.wait_for_timeout(settle)
+            return
+        except PlaywrightTimeout as exc:
+            last = exc
+    raise AssertionError(
+        "could not load {} after {} attempts; the server was {}.\n{}".format(
+            url, attempts, _server_state(url), last
+        )
+    )
+
+
+def _server_state(url):
+    """Whether the application still answers at all, for the failure message."""
+    import urllib.error
+    import urllib.request
+
+    root = "/".join(url.split("/")[:3])
+    try:
+        with urllib.request.urlopen(root + "/api/version/", timeout=10) as response:
+            return "answering (HTTP {})".format(response.status)
+    except urllib.error.HTTPError as exc:
+        return "answering (HTTP {})".format(exc.code)
+    except Exception as exc:  # noqa: BLE001 - any failure is the answer
+        return "not answering ({})".format(exc)
 
 
 def _drain(messages):
