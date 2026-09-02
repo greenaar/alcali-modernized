@@ -7,12 +7,12 @@
 
 ## What's Alcali?
 
-Alcali is a web based tool for monitoring and administrating **Saltstack** Salt.
+Alcali is a web based tool for monitoring and administrating **Saltstack**.
 
 ## Modernization status
 
-This repository is the community-maintenance fork of Alcali, at
-`greenaar/alcali-modernized`. It updates the core application to
+This repository is a fork of Alcali, at `greenaar/alcali-modernized`. It
+updates the core application to
 Python 3.12, Django 5.2 LTS, Vue 3, Vuetify 3, Node 22 and pnpm. It also replaces the unmaintained `salt-pepper`
 client with a small HTTPS client whose certificate verification is enabled by
 default.
