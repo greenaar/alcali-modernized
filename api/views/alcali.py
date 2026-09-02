@@ -177,7 +177,18 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
             ret = refresh_minion(minion)
             if "error" in ret:
                 return Response(ret["error"], status=401)
-        return Response({"refreshed": accepted_minions, "responded": len(connected)})
+        # A reachable master that answers with nobody is not the same as a
+        # successful refresh, and reporting it as one is how an empty Minions
+        # page ends up looking like a fleet with no minions. It usually means
+        # the master could not read the job back - see the job cache check in
+        # `manage.py alcali_check`.
+        return Response(
+            {
+                "refreshed": accepted_minions,
+                "responded": len(connected),
+                "no_minions_replied": not connected,
+            }
+        )
 
     @action(detail=False)
     def preview_target(self, request):

@@ -145,6 +145,59 @@ class Command(BaseCommand):
         self.stdout.write("salt:\tlocal client ok")
         return []
 
+    def report_job_cache(self):
+        """Is the master writing the job cache, not just the returns?
+
+        `master_job_cache` writes the publish payload to `jids`; the returner
+        writes results to `salt_returns`. They are separate writes, and only
+        the first is what the master reads back when it collects a job's
+        returns. When `jids` is not being written the master logs
+
+            [salt.client][WARNING] jid does not exist
+
+        and gives up on the job immediately, so a Salt-backed action returns an
+        empty result with no error - which is what an empty Minions page after
+        a refresh that reported success looks like. Alcali reads the same table
+        for the Jobs page's User column, so that goes blank too.
+        """
+        from api.models import Jids, SaltReturns
+
+        problems = []
+        try:
+            jids = Jids.objects.count()
+            returns = SaltReturns.objects.count()
+        except DatabaseError as exc:
+            self.stdout.write("returner:\tcould not be read: {}".format(exc))
+            return problems
+
+        self.stdout.write(
+            "returner:\tjids {} row(s), salt_returns {} row(s)".format(jids, returns)
+        )
+        if not returns:
+            return problems
+
+        newest = (
+            SaltReturns.objects.order_by("-alter_time")
+            .values_list("jid", flat=True)
+            .first()
+        )
+        if newest and not Jids.objects.filter(jid=newest).exists():
+            problems.append(
+                "the most recent job ({}) has a row in salt_returns but none in "
+                "jids, so master_job_cache is not writing".format(newest)
+            )
+            self.stdout.write(
+                "warning: the newest job {} is in salt_returns but not in jids.\n"
+                "      The returner is writing results while master_job_cache is\n"
+                "      not writing the job cache, so the master cannot read its\n"
+                "      own jobs back - it logs 'jid does not exist' and returns\n"
+                "      nothing, and refreshing minions or keys finds no minions.\n"
+                "      Check that the master's mysql.user/mysql.pass can write\n"
+                "      the jids table, and that master_job_cache reached the\n"
+                "      running config.".format(newest)
+            )
+        return problems
+
     def report_caches(self):
         """Say which of Alcali's own caches are empty, and what fills them."""
         empty = []
@@ -215,6 +268,7 @@ class Command(BaseCommand):
         salt_errors = []
         if not database_error:
             self.report_caches()
+            self.report_job_cache()
         if options.get("salt_user"):
             salt_errors = self.check_salt_api(options["salt_user"])
             for error in salt_errors:

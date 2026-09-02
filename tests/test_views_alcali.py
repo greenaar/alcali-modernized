@@ -725,3 +725,22 @@ def test_event_stream_streams_when_the_master_is_reachable(
     response = admin_client.get("/api/event_stream/", **jwt)
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
+
+
+@pytest.mark.django_db()
+def test_refresh_all_flags_a_master_that_answered_with_nobody(
+    admin_client, jwt, monkeypatch
+):
+    # The master is reachable and returns an empty result, which is what
+    # happens when it cannot read its own job back. Reporting that as a
+    # successful refresh of zero minions is how an empty Minions page comes to
+    # look like a fleet with no minions.
+    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["refreshed"] == []
+    assert body["no_minions_replied"] is True
+
+    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {"minion1": True})
+    monkeypatch.setattr("api.views.alcali.refresh_minion", lambda m: {"result": "ok"})
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["no_minions_replied"] is False

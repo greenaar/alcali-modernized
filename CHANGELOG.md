@@ -1,5 +1,24 @@
 # Changelog
 
+## [3008.5.2] - 2026-09-02
+
+### Added
+
+- `manage.py alcali_check` reports whether the master is writing its job cache.
+  `master_job_cache` writes the publish payload to `jids` and the returner
+  writes results to `salt_returns`; those are separate writes, and only the
+  first is what the master reads back when collecting a job's returns. When
+  `jids` stops being written the master logs `jid does not exist` and abandons
+  the job, so every Salt-backed action returns an empty result with no error -
+  a refresh that reports success and populates nothing. The check flags a
+  recent job present in `salt_returns` but absent from `jids`.
+
+### Fixed
+
+- Refreshing minions reported "0 minions refreshed" as a success when the
+  master answered with nobody at all. That is not an empty fleet, it is a
+  master that could not read its own job back, and the two looked identical.
+
 ## [3008.5.1] - 2026-09-02
 
 ### Fixed

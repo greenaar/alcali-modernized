@@ -42,7 +42,13 @@
       refreshMinions() {
         this.$toast(this.$i18n.t("components.Minions.Refreshing"))
         this.$http.post("/api/minions/refresh_minions/").then((response) => {
-          this.$toast(this.$i18n.t("components.Minions.NbMinionsRefreshed", [response.data.refreshed.length]))
+          // "0 minions refreshed" reads like success. A master that answers
+          // with nobody almost always means it could not read the job back.
+          if (response.data.no_minions_replied) {
+            this.$toast.error(this.$i18n.t("components.Minions.NoMinionsReplied"))
+          } else {
+            this.$toast(this.$i18n.t("components.Minions.NbMinionsRefreshed", [response.data.refreshed.length]))
+          }
         }).then(() => {
           this.refreshKey += 1
         }).catch((error) => {

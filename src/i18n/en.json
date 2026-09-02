@@ -222,7 +222,8 @@
       "RefreshAll": "Refresh all minions",
       "JobAll": "Run job on all minions",
       "Refreshing": "Refreshing minions",
-      "NbMinionsRefreshed": "{0} minions refreshed"
+      "NbMinionsRefreshed": "{0} minions refreshed",
+      "NoMinionsReplied": "The master answered, but no minion replied. Check the master can read its job cache (manage.py alcali_check)."
     },
     "MinionDetail": {
       "RefreshMinion": "Refresh ",

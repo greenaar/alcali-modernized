@@ -125,3 +125,38 @@ def test_alcali_check_reports_a_missing_token(admin_user, check_env):
     with pytest.raises(SystemExit):
         call_command("alcali_check", "--salt-user", admin_user.username, stdout=out)
     assert "revoked" in out.getvalue()
+
+
+@pytest.mark.django_db()
+def test_alcali_check_spots_a_job_cache_that_is_not_written(check_env):
+    """salt_returns filling while jids stays empty is the signature of a
+    master_job_cache that is not writing - the master then cannot read its own
+    jobs back, logs 'jid does not exist', and every Salt-backed action returns
+    an empty result without an error."""
+    from api.models import SaltReturns
+
+    SaltReturns.objects.create(
+        fun="test.ping", jid="20260902010000000000", return_field="{}",
+        id="minion1", success="1", full_ret='{"success": true, "fun_args": []}',
+        alter_time="2026-09-02 01:00:00",
+    )
+    out = StringIO()
+    call_command("alcali_check", stdout=out)
+    text = out.getvalue()
+    assert "jids 0 row(s), salt_returns 1 row(s)" in text
+    assert "master_job_cache is not writing" in text or "not in jids" in text
+
+
+@pytest.mark.django_db()
+def test_alcali_check_is_quiet_when_the_job_cache_is_written(check_env):
+    from api.models import Jids, SaltReturns
+
+    Jids.objects.create(jid="20260902010000000000", load='{"user": "admin"}')
+    SaltReturns.objects.create(
+        fun="test.ping", jid="20260902010000000000", return_field="{}",
+        id="minion1", success="1", full_ret='{"success": true, "fun_args": []}',
+        alter_time="2026-09-02 01:00:00",
+    )
+    out = StringIO()
+    call_command("alcali_check", stdout=out)
+    assert "not in jids" not in out.getvalue()

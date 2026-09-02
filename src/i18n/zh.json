@@ -222,7 +222,8 @@
             "RefreshAll": "刷新所有客户端",
             "JobAll": "在客户端上执行所有Job",
             "Refreshing": "刷新客户端",
-            "NbMinionsRefreshed": "{0} 个客户端已刷新"
+            "NbMinionsRefreshed": "{0} 个客户端已刷新",
+            "NoMinionsReplied": "master 已响应，但没有客户端回复。请检查 master 能否读取其作业缓存（manage.py alcali_check）。"
         },
         "MinionDetail": {
             "RefreshMinion": "刷新",
