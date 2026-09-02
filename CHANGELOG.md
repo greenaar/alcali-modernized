@@ -1,5 +1,24 @@
 # Changelog
 
+## [3008.8.4] - 2026-09-02
+
+### Fixed
+
+- Returner retention could delete a different set of rows than the one it
+  counted. Changing either day count left the previous counts on screen with
+  the delete button still enabled, while the delete itself sent the new
+  window - so the confirmation named one number and removed another. The
+  counts now refresh as the window changes, and deleting sends the window
+  they were produced for.
+
+### Changed
+
+- Returner retention is one step rather than two. Counting ran behind a
+  Preview button, which read as previewing the settings and left Delete
+  inertly disabled until it was pressed. The counts now load with the card
+  and follow the day fields, and the delete button names what it will remove
+  ("Delete 1,234 rows"). A note says plainly that nothing here is saved.
+
 ## [3008.8.3] - 2026-09-02
 
 ### Security
