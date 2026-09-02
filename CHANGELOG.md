@@ -1,5 +1,17 @@
 # Changelog
 
+## [3008.8.3] - 2026-09-02
+
+### Security
+
+- Raise the `fast-uri` override to `>=4.1.3`, which the webpack build chain
+  pulls in through ajv. The previous `>=3.1.5` pin was satisfied by 4.1.2,
+  which is in range for four high-severity advisories published since:
+  host confusion via skipped IDN canonicalization (GHSA-5jgf-p345-68v8) and
+  via percent-encoded scheme normalization (GHSA-jqff-g426-hqxp), and SSRF
+  via malformed IPv6 normalization (GHSA-f65p-4m7j-42xc) and repeated
+  hostname percent-decoding (GHSA-fph4-wmhf-6fwf).
+
 ## [3008.8.2] - 2026-09-02
 
 ### Fixed

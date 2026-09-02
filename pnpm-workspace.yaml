@@ -1,9 +1,12 @@
 overrides:
-  # ajv (via the webpack build chain) resolves a fast-uri older than the
-  # host-confusion fix, GHSA-7p8r-x3mc-p8w7 / CVE-2026-18446. No release
-  # upstream of it has bumped the range yet, so pin the patched version here.
-  # Drop this once `pnpm why fast-uri` shows >=3.1.5 without the override.
-  fast-uri: ">=3.1.5"
+  # ajv (via the webpack build chain) resolves a fast-uri with the host
+  # confusion and SSRF advisories GHSA-5jgf-p345-68v8, GHSA-f65p-4m7j-42xc,
+  # GHSA-fph4-wmhf-6fwf and GHSA-jqff-g426-hqxp, all fixed in 4.1.3. The
+  # previous >=3.1.5 pin was satisfied by 4.1.2, which is in range for all
+  # four. No release upstream of it has bumped the range yet, so pin the
+  # patched version here. Drop this once `pnpm why fast-uri` shows >=4.1.3
+  # without the override.
+  fast-uri: ">=4.1.3"
 
 packages:
   - '.'
