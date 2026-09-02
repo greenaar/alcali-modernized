@@ -93,14 +93,23 @@ def live_app():
     ).stdout.strip().splitlines()[-1])
 
     port = _free_port()
+    # runserver logs a line per request and nothing reads this stream while the
+    # tests run. On a pipe that fills the kernel's 64K buffer, and the server
+    # then blocks inside send_response: the port still accepts connections, so
+    # it looks alive, but no reply is ever finished and navigation hangs until
+    # the timeout. A file has no such limit, and it keeps the log readable for
+    # the failure messages below.
+    global SERVER_LOG
+    SERVER_LOG = Path(tmp.name) / "runserver.log"
+    log = SERVER_LOG.open("wb")
     server = subprocess.Popen(
         [sys.executable, "manage.py", "runserver", f"127.0.0.1:{port}", "--noreload"],
-        cwd=BASE_DIR, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        cwd=BASE_DIR, env=env, stdout=log, stderr=subprocess.STDOUT,
     )
     base = f"http://127.0.0.1:{port}"
     for _ in range(100):
         if server.poll() is not None:
-            pytest.fail("runserver exited: " + server.stdout.read().decode()[-2000:])
+            pytest.fail("runserver exited: " + _server_log())
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.2):
                 break
@@ -113,11 +122,14 @@ def live_app():
     finally:
         server.terminate()
         server.wait(timeout=10)
+        log.close()
         tmp.cleanup()
 
 
 @pytest.fixture(scope="module")
-def page(live_app):
+def signed_in_context(live_app):
+    """One browser, signed in once. The token lives in the context's storage,
+    so every page opened from it is already authenticated."""
     sync_playwright = pytest.importorskip(
         "playwright.sync_api", reason="playwright is not installed"
     ).sync_playwright
@@ -133,11 +145,43 @@ def page(live_app):
         page.locator(".v-card-actions button").first.click()
         page.wait_for_timeout(2000)
         assert "/login" not in page.url, "could not sign in to the built frontend"
-        yield page, base, creds
+        page.close()
+        yield context, base, creds
         browser.close()
 
 
+@pytest.fixture()
+def page(signed_in_context):
+    """A fresh tab per test.
+
+    Sharing one page across the module let every test inherit the last one's
+    state: the layout holds an event stream open, each test added console
+    listeners that were never removed, and a browser allows only six
+    connections per host. Whatever leaks, it accumulates until a navigation
+    cannot get a connection and times out while the server is plainly still
+    answering - which is what CI saw, passing seventeen tests and then failing
+    every one after. A page per test bounds all of it, and closing the page
+    tears the event stream down deterministically.
+    """
+    context, base, creds = signed_in_context
+    page = context.new_page()
+    try:
+        yield page, base, creds
+    finally:
+        page.close()
+
+
 NAV_TIMEOUT = 45000
+
+# Set by live_app so a navigation failure can quote what the server was doing.
+SERVER_LOG = None
+
+
+def _server_log(limit=2000):
+    """The tail of runserver's own log, for failure messages."""
+    if not SERVER_LOG or not SERVER_LOG.exists():
+        return "(no server log)"
+    return SERVER_LOG.read_text(errors="replace")[-limit:]
 
 
 def visit(page, url, settle=1200, attempts=2):
@@ -161,8 +205,9 @@ def visit(page, url, settle=1200, attempts=2):
         except PlaywrightTimeout as exc:
             last = exc
     raise AssertionError(
-        "could not load {} after {} attempts; the server was {}.\n{}".format(
-            url, attempts, _server_state(url), last
+        "could not load {} after {} attempts; the server was {}.\n{}\n"
+        "--- last of the server log ---\n{}".format(
+            url, attempts, _server_state(url), last, _server_log()
         )
     )
 

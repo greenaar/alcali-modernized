@@ -1,5 +1,22 @@
 # Changelog
 
+## [3008.8.5] - 2026-09-02
+
+### Fixed
+
+- The smoke suite could wedge the server it was testing. runserver's stdout
+  was a pipe nothing ever read, so once the kernel's 64K buffer filled the
+  server blocked inside `send_response` - still accepting connections, never
+  finishing a reply. It writes to a file now, and that file's tail is quoted
+  in a navigation failure so the next one says what the server was doing.
+
+- Every smoke test now gets its own page. They shared one across the module,
+  so each inherited the last one's state: an event stream held open by the
+  layout, console listeners that were never removed, and a six-connection
+  per-host budget. Anything that leaked accumulated until a navigation could
+  not get a connection, which is why CI passed seventeen tests and then
+  failed every one after while the server answered normally.
+
 ## [3008.8.4] - 2026-09-02
 
 ### Fixed
