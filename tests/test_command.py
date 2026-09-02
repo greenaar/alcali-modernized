@@ -1,5 +1,6 @@
 import os
 from io import StringIO
+from unittest import mock
 
 import pytest
 from django.core.management import call_command, CommandError
@@ -74,3 +75,53 @@ def test_location():
     out = StringIO()
     call_command("location", stdout=out)
     assert os.path.abspath(os.getcwd()) in out.getvalue()
+
+
+@pytest.fixture
+def check_env(monkeypatch):
+    for name, value in {
+        "MASTER_MINION_ID": "master",
+        "DB_BACKEND": "sqlite3",
+        "DB_NAME": ":memory:",
+        "SECRET_KEY": "test-secret",
+        "ALLOWED_HOSTS": "localhost",
+        "SALT_URL": "https://salt.example.test:8080",
+        "SALT_AUTH": "rest",
+    }.items():
+        monkeypatch.setenv(name, value)
+
+
+@pytest.mark.django_db()
+def test_alcali_check_names_the_empty_caches(check_env):
+    # The tables that sit empty when the Salt API is misconfigured are caches
+    # of the master's state, not of the returner database. The check says so
+    # and says what fills each, because an empty Minions page otherwise looks
+    # identical to a fleet with no minions.
+    out = StringIO()
+    call_command("alcali_check", stdout=out)
+    assert "salt_minions" in out.getvalue() and "0 row(s)" in out.getvalue()
+    assert "refresh_minions" in out.getvalue()
+
+
+@pytest.mark.django_db()
+def test_alcali_check_reports_why_the_salt_login_fails(admin_user, check_env):
+    from api.backend.salt_api import SaltApiError
+
+    with mock.patch(
+        "api.backend.salt_api.SaltApiClient.login",
+        side_effect=SaltApiError("Salt API request failed: connection refused"),
+    ):
+        out = StringIO()
+        with pytest.raises(SystemExit):
+            call_command("alcali_check", "--salt-user", admin_user.username, stdout=out)
+    assert "connection refused" in out.getvalue()
+
+
+@pytest.mark.django_db()
+def test_alcali_check_reports_a_missing_token(admin_user, check_env):
+    admin_user.user_settings.token = "REVOKED"
+    admin_user.user_settings.save()
+    out = StringIO()
+    with pytest.raises(SystemExit):
+        call_command("alcali_check", "--salt-user", admin_user.username, stdout=out)
+    assert "revoked" in out.getvalue()

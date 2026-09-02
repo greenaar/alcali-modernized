@@ -168,7 +168,8 @@
             "Detail": "详情",
             "MissingReturns": "{1} 个目标客户端中有 {0} 个从未返回：",
             "JobBreakdown": "{0} 成功，{1} 失败，{2} 无响应",
-            "SearchScope": "仅搜索已加载的 {0} 行；请在上方筛选以检索全部历史"
+            "SearchScope": "仅搜索已加载的 {0} 行；请在上方筛选以检索全部历史",
+            "Unknown": "未知"
         },
         "JobTemplatesTable": {
             "JobTemplate": "Job模板",
@@ -384,7 +385,8 @@
             "Function": "方法:",
             "Status": "状态:",
             "StartTime": "开始事件:",
-            "Results": "结果数"
+            "Results": "结果数",
+            "Unknown": "未知"
         },
         "Login": {
             "LoginTitle": "登录",
@@ -398,7 +400,8 @@
             "NoResult": "对不起，没有结果",
             "Success": "成功",
             "Failed": "失败",
-            "Jobs": "任务"
+            "Jobs": "任务",
+            "Unknown": "未知"
         }
     }
 }

@@ -23,7 +23,7 @@ from rest_framework.decorators import (
     renderer_classes,
     permission_classes,
 )
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -132,7 +132,9 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
             "conformity_detail",
             "silent",
         ):
-            return []
+            # Not `[]`: an empty list means no permission class runs at all,
+            # which would open these to anonymous callers.
+            return [IsAuthenticated()]
         return super().get_permissions()
 
     @action(detail=False, methods=["post"])
@@ -157,12 +159,23 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
                 }
             ]
         )
+        # run_raw reports a failure by returning {"error": ...}. Without this
+        # check a master that cannot be reached produced an empty minion list
+        # and a 200, so the UI reported "0 minions refreshed" as a success and
+        # the table stayed empty with nothing explaining why.
+        if not isinstance(connected, dict):
+            return Response(
+                {"error": "unexpected response from the Salt API"}, status=502
+            )
+        if "error" in connected:
+            return Response(connected["error"], status=401)
+
         accepted_minions = [i for i in connected if connected.get(i) is True]
         for minion in accepted_minions:
             ret = refresh_minion(minion)
             if "error" in ret:
                 return Response(ret["error"], status=401)
-        return Response({"refreshed": accepted_minions})
+        return Response({"refreshed": accepted_minions, "responded": len(connected)})
 
     @action(detail=False)
     def preview_target(self, request):
@@ -304,7 +317,7 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
         minion_conformity = minion.conformity()
 
         # Convert states to html.
-        conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
+        conv = Ansi2HTMLConverter(inline=True, scheme="xterm")
         last_highstate = minion.last_highstate()
         succeeded, unchanged, failed = {}, {}, {}
 
@@ -664,12 +677,12 @@ def run(request):
         if "error" in ret:
             return Response(ret["error"], status=401)
         formatted = nested_output.output(ret)
-        conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
+        conv = Ansi2HTMLConverter(inline=True, scheme="xterm")
         html = conv.convert(formatted, ensure_trailing_newline=True)
         return HttpResponse(html)
 
     cli_ret = request.data.get("cli")
-    conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
+    conv = Ansi2HTMLConverter(inline=True, scheme="xterm")
     ret = run_raw(parsed_command)
     if "error" in ret:
         return Response(ret["error"], status=401)

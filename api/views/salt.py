@@ -298,7 +298,7 @@ def job_rendered(request, jid, minion_id):
         formatted = nested_output.output({minion_id: job.loaded_ret()["return"]})
 
     # Convert it to html.
-    conv = Ansi2HTMLConverter(inline=False, scheme="xterm")
+    conv = Ansi2HTMLConverter(inline=True, scheme="xterm")
     html_detail = conv.convert(formatted, ensure_trailing_newline=True)
     return Response(html_detail)
 

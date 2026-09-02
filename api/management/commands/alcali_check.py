@@ -18,6 +18,17 @@ WANTED_INDEX_COLUMNS = {
     "salt_events": (("alter_time",),),
 }
 
+# Alcali's own tables and what fills each one. Jobs and events are read
+# straight from the returner, so those views work whether or not the Salt API
+# is reachable; everything below is a cache that only a successful sync fills,
+# which is why they are the ones that sit empty when the API is misconfigured.
+ALCALI_CACHES = (
+    ("Minions", "salt_minions", "POST /api/minions/refresh_minions/ (Minions -> refresh)"),
+    ("Keys", "salt_keys", "POST /api/keys/refresh/ (Keys -> refresh)"),
+    ("Schedule", "api_schedule", "POST /api/schedules/refresh/ (Schedules -> refresh)"),
+    ("Functions", "salt_functions", "POST /api/settings/initdb (Settings -> parse modules)"),
+)
+
 
 class Command(BaseCommand):
     help = "Check Alcali's database connection and required environment variables"
@@ -48,6 +59,76 @@ class Command(BaseCommand):
                 if not any(existing[: len(columns)] == columns for existing in indexed):
                     missing.append("{}({})".format(table, ", ".join(columns)))
         return missing
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--salt-user",
+            help="Log in to the Salt API as this Alcali user, using the token "
+            "stored in their settings, and report what happens. This is the "
+            "credential the application itself uses.",
+        )
+
+    def check_salt_api(self, username):
+        """Try the login Alcali performs on every Salt-backed request."""
+        from api.backend.salt_api import SaltApiClient, SaltApiError
+        from django.contrib.auth.models import User
+
+        url = os.environ.get("SALT_URL", "https://127.0.0.1:8080")
+        eauth = os.environ.get("SALT_AUTH", "rest")
+        self.stdout.write("salt:\turl {} (eauth {})".format(url, eauth))
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return ["no Alcali user named {}".format(username)]
+        token = getattr(getattr(user, "user_settings", None), "token", "")
+        if not token:
+            return ["{} has no Salt token stored".format(username)]
+        if token == "REVOKED":
+            return ["{}'s Salt token has been revoked".format(username)]
+
+        api = SaltApiClient(url)
+        try:
+            login = api.login(username, token, eauth)
+        except SaltApiError as exc:
+            return [str(exc)]
+        perms = login.get("perms")
+        self.stdout.write("salt:\tlogin ok as {}, perms {}".format(username, perms))
+        if not perms:
+            self.stdout.write(
+                "warning: the master granted no permissions to {}, so every "
+                "Salt-backed action will be refused. Check the eauth block in "
+                "the master config.".format(username)
+            )
+        try:
+            keys = api.wheel("key.list_all")["return"][0]["data"]["return"]
+        except (SaltApiError, KeyError, IndexError, TypeError) as exc:
+            return ["logged in, but wheel key.list_all failed: {}".format(exc)]
+        self.stdout.write(
+            "salt:\tmaster knows {} accepted key(s)".format(
+                len(keys.get("minions") or [])
+            )
+        )
+        return []
+
+    def report_caches(self):
+        """Say which of Alcali's own caches are empty, and what fills them."""
+        empty = []
+        for model_name, table, how in ALCALI_CACHES:
+            from django.apps import apps
+
+            model = apps.get_model("api", model_name)
+            count = model.objects.count()
+            self.stdout.write("cache:\t{:<14} {} row(s)".format(table, count))
+            if count == 0:
+                empty.append((table, how))
+        if empty:
+            self.stdout.write(
+                "note: these are caches of the master's state, not of the "
+                "returner database, so they stay empty until a sync succeeds:"
+            )
+            for table, how in empty:
+                self.stdout.write("      {:<14} filled by {}".format(table, how))
+        return empty
 
     def handle(self, *args, **options):
         required = [
@@ -96,8 +177,16 @@ class Command(BaseCommand):
                 "docs/returner-indexes.sql.".format(", ".join(missing_indexes))
             )
 
+        salt_errors = []
+        if not database_error:
+            self.report_caches()
+        if options.get("salt_user"):
+            salt_errors = self.check_salt_api(options["salt_user"])
+            for error in salt_errors:
+                self.stdout.write("salt:\tFAILED: {}".format(error))
+
         # Exit non-zero when something is actually wrong, so this can gate a
         # deployment. A check command that always succeeds cannot be scripted
         # against.
-        if database_error or unset:
+        if database_error or unset or salt_errors:
             raise SystemExit(1)

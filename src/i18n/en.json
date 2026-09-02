@@ -168,7 +168,8 @@
       "Detail": "detail",
       "MissingReturns": "{0} of {1} targeted minions never returned:",
       "JobBreakdown": "{0} succeeded, {1} failed, {2} no reply",
-      "SearchScope": "searches the {0} loaded rows; narrow above to search history"
+      "SearchScope": "searches the {0} loaded rows; narrow above to search history",
+      "Unknown": "Unknown"
     },
     "JobTemplatesTable": {
       "JobTemplate": "Job Templates",
@@ -384,7 +385,8 @@
       "Function": "FUNCTION:",
       "Status": "STATUS:",
       "StartTime": "START TIME:",
-      "Results": "Results"
+      "Results": "Results",
+      "Unknown": "Unknown"
     },
     "Login": {
       "LoginTitle": "Login",
@@ -398,7 +400,8 @@
       "NoResult": "Sorry... No results.",
       "Success": "Success",
       "Failed": "Failed",
-      "Jobs": "Jobs"
+      "Jobs": "Jobs",
+      "Unknown": "Unknown"
     }
   }
 }

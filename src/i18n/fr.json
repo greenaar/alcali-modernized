@@ -168,7 +168,8 @@
       "Detail": "détail",
       "MissingReturns": "{0} minions sur {1} ciblés n'ont jamais répondu :",
       "JobBreakdown": "{0} réussis, {1} échoués, {2} sans réponse",
-      "SearchScope": "recherche parmi les {0} lignes chargées ; filtrez ci-dessus pour tout l'historique"
+      "SearchScope": "recherche parmi les {0} lignes chargées ; filtrez ci-dessus pour tout l'historique",
+      "Unknown": "Inconnu"
     },
     "JobTemplatesTable": {
       "JobTemplate": "Modèles de tâches",
@@ -384,7 +385,8 @@
       "Function": "FONCTION:",
       "Status": "ÉTAT:",
       "StartTime": "DÉBUT:",
-      "Results": "Résultats"
+      "Results": "Résultats",
+      "Unknown": "Inconnu"
     },
     "Login": {
       "LoginTitle": "Connexion",
@@ -398,7 +400,8 @@
       "NoResult": "Désolé... Aucun résultat.",
       "Success": "Réussi",
       "Failed": "Échoué",
-      "Jobs": "Tâches"
+      "Jobs": "Tâches",
+      "Unknown": "Inconnu"
     }
   }
 }

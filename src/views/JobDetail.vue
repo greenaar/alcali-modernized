@@ -89,11 +89,13 @@
       },
       boolRepr(bool) {
         if (bool === true) return "green"
-        else return "red"
+        if (bool === false) return "red"
+        return "grey"
       },
       boolText(bool) {
         if (bool === true) return this.$t("views.JobDetail.Success")
-        else return this.$t("views.JobDetail.Failed")
+        if (bool === false) return this.$t("views.JobDetail.Failed")
+        return this.$t("views.JobDetail.Unknown")
       },
       formatDate(date) {
         return new Date(date).toLocaleString("en-GB")
@@ -104,8 +106,10 @@
 
 <style scoped>
   .ansiStyle {
-    background-color: black;
+    background-color: #000000;
+    color: #d4d4d4;
     padding: 10px;
+    overflow-x: auto;
   }
   .theme--light.v-btn--active:hover::before, .theme--light.v-btn--active::before {
     opacity: 0;

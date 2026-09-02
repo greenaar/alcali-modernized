@@ -193,3 +193,26 @@ def test_run_page_previews_the_blast_radius(page):
     body = page.locator(".v-main").inner_text()
     # Three minions are seeded; the roster comes from stored grains.
     assert "matches 3 of 3 known minions" in body
+
+
+def test_job_output_is_readable_in_light_mode(page):
+    page, base, creds = page
+    jid, minion = creds["job"]
+    page.goto("{}/jobs/{}/{}".format(base, jid, minion), wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    panel = page.evaluate("""() => {
+      const el = document.querySelector('.ansiStyle');
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      const parse = c => (c.match(/\\d+/g) || []).slice(0, 3).map(Number);
+      const bg = parse(cs.backgroundColor), fg = parse(cs.color);
+      const lum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+      return {contrast: Math.abs(lum(fg) - lum(bg)),
+              coloured: !!el.querySelector('span[style*="color"]'),
+              text: (el.innerText || '').trim().length};
+    }""")
+    assert panel and panel["text"] > 0, "no job output rendered"
+    # ansi2html's colours arrive in a <style> block that the sanitiser drops,
+    # so the panel used to be black on black under the default light theme.
+    assert panel["contrast"] > 60, "job output has too little contrast to read"
+    assert panel["coloured"], "ansi colours did not survive sanitising"

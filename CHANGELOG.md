@@ -1,5 +1,46 @@
 # Changelog
 
+## [3008.4.1] - 2026-09-01
+
+### Fixed
+
+- Job output was black on black under the default light theme. ansi2html was
+  emitting its colours as CSS classes in a `<style>` block, which the sanitiser
+  drops, so the text fell back to the inherited colour on a hard-coded black
+  panel - invisible in light mode, uncoloured in dark. The converters now emit
+  inline styles, which survive sanitising, and the panel sets its own
+  foreground so unstyled output can never be unreadable.
+
+- Succeeding jobs were reported as failed. 3008.2.1 changed the fallback for a
+  payload that does not state its own success to read `salt_returns.success` -
+  but the returner writes that column as `ret.get("success", False)`, so a
+  false there means either "it failed" or "the payload never said". The verdict
+  now comes from the state results when a highstate is being judged, then
+  retcode, and is reported as unknown - a grey chip rather than a red one -
+  when nothing in the record actually says. An affirmative success column still
+  counts; a false one no longer condemns a job on its own.
+
+- Refreshing minions reported success when it had failed. `run_raw` signals a
+  failure by returning `{"error": ...}`, which the refresh-everything path
+  treated as a minion list: an unreachable master produced an empty list, a
+  200, and a cheerful "0 minions refreshed", leaving the Minions, Keys and
+  Schedules pages empty with nothing at all explaining why.
+
+- The Salt-delegated minion actions were exempted from the staff-only write
+  rule added in 3008.3.0 with an empty permission list, which in DRF means no
+  permission class runs at all - so `silent`, `conformity`, `preview_target`
+  and `refresh_minions` were reachable without logging in. They require
+  authentication again.
+
+### Added
+
+- `manage.py alcali_check` now reports how many rows each of Alcali's own
+  caches holds and what fills each one, since an empty Minions page looks
+  exactly like a fleet with no minions. `--salt-user <name>` performs the same
+  API login the application does, using that user's stored token, and reports
+  what actually happens - unreachable host, TLS failure, rejected credentials,
+  or a login that succeeds but grants no permissions.
+
 ## [3008.4.0] - 2026-09-01
 
 Features built on data the Salt returner was already storing and Alcali was

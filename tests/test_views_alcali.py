@@ -654,3 +654,43 @@ def test_a_failing_audit_write_does_not_break_the_action(
     monkeypatch.setattr("api.models.AuditLog.objects.create", boom)
     response = admin_client.delete("/api/minions/{}/".format(minion.minion_id), **jwt)
     assert response.status_code == 204
+
+
+@pytest.mark.django_db()
+def test_minion_actions_still_require_a_login(client):
+    # Exempting these from the staff-only write rule must not exempt them from
+    # authentication: an empty permission list would do exactly that.
+    for path in (
+        "/api/minions/silent/",
+        "/api/minions/conformity/",
+        "/api/minions/preview_target/?tgt=*",
+    ):
+        assert client.get(path).status_code in (401, 403), path
+    assert client.post("/api/minions/refresh_minions/").status_code in (401, 403)
+
+
+@pytest.mark.django_db()
+def test_refresh_all_surfaces_a_salt_failure(admin_client, jwt, monkeypatch):
+    # run_raw signals failure by returning {"error": ...}. Treating that as a
+    # minion list produced a 200 and "0 minions refreshed", so an unreachable
+    # master looked like an empty fleet.
+    monkeypatch.setattr(
+        "api.views.alcali.run_raw",
+        lambda load: {"error": "Salt API request failed: connection refused"},
+    )
+    response = admin_client.post("/api/minions/refresh_minions/", **jwt)
+    assert response.status_code == 401
+    assert "connection refused" in str(response.json())
+
+
+@pytest.mark.django_db()
+def test_refresh_all_reports_minions_that_answered(admin_client, jwt, monkeypatch):
+    monkeypatch.setattr(
+        "api.views.alcali.run_raw", lambda load: {"minion1": True, "minion2": False}
+    )
+    monkeypatch.setattr(
+        "api.views.alcali.refresh_minion", lambda minion_id: {"result": "ok"}
+    )
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["refreshed"] == ["minion1"]
+    assert body["responded"] == 2

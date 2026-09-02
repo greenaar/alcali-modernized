@@ -644,7 +644,9 @@ export default {
 }
 
 .ansiStyle {
-  background-color: black;
+  background-color: #000000;
+  color: #d4d4d4;
   padding: 10px;
+  overflow-x: auto;
 }
 </style>

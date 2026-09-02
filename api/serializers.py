@@ -24,7 +24,9 @@ class SaltReturnsSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     arguments = serializers.CharField()
     keyword_arguments = serializers.CharField()
-    success = serializers.BooleanField(source="success_bool")
+    # None where the record does not say; the UI shows that as unknown rather
+    # than inventing a verdict in either direction.
+    success = serializers.BooleanField(source="success_bool", allow_null=True)
 
     class Meta:
         model = SaltReturns

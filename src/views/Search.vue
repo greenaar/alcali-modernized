@@ -177,11 +177,13 @@ export default {
     },
     boolRepr(bool) {
       if (bool === true) return "green";
-      else return "red";
+      if (bool === false) return "red";
+      return "grey";
     },
     boolText(bool) {
       if (bool === true) return this.$t("views.Search.Success");
-      else return this.$t("views.Search.Failed");
+      if (bool === false) return this.$t("views.Search.Failed");
+      return this.$t("views.Search.Unknown");
     },
   },
 };

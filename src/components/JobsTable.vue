@@ -387,11 +387,13 @@ export default {
     },
     boolRepr(bool) {
       if (bool === true) return "green";
-      else return "red";
+      if (bool === false) return "red";
+      return "grey";
     },
     boolText(bool) {
       if (bool === true) return this.$i18n.t("components.JobsTable.Success");
-      else return this.$i18n.t("components.JobsTable.Failed");
+      if (bool === false) return this.$i18n.t("components.JobsTable.Failed");
+      return this.$i18n.t("components.JobsTable.Unknown");
     },
   },
 };

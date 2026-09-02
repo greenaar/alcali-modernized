@@ -64,21 +64,39 @@ class SaltReturns(models.Model):
         return ""
 
     def success_bool(self):
+        """Did this job succeed? None when nothing in the record says so.
+
+        The returner stores ``ret.get("success", False)``, so a false in the
+        success column means either "it failed" or "the payload never said".
+        It therefore cannot be used to report a failure on its own - only an
+        affirmative value there counts for anything.
+        """
         ret = self.loaded_ret()
-        if "success" in ret:
+        if isinstance(ret.get("success"), bool):
             return ret["success"]
-        if "return" in ret:
-            # It shouldn't happened unless you have a custom module
-            # so let's assume we can trust retcode
-            if isinstance(ret["return"], str) or isinstance(ret["return"], bool):
-                return True if "retcode" in ret and ret["retcode"] == 0 else False
-            if "success" in ret["return"]:
-                return ret["return"]["success"]
-            if "result" in ret["return"]:
-                return ret["return"]["result"]
-        # Nothing in the payload says either way, so fall back to the returner's
-        # own success column rather than reporting an unknown result as success.
-        return str(self.success).strip().lower() in {"1", "true", "yes"}
+
+        payload = ret.get("return")
+        if isinstance(payload, dict):
+            if isinstance(payload.get("success"), bool):
+                return payload["success"]
+            if "result" in payload:
+                return bool(payload["result"])
+            # A state run: each state carries its own result, and one that
+            # needed no changes reports None rather than True.
+            results = [
+                state["result"]
+                for state in payload.values()
+                if isinstance(state, dict) and "result" in state
+            ]
+            if results:
+                return all(result is not False for result in results)
+
+        # A custom module returning a bare value: retcode is the only verdict.
+        if isinstance(ret.get("retcode"), int):
+            return ret["retcode"] == 0
+        if str(self.success).strip().lower() in {"1", "true", "yes"}:
+            return True
+        return None
 
     class Meta:
         managed = False
