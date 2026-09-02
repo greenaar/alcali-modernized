@@ -6,7 +6,7 @@ client is not enabled, an eauth block is missing, or the master cannot read
 its own job cache back. None of those surface as an exception, so each one
 had to be found by hand.
 
-These are the same checks `manage.py alcali_check` runs, returned as data so
+These are the same checks `manage.py diagnose` runs, returned as data so
 they can be shown in the UI. Each is independent and reports its own status:
 one failing check must not stop the others from running, because knowing
 which ones still pass is what localises the fault.

@@ -17,7 +17,7 @@ alcali current_version
 You  can also check that Alcali can access `salt` database and that [needed env var](configuration.md) are set and loaded by running:
 
 ```commandline
-alcali alcali_check
+alcali diagnose
 ```
 
 It reports the database connection, the required environment variables, the
@@ -106,8 +106,8 @@ alcali <command>
 
 | Command | What it does |
 | --- | --- |
-| `alcali_check` | Report the database, environment, returner tables and caches. `--salt-user <name>` also exercises the Salt API and each netapi client. |
-| `alcali_notify` | Evaluate the notification rules and send what changed. `--dry-run` reports without sending or recording; `--json` emits the events as JSON. Meant for a timer - see [Notifications](configuration.md#notifications). |
+| `diagnose` | Report the database, environment, returner tables and caches. `--salt-user <name>` also exercises the Salt API and each netapi client. |
+| `notify` | Evaluate the notification rules and send what changed. `--dry-run` reports without sending or recording; `--json` emits the events as JSON. Meant for a timer - see [Notifications](configuration.md#notifications). |
 | `prune_returns` | Delete returner history older than a window. `--days` is required; `--events-days` sets a separate window for events; `--dry-run` counts without deleting and `--yes` skips the confirmation. The same thing is available in **Settings -> Returner retention**. |
 | `manage_token` | Show the Salt API token for a user, or `-r` to revoke and reissue it. |
 | `current_version` | Print the installed version. |

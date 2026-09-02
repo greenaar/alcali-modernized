@@ -170,12 +170,12 @@ demo:
 docker compose -f docker-compose.prod.yml run --rm web python manage.py createsuperuser
 ```
 
-Confirm the wiring before pointing users at it. `alcali_check` reports the
+Confirm the wiring before pointing users at it. `diagnose` reports the
 database connection and any unset required variable, and exits non-zero if
 either is wrong:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec web python manage.py alcali_check
+docker compose -f docker-compose.prod.yml exec web python manage.py diagnose
 ```
 
 Then log in and use **Settings → Refresh modules**, which calls

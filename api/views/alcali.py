@@ -248,7 +248,7 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
         # successful refresh, and reporting it as one is how an empty Minions
         # page ends up looking like a fleet with no minions. It usually means
         # the master could not read the job back - see the job cache check in
-        # `manage.py alcali_check`.
+        # `manage.py diagnose`.
         return Response(
             {
                 "refreshed": accepted_minions,
@@ -951,7 +951,7 @@ def run(request):
             "Note: the master reported no response from all {} targeted "
             "minion(s). False here means the master did not collect a return, "
             "not that the minions answered False. "
-            "See `manage.py alcali_check`.\n\n".format(len(ret))
+            "See `manage.py diagnose`.\n\n".format(len(ret))
         )
 
     # Error.

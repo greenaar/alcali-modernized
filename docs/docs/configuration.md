@@ -181,19 +181,19 @@ relay in the `.env`:
 
 ### Evaluating the rules
 
-**Nothing is sent unless `alcali_notify` runs.** It is a management command
+**Nothing is sent unless `notify` runs.** It is a management command
 rather than anything in the request path, because evaluating every rule walks
 the whole fleet. Schedule it - a systemd timer, cron, or a Salt schedule:
 
 ```commandline
-sudo -u alcali ENV_PATH=/opt/alcali /opt/alcali/venv/bin/alcali alcali_notify
+sudo -u alcali ENV_PATH=/opt/alcali /opt/alcali/venv/bin/alcali notify
 ```
 
 Check what it would do first with `--dry-run`, which sends nothing and records
 nothing, so it can be run repeatedly:
 
 ```commandline
-sudo -u alcali ENV_PATH=/opt/alcali /opt/alcali/venv/bin/alcali alcali_notify --dry-run
+sudo -u alcali ENV_PATH=/opt/alcali /opt/alcali/venv/bin/alcali notify --dry-run
 ```
 
 See [management commands](running.md#management-commands).

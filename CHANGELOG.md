@@ -1,5 +1,26 @@
 # Changelog
 
+## [3008.11.0] - 2026-09-02
+
+### Fixed
+
+- The overview's job-stats dropdowns redraw the chart. They refetched
+  correctly and the new data never reached the canvas: the Chart.js instance
+  was held in `data()`, so Vue 3 wrapped it in a reactive proxy, and Chart.js
+  compares against the objects it registered itself - an update through that
+  proxy repaints nothing and reports nothing. The chart also now follows the
+  stored settings when they arrive after first paint, rather than staying on
+  the defaults it was built with.
+
+### Changed
+
+- **Breaking:** `alcali_check` is now `diagnose` and `alcali_notify` is now
+  `notify`. On a wheel install those read `alcali alcali_check` and
+  `alcali alcali_notify`, which was noise from a time when they were only ever
+  run through `manage.py`. `check` was not available for the first: it is a
+  Django built-in. Update any cron entry or timer that names the old spelling;
+  the alcali formula is updated in step.
+
 ## [3008.10.0] - 2026-09-02
 
 ### Added
