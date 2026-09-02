@@ -162,3 +162,38 @@ def test_refresh_schedules_reports_an_empty_response(monkeypatch):
     result = netapi.refresh_schedules()
     assert "error" in result
     assert "job cache" in result["error"]
+
+
+@pytest.mark.django_db()
+def test_refresh_schedules_survives_minions_that_did_not_answer(monkeypatch):
+    """The master reports a minion it could not collect from as False, not as
+    a mapping. Iterating that raised TypeError, which Django rendered as a 500
+    page instead of reporting the Salt failure."""
+    from api.backend import netapi
+
+    class FakeApi:
+        def local(self, *a, **k):
+            return {"return": [{"m1": False, "m2": False}]}
+
+    monkeypatch.setattr(netapi, "api_connect", lambda: FakeApi())
+    result = netapi.refresh_schedules()
+    assert "error" in result
+    assert "none returned their schedules" in result["error"]
+
+
+@pytest.mark.django_db()
+def test_refresh_schedules_keeps_the_minions_that_did_answer(monkeypatch):
+    from api.backend import netapi
+    from api.models import Schedule
+
+    class FakeApi:
+        def local(self, *a, **k):
+            return {"return": [{
+                "m1": {"highstate": {"function": "state.apply", "enabled": True}},
+                "m2": False,
+            }]}
+
+    monkeypatch.setattr(netapi, "api_connect", lambda: FakeApi())
+    result = netapi.refresh_schedules()
+    assert set(result) == {"m1"}
+    assert Schedule.objects.filter(minion="m1", name="highstate").exists()

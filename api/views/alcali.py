@@ -818,6 +818,17 @@ def run(request):
         return Response(ret["error"], status=401)
     formatted = "\n"
 
+    # Every targeted minion reported as False is not a fleet that all answered
+    # "no": it is what the master returns for minions it could not collect
+    # from, and it is indistinguishable from a real False.
+    if isinstance(ret, dict) and ret and all(value is False for value in ret.values()):
+        formatted += (
+            "Note: the master reported no response from all {} targeted "
+            "minion(s). False here means the master did not collect a return, "
+            "not that the minions answered False. "
+            "See `manage.py alcali_check`.\n\n".format(len(ret))
+        )
+
     # Error.
     if isinstance(ret, str):
         item_ret = nested_output.output(ret)

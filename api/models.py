@@ -167,19 +167,31 @@ class Minions(models.Model):
             self._last_highstate_cache = self._compute_last_highstate()
         return self._last_highstate_cache
 
+    # How far back to look for a highstate. Whether a run counts depends on
+    # its arguments, which live inside the JSON payload and cannot be filtered
+    # in SQL, so a bounded window is read and examined here.
+    HIGHSTATE_SEARCH_DEPTH = 20
+
     def _compute_last_highstate(self):
-        # Get all potential jobs.
+        # Newest first. This used to take the two most recent state runs and
+        # then re-sort them oldest-first before returning the first match, so
+        # "last highstate" was really the one before last: a minion whose most
+        # recent highstate passed still reported the previous failure.
         states = SaltReturns.objects.filter(
             Q(fun="state.apply") | Q(fun="state.highstate"), id=self.minion_id
-        ).order_by("-jid")[0:2]
-        states = sorted(states, key=lambda x: x.jid)
+        ).order_by("-jid")[: self.HIGHSTATE_SEARCH_DEPTH]
 
-        # Remove jobs with arguments.
+        # A run with arguments is a targeted state, not a highstate; a test run
+        # still describes the minion's conformity.
         for state in states:
+            try:
+                fun_args = state.loaded_ret().get("fun_args") or []
+            except ValueError:
+                continue
             if (
-                not state.loaded_ret()["fun_args"]
-                or state.loaded_ret()["fun_args"][0] == {"test": True}
-                or state.loaded_ret()["fun_args"][0] == "test=True"
+                not fun_args
+                or fun_args[0] == {"test": True}
+                or fun_args[0] == "test=True"
             ):
                 return state
         return None

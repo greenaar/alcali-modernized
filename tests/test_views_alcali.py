@@ -905,3 +905,30 @@ def test_refresh_reports_an_empty_master_cache(admin_client, jwt, monkeypatch):
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["source"] == "none"
     assert "named no minions" in body["cache_error"]
+
+
+@pytest.mark.django_db()
+def test_run_flags_a_result_where_no_minion_answered(admin_client, jwt, monkeypatch):
+    """False for every targeted minion is what the master returns when it
+    could not collect, and it is indistinguishable from a real False."""
+    monkeypatch.setattr(
+        "api.views.alcali.run_raw", lambda load: {"m1": False, "m2": False}
+    )
+    response = admin_client.post(
+        "/api/run/", {"raw": "true", "command": "salt * test.ping"},
+        content_type="application/json", **jwt
+    )
+    assert response.status_code == 200
+    assert "did not collect a return" in response.content.decode()
+
+
+@pytest.mark.django_db()
+def test_run_does_not_flag_a_genuine_mixed_result(admin_client, jwt, monkeypatch):
+    monkeypatch.setattr(
+        "api.views.alcali.run_raw", lambda load: {"m1": True, "m2": False}
+    )
+    response = admin_client.post(
+        "/api/run/", {"raw": "true", "command": "salt * test.ping"},
+        content_type="application/json", **jwt
+    )
+    assert "did not collect a return" not in response.content.decode()

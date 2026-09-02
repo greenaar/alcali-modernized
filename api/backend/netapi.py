@@ -249,8 +249,16 @@ def refresh_schedules(minion=None):
         return {"error": str(e)}
     if not isinstance(schedules, dict):
         return {"error": "schedule.list returned {}".format(type(schedules).__name__)}
-    for minion_id in schedules:
-        minion_jobs = schedules[minion_id]
+    answered = {}
+    for minion_id, minion_jobs in schedules.items():
+        # A minion the master could not collect a return from is reported as
+        # False, not as a mapping of jobs. Iterating that raised TypeError,
+        # which surfaced as a Django 500 page rather than as the Salt problem
+        # it is - and every minion looks like that when the master cannot read
+        # the job back.
+        if not isinstance(minion_jobs, dict):
+            continue
+        answered[minion_id] = minion_jobs
         Schedule.objects.filter(minion=minion_id).delete()
         for job_name in minion_jobs:
             if job_name != "schedule":
@@ -259,7 +267,14 @@ def refresh_schedules(minion=None):
                     name=job_name,
                     job=json.dumps(minion_jobs[job_name]),
                 )
-    return schedules
+    if schedules and not answered:
+        return {
+            "error": "{} minion(s) were targeted and none returned their "
+            "schedules. The master reported each of them as no-response, "
+            "which is what it does when it cannot read the job back from its "
+            "job cache.".format(len(schedules))
+        }
+    return answered
 
 
 def manage_schedules(action, name, minion):

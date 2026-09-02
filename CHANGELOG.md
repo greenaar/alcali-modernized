@@ -1,5 +1,25 @@
 # Changelog
 
+## [3008.8.1] - 2026-09-02
+
+### Fixed
+
+- Conformity was judged on the second-most-recent highstate. The two newest
+  state runs were fetched newest-first and then re-sorted oldest-first before
+  the first match was returned, so a minion whose latest highstate passed kept
+  reporting the previous failure. It also only ever looked two runs back, so a
+  couple of targeted `state.apply` runs left conformity unknown; the window is
+  wider and a targeted run no longer displaces the highstate before it.
+
+- Refreshing schedules returned a Django 500 page. The master reports a minion
+  it could not collect from as `False` rather than as a mapping of jobs, and
+  iterating that raised TypeError. Minions that did answer are kept, and when
+  none did that is reported as the Salt condition it is.
+
+- A run where every targeted minion comes back `False` says so. That is what
+  the master returns for minions it could not collect from, and it reads
+  exactly like a fleet that genuinely answered False.
+
 ## [3008.8.0] - 2026-09-02
 
 ### Added
