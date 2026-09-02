@@ -290,9 +290,13 @@ def test_stats(admin_client, jwt):
     assert response.status_code == 200
 
 
+@pytest.mark.django_db()
 def test_get_events(admin_client, jwt):
+    # There is no master in the test environment. This asserted 200 because
+    # the endpoint answered 200 regardless - streaming the word "error" - which
+    # is exactly what made the status indicator claim a healthy connection.
     response = admin_client.get("/api/event_stream/", **jwt)
-    assert response.status_code == 200
+    assert response.status_code == 503
 
 
 @pytest.mark.django_db()
@@ -694,3 +698,30 @@ def test_refresh_all_reports_minions_that_answered(admin_client, jwt, monkeypatc
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["refreshed"] == ["minion1"]
     assert body["responded"] == 2
+
+
+@pytest.mark.django_db()
+def test_event_stream_reports_an_unreachable_master(admin_client, jwt, monkeypatch):
+    from api.backend.salt_api import SaltApiError
+
+    def boom():
+        raise SaltApiError("Salt API request failed: connection refused")
+
+    monkeypatch.setattr("api.views.alcali.get_events", boom)
+    response = admin_client.get("/api/event_stream/", **jwt)
+    # Streaming the word "error" with a 200 is what made the status indicator
+    # report a healthy connection to a master it had never reached.
+    assert response.status_code == 503
+    assert "connection refused" in response.content.decode()
+
+
+@pytest.mark.django_db()
+def test_event_stream_streams_when_the_master_is_reachable(
+    admin_client, jwt, monkeypatch
+):
+    monkeypatch.setattr(
+        "api.views.alcali.get_events", lambda: iter([b"data: {}\n\n"])
+    )
+    response = admin_client.get("/api/event_stream/", **jwt)
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/event-stream"

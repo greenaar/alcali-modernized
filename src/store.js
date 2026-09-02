@@ -22,8 +22,10 @@ export default createStore({
     logout(state) {
       state.access = ""
     },
-    updateWs(state) {
-      state.ws_status = true
+    updateWs(state, connected = true) {
+      // Takes a value now: the stream can drop, and an indicator that only
+      // ever moves one way cannot report that.
+      state.ws_status = connected !== false
     },
     setSettings(state, settings) {
       state.settings = mergeSettings(defaultSettings(), settings)
@@ -42,8 +44,8 @@ export default createStore({
     settings: state => state.settings,
   },
   actions: {
-    updateWs({ commit }) {
-      commit("updateWs")
+    updateWs({ commit }, connected = true) {
+      commit("updateWs", connected)
     },
     toggleTheme({ commit }) {
       commit("toggleTheme")

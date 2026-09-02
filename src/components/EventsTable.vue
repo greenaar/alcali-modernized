@@ -38,7 +38,7 @@
         <template v-slot:expanded-row="{ columns, item }">
           <tr>
             <td :colspan="columns.length">
-              <pre>{{ JSON.stringify(safeParse(item.data), null, 2) }}</pre>
+              <pre>{{ expandedData(item) }}</pre>
             </td>
           </tr>
         </template>
@@ -123,6 +123,25 @@ export default {
     },
     safeParse(json) {
       return parseEventData(json);
+    },
+    // Show whatever the column actually holds. Rendering an unreadable value
+    // as "{}" made a row that Alcali could not parse indistinguishable from
+    // one that genuinely carried nothing.
+    expandedData(item) {
+      let raw = item.data;
+      if (raw === null || raw === undefined || raw === "") {
+        return this.$t("components.EventsTable.NoData");
+      }
+      if (typeof raw === "object") {
+        return JSON.stringify(raw, null, 2);
+      }
+      try {
+        return JSON.stringify(JSON.parse(raw), null, 2);
+      } catch (e) {
+        return (
+          this.$t("components.EventsTable.UnparsedData") + "\n\n" + String(raw)
+        );
+      }
     },
   },
   computed: {

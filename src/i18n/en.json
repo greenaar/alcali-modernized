@@ -128,7 +128,9 @@
       "Arguments": "Arguments",
       "Date": "Date",
       "ShowingLatest": "showing latest {0} of {1}",
-      "SearchScope": "searches the {0} loaded rows"
+      "SearchScope": "searches the {0} loaded rows",
+      "NoData": "this event carried no data",
+      "UnparsedData": "data column is not JSON; showing it as stored:"
     },
     "InfosCard": {
       "Common": "Common",

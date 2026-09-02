@@ -24,9 +24,11 @@ from rest_framework.decorators import (
     permission_classes,
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from api.backend.salt_api import SaltApiError
 from api.backend.netapi import (
     refresh_minion,
     manage_key,
@@ -630,11 +632,16 @@ def version(request):
 
 
 @api_view(["GET"])
-@renderer_classes([StreamingRenderer])
+@renderer_classes([StreamingRenderer, JSONRenderer])
 def event_stream(request):
-    # Web socket.
+    try:
+        stream = get_events()
+    except SaltApiError as exc:
+        # A real status, so the client can tell a live stream from a master it
+        # cannot reach, instead of both looking like a 200.
+        return Response({"error": str(exc)}, status=503)
     response = StreamingHttpResponse(
-        get_events(), status=200, content_type="text/event-stream"
+        stream, status=200, content_type="text/event-stream"
     )
     response["Cache-Control"] = "no-cache"
     return response

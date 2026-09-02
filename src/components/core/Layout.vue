@@ -172,6 +172,7 @@ export default {
     expand_search: false,
     notif_menu: false,
     searchInput: "",
+    eventSource: null,
     messages: [],
     notif_nb: 0,
     routes: [
@@ -268,8 +269,15 @@ export default {
         },
       });
       es.addEventListener("open", () => {
-        this.$store.dispatch("updateWs");
+        this.$store.dispatch("updateWs", true);
       });
+      // The endpoint answers 503 when the master cannot be reached, and the
+      // polyfill then retries; without this the indicator sat on whatever it
+      // last showed until the page was reloaded.
+      es.addEventListener("error", () => {
+        this.$store.dispatch("updateWs", false);
+      });
+      this.eventSource = es;
       es.addEventListener(
         "message",
         (event) => {
@@ -355,6 +363,11 @@ export default {
     this.getPrefs()
     this.saltStatus()
     this.applyTheme()
+  },
+  beforeUnmount() {
+    if (this.eventSource) {
+      this.eventSource.close()
+    }
   },
   watch: {
     // The stored preference only lands once fetchSettings resolves.

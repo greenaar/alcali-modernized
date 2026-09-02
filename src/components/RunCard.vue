@@ -18,50 +18,59 @@
                 <v-spacer></v-spacer>
                 <v-card-text>
                   <v-container fluid>
-                    <v-row>
+                    <!-- Fixed widths and no offsets: the columns here appear
+                         and disappear with the client type, and the offsets
+                         that used to space them left labels wrapping inside
+                         one-twelfth-wide columns. -->
+                    <v-row align="center">
                       <v-col
-                        sm="3"
-                        lg="1"
+                        cols="12"
+                        sm="4"
+                        lg="2"
                         align-self="center"
-                        class="text-right"
+                        class="text-lg-right"
                       >
                         <span>{{ $t("components.RunCard.ClientType") }}</span>
                       </v-col>
-                      <v-col sm="3" lg="1">
+                      <v-col cols="12" sm="4" lg="2">
                         <v-select
                           :items="client"
                           item-title="text"
                           item-value="value"
                           v-model="selected_client"
+                          hide-details
                         ></v-select>
                       </v-col>
                       <v-col
-                        sm="3"
-                        lg="1"
-                        offset-lg="1"
+                        cols="6"
+                        sm="4"
+                        lg="2"
                         v-if="!client_batch && !scheduleSwitch"
                       >
                         <v-checkbox
                           v-model="client_async"
                           :label="$t('components.RunCard.Async')"
                           color="primary"
+                          hide-details
                         ></v-checkbox>
                       </v-col>
                       <v-col
-                        sm="3"
-                        lg="1"
-                        :offset-lg="client_batch ? 3 : 1"
+                        cols="6"
+                        sm="4"
+                        lg="2"
                         v-if="selected_client === 'local' && !scheduleSwitch"
                       >
                         <v-checkbox
                           v-model="client_batch"
                           :label="$t('components.RunCard.Batch')"
                           color="primary"
+                          hide-details
                         ></v-checkbox>
                       </v-col>
                       <v-col
-                        sm="3"
-                        lg="1"
+                        cols="6"
+                        sm="4"
+                        lg="2"
                         v-if="
                           selected_client === 'local' &&
                           client_batch &&
@@ -71,23 +80,25 @@
                         <v-text-field
                           :label="$t('components.RunCard.Batch')"
                           v-model="batch"
+                          hide-details
                         ></v-text-field>
                       </v-col>
                       <v-col
-                        sm="3"
-                        lg="1"
-                        :offset-lg="client_batch ? 0 : 1"
+                        cols="6"
+                        sm="4"
+                        lg="2"
                         v-if="selected_client === 'local' && !scheduleSwitch"
                       >
                         <v-text-field
                           :label="$t('components.RunCard.Timeout')"
                           v-model="timeout"
                           type="number"
+                          hide-details
                         ></v-text-field>
                       </v-col>
                     </v-row>
                     <v-row>
-                      <v-col lg="1">
+                      <v-col cols="12" sm="6" md="4" lg="2">
                         <v-select
                           :items="target_type"
                           item-title="text"
@@ -98,7 +109,7 @@
                           @update:model-value="target = null"
                         ></v-select>
                       </v-col>
-                      <v-col lg="2">
+                      <v-col cols="12" sm="6" md="4" lg="2">
                         <v-text-field
                           :label="$t('components.RunCard.Target')"
                           v-model="target"
@@ -108,7 +119,7 @@
                           persistent-hint
                         ></v-text-field>
                       </v-col>
-                      <v-col lg="2">
+                      <v-col cols="12" sm="6" md="4" lg="2">
                         <v-combobox
                           ref="comboFunc"
                           v-model="dummySelectedFunc"
@@ -132,13 +143,13 @@
                           </template>
                         </v-combobox>
                       </v-col>
-                      <v-col lg="3">
+                      <v-col cols="12" sm="6" md="6" lg="3">
                         <v-text-field
                           :label="$t('components.RunCard.Arguments')"
                           v-model="arg"
                         ></v-text-field>
                       </v-col>
-                      <v-col lg="4">
+                      <v-col cols="12" sm="6" md="6" lg="3">
                         <v-text-field
                           :label="$t('components.RunCard.KeywordArguments')"
                           v-model="kwarg"
@@ -160,7 +171,6 @@
                             <v-text-field
                               :label="$t('components.RunCard.ScheduleName')"
                               v-model="scheduleName"
-                              style="width: 350px"
                             ></v-text-field>
                             <v-radio-group v-model="scheduleType" class="mt-0">
                               <v-radio value="once" color="primary">

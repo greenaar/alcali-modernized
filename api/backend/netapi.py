@@ -104,10 +104,14 @@ def run_raw(load):
 
 
 def get_events():
-    try:
-        api = api_connect()
-    except SaltApiError as e:
-        return {"error": str(e)}
+    """The master's event stream.
+
+    Raises SaltApiError when the master cannot be reached. Returning a dict
+    here instead meant StreamingHttpResponse iterated its keys and streamed the
+    word "error" with a 200, so the status indicator reported a healthy
+    connection to a master it had never reached.
+    """
+    api = api_connect()
     return api.req_stream("/events")
 
 

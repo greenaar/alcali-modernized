@@ -30,6 +30,13 @@ IGNORED = (
     "[intlify] Legacy API mode",
     "Not found",
     "Download the Vue Devtools",
+    # There is no Salt master here, so /api/event_stream/ answers 503 and the
+    # browser logs the failed EventSource. That is the endpoint reporting an
+    # unreachable master correctly; test_status_card_reports_no_master asserts
+    # the UI acts on it. Kept to these two exact strings so any other failing
+    # request still fails the run.
+    "Failed to load resource: the server responded with a status of 503",
+    "EventSource's response has a status 503",
 )
 
 ROUTES = [
@@ -216,3 +223,45 @@ def test_job_output_is_readable_in_light_mode(page):
     # so the panel used to be black on black under the default light theme.
     assert panel["contrast"] > 60, "job output has too little contrast to read"
     assert panel["coloured"], "ansi colours did not survive sanitising"
+
+
+def test_state_table_sorts_when_a_header_is_clicked(page):
+    page, base, _ = page
+    page.goto(base + "/states", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+
+    def first_state():
+        return page.locator("table tbody tr td").first.inner_text().strip()
+
+    before = first_state()
+    # This table passes a plain sort-by rather than binding it, which used to
+    # mean header clicks emitted an update nobody listened to.
+    page.locator("table thead th", has_text="State").first.click()
+    page.wait_for_timeout(600)
+    after = first_state()
+    assert after != before, "clicking a column header did not reorder the table"
+
+
+def test_run_page_controls_fit_their_row(page):
+    page, base, _ = page
+    page.goto(base + "/run", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    overflow = page.evaluate("""() => {
+      const row = document.querySelector('.v-window-item .v-row');
+      if (!row) return null;
+      const bounds = row.getBoundingClientRect();
+      return Array.from(row.children)
+        .filter(c => c.getBoundingClientRect().right > bounds.right + 1)
+        .map(c => c.className);
+    }""")
+    assert overflow == [], "columns overflow the row: {}".format(overflow)
+
+
+def test_status_card_reports_no_master(page):
+    page, base, _ = page
+    page.goto(base + "/", wait_until="networkidle")
+    page.wait_for_timeout(2500)
+    status = page.locator(".v-card", has_text="Status").first.inner_text()
+    # No master is reachable here, and the indicator has to say so without
+    # waiting for a reload: it only ever moved towards "OK" before.
+    assert "NOT OK" in status.upper().replace("_", " ")

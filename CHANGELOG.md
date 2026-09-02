@@ -1,5 +1,42 @@
 # Changelog
 
+## [3008.4.2] - 2026-09-02
+
+### Fixed
+
+- The Salt websocket indicator claimed a healthy connection to a master it had
+  never reached, and could not report one going away. `get_events` returned a
+  dict on failure, which `StreamingHttpResponse` iterated as its keys, so the
+  endpoint streamed the word "error" with a 200. It answers 503 now, and the
+  client acts on both the open and the error, so the indicator no longer waits
+  for a page reload to tell the truth.
+
+- Column headers did not sort the States and Audit tables. `LegacyDataTable`
+  derived the sort purely from its prop, so a caller passing a plain `sort-by`
+  rather than binding it got header clicks that emitted an update nobody
+  listened to and a table that re-rendered in its original order. It keeps the
+  sort itself when the prop is not bound, and still yields to a caller that
+  does bind it.
+
+- The Run page controls did not fit their row: several sat in one-twelfth-wide
+  columns with offsets between them, so "Client Type", "Async", "Batch",
+  "Timeout" and "Target Type" wrapped inside their own boxes. The two rows use
+  even, responsive widths and no offsets, since the columns appear and
+  disappear with the client type.
+
+- An event whose `data` column could not be parsed rendered as `{}`, which was
+  indistinguishable from an event that genuinely carried nothing. The expansion
+  now shows the column as stored, and says which case it is.
+
+### Added
+
+- `alcali_check --salt-user` names the two failures that account for almost
+  every empty page: an `external_auth` block on the master with no section for
+  the eauth Alcali logs in with, and a `netapi_enable_clients` list missing the
+  client a page needs. It prints the config the master requires, and probes the
+  wheel and local clients separately so the report says which page each failure
+  affects.
+
 ## [3008.4.1] - 2026-09-01
 
 ### Fixed

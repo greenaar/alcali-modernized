@@ -90,7 +90,28 @@ class Command(BaseCommand):
         try:
             login = api.login(username, token, eauth)
         except SaltApiError as exc:
-            return [str(exc)]
+            message = str(exc)
+            # By far the most common cause, and the master's own message says
+            # nothing about it: Alcali logs in with eauth "rest", which only
+            # works if the master has an external_auth: rest block naming this
+            # user and pointing ^url back at Alcali's verify endpoint.
+            if "401" in message or "Unauthorized" in message:
+                message += (
+                    "\n\thint: the master must carry, in its own config,\n"
+                    "\t  keep_acl_in_token: true\n"
+                    "\t  external_auth:\n"
+                    "\t    {}:\n"
+                    "\t      ^url: <URL at which the master can reach this "
+                    "Alcali>/api/token/verify/\n"
+                    "\t      {}:\n"
+                    "\t        - '.*'\n"
+                    "\t        - '@runner'\n"
+                    "\t        - '@wheel'\n"
+                    "\t        - '@jobs'\n"
+                    "\tThe ^url host must also appear in ALLOWED_HOSTS here, "
+                    "or Django answers the master with 400.".format(eauth, username)
+                )
+            return [message]
         perms = login.get("perms")
         self.stdout.write("salt:\tlogin ok as {}, perms {}".format(username, perms))
         if not perms:
@@ -102,12 +123,26 @@ class Command(BaseCommand):
         try:
             keys = api.wheel("key.list_all")["return"][0]["data"]["return"]
         except (SaltApiError, KeyError, IndexError, TypeError) as exc:
-            return ["logged in, but wheel key.list_all failed: {}".format(exc)]
+            return [
+                "logged in, but the wheel client (key.list_all, which fills the "
+                "Keys page) failed: {}\n\thint: the master's "
+                "netapi_enable_clients must list `wheel`, and this user's ACL "
+                "must include '@wheel'.".format(exc)
+            ]
         self.stdout.write(
             "salt:\tmaster knows {} accepted key(s)".format(
                 len(keys.get("minions") or [])
             )
         )
+        try:
+            api.local(os.environ.get("MASTER_MINION_ID", "*"), "test.ping")
+        except SaltApiError as exc:
+            return [
+                "wheel works, but the local client (which fills the Minions "
+                "page) failed: {}\n\thint: netapi_enable_clients must list "
+                "`local`.".format(exc)
+            ]
+        self.stdout.write("salt:\tlocal client ok")
         return []
 
     def report_caches(self):

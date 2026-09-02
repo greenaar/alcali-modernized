@@ -128,7 +128,9 @@
             "Arguments": "参数",
             "Date": "日期",
             "ShowingLatest": "显示最新 {0} 条，共 {1} 条",
-            "SearchScope": "仅搜索已加载的 {0} 行"
+            "SearchScope": "仅搜索已加载的 {0} 行",
+            "NoData": "该事件不含数据",
+            "UnparsedData": "data 列不是 JSON，按原样显示："
         },
         "InfosCard": {
             "Common": "通用",
