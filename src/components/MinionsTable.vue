@@ -18,7 +18,7 @@
                   <template v-for="(item, index) in available_headers" :key="index">
                     <v-col cols="4">
                       <v-checkbox :label="item" :value="item" v-model="settings.MinionsTable.table.columns"
-                                  @change="updateSettings" hide-details></v-checkbox>
+                                  @update:model-value="updateSettings" hide-details></v-checkbox>
                     </v-col>
                   </template>
                 </v-row>
@@ -36,13 +36,13 @@
         ></v-text-field>
       </v-card-title>
       <legacy-data-table
-        :sort-by.sync="settings.MinionsTable.table.sortBy"
+        v-model:sort-by="settings.MinionsTable.table.sortBy"
         @update:sort-by="updateSettings"
         :headers="customHeaders"
-        :sort-desc.sync="settings.MinionsTable.table.sortDesc"
+        v-model:sort-desc="settings.MinionsTable.table.sortDesc"
         @update:sort-desc="updateSettings"
         :items="minions"
-        :items-per-page.sync="settings.MinionsTable.table.itemsPerPage"
+        v-model:items-per-page="settings.MinionsTable.table.itemsPerPage"
         @update:items-per-page="updateSettings"
         :search="search"
         class="elevation-1"
@@ -162,9 +162,19 @@ export default {
     },
     loadData() {
       this.$http.get("api/minions/").then((response) => {
+        // A minion whose grains failed to serialise must not take the whole
+        // table down with it.
         function addedGrains(data) {
           data.forEach((min) => {
-            let grain = JSON.parse(min.grain);
+            let grain;
+            try {
+              grain = JSON.parse(min.grain);
+            } catch (e) {
+              return;
+            }
+            if (!grain || typeof grain !== "object") {
+              return;
+            }
             for (let key in grain) {
               min[key] = grain[key];
             }

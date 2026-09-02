@@ -11,17 +11,21 @@
         <v-list-item-content class="mr-6">
           <v-select
             :items="filters"
+            item-title="text"
+            item-value="value"
             :label="$t('components.JobsChartCard.Filter')"
             v-model="settings.Home.JobsChartCard.filter"
-            @change="updateSettings"
+            @update:model-value="updateSettings"
           ></v-select>
         </v-list-item-content>
         <v-list-item-content>
           <v-select
             :items="periods"
+            item-title="text"
+            item-value="value"
             :label="$t('components.JobsChartCard.Period')"
             v-model="settings.Home.JobsChartCard.period"
-            @change="updateSettings"
+            @update:model-value="updateSettings"
           ></v-select>
         </v-list-item-content>
       </v-list-item>

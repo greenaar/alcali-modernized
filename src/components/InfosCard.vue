@@ -6,7 +6,6 @@
           v-model="settings.MinionDetail.InfosCard.tab"
           @change="updateSettings"
       >
-        <v-tabs-slider></v-tabs-slider>
 
         <v-tab value="common">
           {{ $t("components.InfosCard.Common") }}

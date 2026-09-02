@@ -6,7 +6,6 @@
           v-model="settings.MinionDetail.NetworkCard.tab"
           @change="updateSettings"
       >
-      <v-tabs-slider></v-tabs-slider>
 
         <v-tab value="interface">
           {{ $t("components.NetworkCard.Interface") }}

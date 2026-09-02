@@ -16,11 +16,11 @@
             ></v-text-field>
           </v-card-title>
       <legacy-data-table
-            :sort-by.sync="settings.JobTemplatesTable.table.sortBy"
+            v-model:sort-by="settings.JobTemplatesTable.table.sortBy"
             @update:sort-by="updateSettings"
-            :sort-desc.sync="settings.JobTemplatesTable.table.sortDesc"
+            v-model:sort-desc="settings.JobTemplatesTable.table.sortDesc"
             @update:sort-desc="updateSettings"
-            :items-per-page.sync="settings.JobTemplatesTable.table.itemsPerPage"
+            v-model:items-per-page="settings.JobTemplatesTable.table.itemsPerPage"
             @update:items-per-page="updateSettings"
             :headers="headers"
             :items="job_templates"

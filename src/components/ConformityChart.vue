@@ -10,7 +10,7 @@
               <v-col sm="10">
                 <v-menu open-on-hover max-width="250px">
                   <template v-slot:activator="{ props }">
-                    <canvas :ref="name" height="15" v-bind="props"></canvas>
+                    <canvas :data-conformity="name" height="15" v-bind="props"></canvas>
                   </template>
                   <v-table density="compact">
                     <thead>
@@ -61,6 +61,10 @@
           this.conformity = response.data.data
           this.conformitynames = response.data.name
         }).then(() => {
+          // The canvases are rendered by v-for over conformitynames, so they
+          // only exist once Vue has flushed that update.
+          return this.$nextTick()
+        }).then(() => {
           this.conformity.forEach((conformity, idx) => {
             let chart_data = {
               labels: [this.conformitynames[idx]],
@@ -84,7 +88,17 @@
                 backgroundColor: color,
               })
             })
-            new Chart(this.$refs[this.conformitynames[idx]], {
+            // The canvas is the activator of a v-menu, and a template ref
+            // does not survive being registered from inside that slot, so
+            // address it by attribute instead.
+            let name = this.conformitynames[idx]
+            let canvas = this.$el.querySelector(
+              `canvas[data-conformity="${CSS.escape(name)}"]`
+            )
+            if (!canvas) {
+              return
+            }
+            new Chart(canvas, {
               type: "bar",
               data: chart_data,
               options: {

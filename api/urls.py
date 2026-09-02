@@ -1,6 +1,6 @@
 import os
 
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.views.salt import (
@@ -75,6 +75,11 @@ urlpatterns = [
     path("api/jobs/graph", jobs_graph, name="jobs_graph"),
 ]
 
+# The frontend routes on the History API, so a direct hit or a refresh on
+# /minions, /jobs/<jid>/<id>, /login ... arrives here and must be answered with
+# the SPA shell. Kept last, and never shadowing the API or the static files.
+spa_fallback = re_path(r"^(?!api/|static/).*$", index_view, name="spa")
+
 if os.environ.get("SALT_AUTH", "rest") == "rest":
     urlpatterns += [path("api/token/verify/", verify, name="token_verify")]
 
@@ -89,3 +94,5 @@ if os.environ.get("AUTH_BACKEND") and os.environ["AUTH_BACKEND"].lower() == "soc
             name="social_login",
         ),
     ]
+
+urlpatterns += [spa_fallback]

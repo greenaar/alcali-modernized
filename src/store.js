@@ -1,5 +1,6 @@
 import { createStore } from "vuex"
 import axios from "axios"
+import defaultSettings, { mergeSettings } from "./settings-defaults"
 
 export default createStore({
   state: {
@@ -10,7 +11,7 @@ export default createStore({
     refresh: localStorage.getItem("refresh") || "",
     is_staff: localStorage.getItem("is_staff") === "true",
     ws_status: false,
-    settings: {},
+    settings: defaultSettings(),
   },
   mutations: {
     auth_success(state, data) {
@@ -25,7 +26,7 @@ export default createStore({
       state.ws_status = true
     },
     setSettings(state, settings) {
-      state.settings = settings
+      state.settings = mergeSettings(defaultSettings(), settings)
     },
     updateSettings(state) {
       axios.patch(`api/userssettings/${state.id}/`, { settings: state.settings }).then(() => {

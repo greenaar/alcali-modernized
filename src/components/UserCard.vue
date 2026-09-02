@@ -4,11 +4,11 @@
       <v-col sm="12">
         <v-card>
           <legacy-data-table
-              :sort-by.sync="settings.UserCard.table.sortBy"
+              v-model:sort-by="settings.UserCard.table.sortBy"
               @update:sort-by="updateSettings"
-              :sort-desc.sync="settings.UserCard.table.sortDesc"
+              v-model:sort-desc="settings.UserCard.table.sortDesc"
               @update:sort-desc="updateSettings"
-              :items-per-page.sync="settings.UserCard.table.itemsPerPage"
+              v-model:items-per-page="settings.UserCard.table.itemsPerPage"
               @update:items-per-page="updateSettings"
               :headers="headers"
               :items="users"

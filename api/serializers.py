@@ -106,11 +106,18 @@ class UsersSerializer(serializers.ModelSerializer):
     user_settings = UserSettingsSerializer(read_only=True)
 
     def create(self, validated_data):
-        # Remove useless fields.
+        # Remove useless fields. A JSON request omits them entirely, unlike an
+        # HTML form post where DRF supplies a value for every declared field,
+        # so these have to be discarded without assuming they are present.
         for param in ["is_active", "groups", "user_permissions"]:
-            del validated_data[param]
+            validated_data.pop(param, None)
+        password = validated_data.pop("password")
+        # Only staff may create another staff user.
+        current_user = self.context["request"].user
+        if not current_user.is_staff:
+            validated_data.pop("is_staff", None)
         user = User(**validated_data)
-        user.set_password(validated_data["password"])
+        user.set_password(password)
         user.save()
         return user
 

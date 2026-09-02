@@ -5,8 +5,6 @@
         <v-card class="mb-8">
           <v-card-title>{{ $t("components.RunCard.Run") }}</v-card-title>
           <v-tabs v-model="tab">
-            <v-tabs-slider></v-tabs-slider>
-
             <v-tab value="formatted">
               {{ $t("components.RunCard.Formatted") }}
             </v-tab>
@@ -32,6 +30,8 @@
                       <v-col sm="3" lg="1">
                         <v-select
                           :items="client"
+                          item-title="text"
+                          item-value="value"
                           v-model="selected_client"
                         ></v-select>
                       </v-col>
@@ -90,10 +90,12 @@
                       <v-col lg="1">
                         <v-select
                           :items="target_type"
+                          item-title="text"
+                          item-value="value"
                           :label="$t('components.RunCard.TargetType')"
                           v-model="selected_target_type"
                           v-if="selected_client === 'local'"
-                          @change="target = null"
+                          @update:model-value="target = null"
                         ></v-select>
                       </v-col>
                       <v-col lg="2">
@@ -107,16 +109,15 @@
                         <v-combobox
                           ref="comboFunc"
                           v-model="dummySelectedFunc"
-                          @change="onAutoCompleteSelection"
-                          @keyup="customOnChangeHandler"
-                          @paste="customOnChangeHandler"
+                          @update:model-value="onAutoCompleteSelection"
+                          @update:search="onAutoCompleteSearch"
                           item-value="name"
-                          item-text="name"
+                          item-title="name"
                           :items="filteredFunction"
                           :label="$t('components.RunCard.Function')"
                           return-object
                         >
-                          <template v-slot:append-outer v-if="dummySelectedFunc">
+                          <template v-slot:append v-if="dummySelectedFunc">
                             <v-menu offset-y>
                               <template v-slot:activator="{ props }">
                                 <v-icon color="black" v-bind="props">info </v-icon>
@@ -185,7 +186,7 @@
                                         <v-date-picker
                                           :min="scheduleDate"
                                           v-model="scheduleDate"
-                                          @input="dateMenu = false"
+                                          @update:model-value="dateMenu = false"
                                         ></v-date-picker>
                                       </v-menu>
                                     </v-col>
@@ -394,15 +395,18 @@ export default {
   },
   methods: {
     onAutoCompleteSelection() {
+      if (this.dummySelectedFunc == null) {
+        this.selectedFunc = null
+        return
+      }
       this.selectedFunc = this.dummySelectedFunc.name || this.dummySelectedFunc
     },
-    customOnChangeHandler() {
-      let vm = this
-      setTimeout(function() {
-        if (vm.$refs.comboFunc) {
-          vm.selectedFunc = vm.$refs.comboFunc.internalSearch
-        }
-      })
+    // A combobox also accepts a function name that is not in the list. Vuetify 3
+    // has no `internalSearch` to read back, so track the typed text instead.
+    onAutoCompleteSearch(search) {
+      if (this.dummySelectedFunc == null || typeof this.dummySelectedFunc === "string") {
+        this.selectedFunc = search || null
+      }
     },
     loadData() {
       this.$http.get("api/functions/").then((response) => {

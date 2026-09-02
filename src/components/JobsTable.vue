@@ -14,7 +14,7 @@
                 ref="menu"
                 v-model="menu"
                 :close-on-content-click="false"
-                :return-value.sync="selectedDate"
+                v-model:return-value="selectedDate"
                 transition="scale-transition"
                 offset-y
                 min-width="290px"
@@ -56,8 +56,8 @@
                 single-line
               >
                 <template v-slot:selection="{ item, index }">
-                  <span v-if="index === 0">{{ item }}</span>
-                  <span v-if="index === 1" class="grey--text caption">
+                  <span v-if="index === 0">{{ item.title }}</span>
+                  <span v-if="index === 1" class="text-grey text-caption">
                     (+{{ selectedUsers.length - 1 }} others)</span
                   >
                 </template>
@@ -72,8 +72,8 @@
                 single-line
               >
                 <template v-slot:selection="{ item, index }">
-                  <span v-if="index === 0">{{ item }}</span>
-                  <span v-if="index === 1" class="grey--text caption">
+                  <span v-if="index === 0">{{ item.title }}</span>
+                  <span v-if="index === 1" class="text-grey text-caption">
                     (+{{ selectedTarget.length - 1 }} others)</span
                   >
                 </template>
@@ -117,13 +117,13 @@
             ></v-text-field>
           </v-card-title>
           <legacy-data-table
-            :sort-by.sync="settings.JobsTable.table.sortBy"
+            v-model:sort-by="settings.JobsTable.table.sortBy"
             @update:sort-by="updateSettings"
-            :sort-desc.sync="settings.JobsTable.table.sortDesc"
+            v-model:sort-desc="settings.JobsTable.table.sortDesc"
             @update:sort-desc="updateSettings"
-            :items-per-page.sync="settings.JobsTable.table.itemsPerPage"
+            v-model:items-per-page="settings.JobsTable.table.itemsPerPage"
             @update:items-per-page="updateSettings"
-            item-key="uniqueid"
+            item-value="uniqueid"
             :headers="filteredHeaders"
             :items="indexedItems"
             :search="search"

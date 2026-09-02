@@ -20,6 +20,13 @@ const i18n = createI18n({
   messages,
 });
 
+// Every call site addresses the API relatively ("api/jobs/<jid>/<id>/"), which
+// the browser would otherwise resolve against the current route: on a nested
+// route such as /jobs/<jid>/<id> that produces /jobs/<jid>/api/jobs/... and 404s.
+// Pinning the base URL to the site root keeps those relative paths correct on
+// every route, and leaves the "/api/..." call sites unchanged.
+axios.defaults.baseURL = "/";
+
 axios.defaults.xsrfCookieName = "csrftoken";
 axios.defaults.xsrfHeaderName = "X-CSRFToken";
 axios.defaults.headers.common["Content-Type"] =

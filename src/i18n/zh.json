@@ -219,7 +219,7 @@
             "RefreshMinion": "刷新",
             "JobMinion": "执客户端Job",
             "HighstateMinion": "执行highstate",
-            "Refreshing ": "正在刷新{0}",
+            "Refreshing": "正在刷新{0}",
             "MinionRefreshed": "客户端已刷新",
             "MissingMinion": "{0}不在当前数据库. 尝试刷新客户端"
         },
@@ -354,7 +354,8 @@
         "Search": {
             "NoResult": "对不起，没有结果",
             "Success": "成功",
-            "Failed": "失败"
+            "Failed": "失败",
+            "Jobs": "任务"
         }
     }
 }

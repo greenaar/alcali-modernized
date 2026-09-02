@@ -219,7 +219,7 @@
       "RefreshMinion": "Actualiser ",
       "JobMinion": "Lancer une tâche sur ",
       "HighstateMinion": "Appliquer Highstate sur ",
-      "Refreshing ": "Actualisation de {0}",
+      "Refreshing": "Actualisation de {0}",
       "MinionRefreshed": "Minion actualisé",
       "MissingMinion": "{0} est absent de la base. Essayez d'actualiser les minions"
     },
@@ -354,7 +354,8 @@
     "Search": {
       "NoResult": "Désolé... Aucun résultat.",
       "Success": "Réussi",
-      "Failed": "Échoué"
+      "Failed": "Échoué",
+      "Jobs": "Tâches"
     }
   }
 }

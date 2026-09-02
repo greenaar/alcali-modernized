@@ -28,16 +28,15 @@
       </v-card-title>
       <v-expansion-panels>
         <v-expansion-panel
-            v-if="succeeded_checkbox"
-            v-for="(item,i) in succeeded"
+            v-for="(item,i) in (succeeded_checkbox ? succeeded : {})"
             :key="i"
             dark
         >
-          <v-expansion-panel-header>{{i}}
+          <v-expansion-panel-title>{{i}}
             <template v-slot:actions>
               <v-icon color="green">expand_more</v-icon>
             </template>
-          </v-expansion-panel-header>
+          </v-expansion-panel-title>
                   <v-expansion-panel-text v-html="$sanitize(item)">
                   </v-expansion-panel-text>
         </v-expansion-panel>
@@ -45,15 +44,14 @@
 
       <v-expansion-panels>
         <v-expansion-panel
-            v-if="unchanged_checkbox"
-            v-for="(item,i) in unchanged"
+            v-for="(item,i) in (unchanged_checkbox ? unchanged : {})"
             :key="i"
         >
-          <v-expansion-panel-header>{{i}}
+          <v-expansion-panel-title>{{i}}
             <template v-slot:actions>
               <v-icon color="orange">expand_more</v-icon>
             </template>
-          </v-expansion-panel-header>
+          </v-expansion-panel-title>
                   <v-expansion-panel-text v-html="$sanitize(item)">
                   </v-expansion-panel-text>
         </v-expansion-panel>
@@ -61,15 +59,14 @@
 
       <v-expansion-panels>
         <v-expansion-panel
-            v-if="failed_checkbox"
-            v-for="(item,i) in failed"
+            v-for="(item,i) in (failed_checkbox ? failed : {})"
             :key="i"
         >
-          <v-expansion-panel-header>{{i}}
+          <v-expansion-panel-title>{{i}}
             <template v-slot:actions>
               <v-icon color="red">expand_more</v-icon>
             </template>
-          </v-expansion-panel-header>
+          </v-expansion-panel-title>
                   <v-expansion-panel-text v-html="$sanitize(item)">
                   </v-expansion-panel-text>
         </v-expansion-panel>
@@ -94,7 +91,7 @@
 </script>
 
 <style scoped>
-  .v-expansion-panel-content {
+  .v-expansion-panel-text {
     background-color: black;
   }
 

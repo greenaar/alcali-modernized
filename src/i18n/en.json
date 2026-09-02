@@ -219,7 +219,7 @@
       "RefreshMinion": "Refresh ",
       "JobMinion": "Run job on ",
       "HighstateMinion": "Run highstate on ",
-      "Refreshing ": "Refreshing {0}",
+      "Refreshing": "Refreshing {0}",
       "MinionRefreshed": "Minion refreshed",
       "MissingMinion": "{0} is not present in database. Try refreshing minions"
     },
@@ -354,7 +354,8 @@
     "Search": {
       "NoResult": "Sorry... No results.",
       "Success": "Success",
-      "Failed": "Failed"
+      "Failed": "Failed",
+      "Jobs": "Jobs"
     }
   }
 }

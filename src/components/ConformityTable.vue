@@ -14,13 +14,13 @@
         ></v-text-field>
       </v-card-title>
       <legacy-data-table
-        :sort-by.sync="settings.ConformityTable.table.sortBy"
+        v-model:sort-by="settings.ConformityTable.table.sortBy"
         @update:sort-by="updateSettings"
-        :sort-desc.sync="settings.ConformityTable.table.sortDesc"
+        v-model:sort-desc="settings.ConformityTable.table.sortDesc"
         @update:sort-desc="updateSettings"
-        :items-per-page.sync="settings.ConformityTable.table.itemsPerPage"
+        v-model:items-per-page="settings.ConformityTable.table.itemsPerPage"
         @update:items-per-page="updateSettings"
-        item-key="minion_id"
+        item-value="minion_id"
         :headers="headers"
         :items="conformity"
         :search="search"

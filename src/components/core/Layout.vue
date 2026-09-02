@@ -92,7 +92,7 @@
           :label="$t('components.core.Layout.Search')"
           solo-inverted
           v-model="searchInput"
-          @keyup.native.enter="searchBar"
+          @keyup.enter="searchBar"
         ></v-text-field>
       </v-expand-transition>
       <v-btn icon @click="expand_search = !expand_search" class="mr-2">
@@ -149,9 +149,11 @@
       </v-menu>
     </v-app-bar>
     <v-main>
-      <v-fade-transition mode="out-in">
-        <router-view :key="$route.fullPath"></router-view>
-      </v-fade-transition>
+      <router-view v-slot="{ Component }">
+        <v-fade-transition mode="out-in">
+          <component :is="Component" :key="$route.fullPath" />
+        </v-fade-transition>
+      </router-view>
     </v-main>
   </v-app>
 </template>
@@ -224,9 +226,12 @@ export default {
     updateDomAndSettings(val) {
       this.settings.Layout[val] = !this.settings.Layout[val]
       if (val === 'dark') {
-        this.$vuetify.theme.global.name = this.settings.Layout[val] ? "dark" : "light"
+        this.applyTheme()
       }
       this.$store.commit("updateSettings")
+    },
+    applyTheme() {
+      this.$vuetify.theme.change(this.settings.Layout.dark ? "dark" : "light")
     },
     logout: function() {
       this.$store.dispatch("logout").then(() => {
@@ -243,7 +248,7 @@ export default {
     },
     toggleTheme() {
       this.$store.dispatch("toggleTheme").then(() => {
-        this.$vuetify.theme.global.name = JSON.parse(this.$store.state.theme) ? "dark" : "light";
+        this.applyTheme();
       });
     },
     saltStatus() {
@@ -344,7 +349,13 @@ export default {
   created() {
     this.getPrefs()
     this.saltStatus()
-    this.$vuetify.theme.global.name = this.settings.Layout.dark ? "dark" : "light"
+    this.applyTheme()
+  },
+  watch: {
+    // The stored preference only lands once fetchSettings resolves.
+    "settings.Layout.dark"() {
+      this.applyTheme()
+    },
   },
   computed: {
     ...mapState({

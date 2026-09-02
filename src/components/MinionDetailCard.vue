@@ -5,7 +5,6 @@
           v-model="settings.MinionDetail.MinionDetailCard.tab"
           @change="updateSettings"
       >
-      <v-tabs-slider></v-tabs-slider>
 
         <v-tab value="grain">
           {{ $t("components.MinionDetailCard.Grains") }}

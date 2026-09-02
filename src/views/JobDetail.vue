@@ -93,7 +93,7 @@
       },
       boolText(bool) {
         if (bool === true) return this.$t("views.JobDetail.Success")
-        else return this.$t("views.JobDetail.failed")
+        else return this.$t("views.JobDetail.Failed")
       },
       formatDate(date) {
         return new Date(date).toLocaleString("en-GB")

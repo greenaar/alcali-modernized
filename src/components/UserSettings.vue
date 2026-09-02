@@ -26,20 +26,28 @@
               <div class="locale-changer" style="margin-left: 20px">
                 <span>{{ $t("components.UserSettings.Language") }}</span>
                 <div>
-                  <v-select :items="langs" v-model="$i18n.locale">
+                  <v-select
+                    :items="langs"
+                    item-title="text"
+                    item-value="value"
+                    v-model="$i18n.locale"
+                  >
                     <template v-slot:selection="{ item }">
                       <img
-                        :src="item.image"
+                        :src="item.raw.image"
                         style="width: 25px; height: 25px; margin-right: 5px"
                       />
-                      {{ item.text }}
+                      {{ item.title }}
                     </template>
-                    <template v-slot:item="{ item }">
-                      <img
-                        :src="item.image"
-                        style="width: 25px; height: 25px; margin-right: 5px"
-                      />
-                      {{ item.text }}
+                    <template v-slot:item="{ item, props }">
+                      <v-list-item v-bind="props" :title="item.title">
+                        <template v-slot:prepend>
+                          <img
+                            :src="item.raw.image"
+                            style="width: 25px; height: 25px; margin-right: 5px"
+                          />
+                        </template>
+                      </v-list-item>
                     </template>
                   </v-select>
                 </div>

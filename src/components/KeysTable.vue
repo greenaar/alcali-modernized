@@ -14,11 +14,11 @@
         ></v-text-field>
       </v-card-title>
       <legacy-data-table
-        :sort-by.sync="settings.KeysTable.table.sortBy"
+        v-model:sort-by="settings.KeysTable.table.sortBy"
         @update:sort-by="updateSettings"
-        :sort-desc.sync="settings.KeysTable.table.sortDesc"
+        v-model:sort-desc="settings.KeysTable.table.sortDesc"
         @update:sort-desc="updateSettings"
-        :items-per-page.sync="settings.KeysTable.table.itemsPerPage"
+        v-model:items-per-page="settings.KeysTable.table.itemsPerPage"
         @update:items-per-page="updateSettings"
         :headers="headers"
         :items="keys"

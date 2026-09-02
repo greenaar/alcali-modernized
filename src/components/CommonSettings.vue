@@ -11,7 +11,7 @@
             <v-col sm="4" lg="2">
               <v-select
                   :items="minions"
-                  item-text="minion_id"
+                  item-title="minion_id"
                   item-value="minion_id"
                   v-model="target"
                   :label="$t('components.CommonSettings.Target')"
@@ -49,12 +49,11 @@
                 <v-col lg="4">
                   <v-combobox
                       ref="comboMinionFunc"
-                      @change="onAutoCompleteSelection"
-                      @keyup="customOnChangeHandler"
-                      @paste="customOnChangeHandler"
+                      @update:model-value="onAutoCompleteSelection"
+                      @update:search="onAutoCompleteSearch"
                       :items="functions"
                       item-value="name"
-                      item-text="name"
+                      item-title="name"
                       :label="$t('components.CommonSettings.Functions')"
                       v-model="dummy_minionsfields_value"
                   ></v-combobox>
@@ -138,15 +137,22 @@
     },
     methods: {
       onAutoCompleteSelection() {
-        this.minionsfields_value = this.dummy_minionsfields_value.name || this.dummy_minionsfields_value
+        if (this.dummy_minionsfields_value == null) {
+          this.minionsfields_value = null
+          return
+        }
+        this.minionsfields_value =
+          this.dummy_minionsfields_value.name || this.dummy_minionsfields_value
       },
-      customOnChangeHandler() {
-        let vm = this
-        setTimeout(function() {
-          if (vm.$refs.comboMinionFunc) {
-            vm.minionsfields_value = vm.$refs.comboMinionFunc.internalSearch
-          }
-        })
+      // A combobox also accepts a function name that is not in the list. Vuetify 3
+      // has no `internalSearch` to read back, so track the typed text instead.
+      onAutoCompleteSearch(search) {
+        if (
+          this.dummy_minionsfields_value == null ||
+          typeof this.dummy_minionsfields_value === "string"
+        ) {
+          this.minionsfields_value = search || null
+        }
       },
       loadData() {
         this.$http.get("api/keys/").then(response => {

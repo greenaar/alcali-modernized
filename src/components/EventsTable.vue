@@ -14,15 +14,16 @@
         ></v-text-field>
       </v-card-title>
       <legacy-data-table
-        :sort-by.sync="settings.EventsTable.table.sortBy"
+        v-model:sort-by="settings.EventsTable.table.sortBy"
         @update:sort-by="updateSettings"
-        :sort-desc.sync="settings.EventsTable.table.sortDesc"
+        v-model:sort-desc="settings.EventsTable.table.sortDesc"
         @update:sort-desc="updateSettings"
-        :items-per-page.sync="settings.EventsTable.table.itemsPerPage"
+        v-model:items-per-page="settings.EventsTable.table.itemsPerPage"
         @update:items-per-page="updateSettings"
         :headers="headers"
         :items="events"
         :search="search"
+        item-value="id"
         class="elevation-1"
         show-expand
         :loading="loading"
@@ -30,10 +31,12 @@
         <template v-slot:item.alter_time="{ item }">
           {{ new Date(item.alter_time).toLocaleString("en-GB") }}
         </template>
-        <template v-slot:expanded-item="{ headers, item }">
-          <td :colspan="headers.length">
-            <pre>{{ JSON.stringify(safeParse(item.data), null, 2) }}</pre>
-          </td>
+        <template v-slot:expanded-row="{ columns, item }">
+          <tr>
+            <td :colspan="columns.length">
+              <pre>{{ JSON.stringify(safeParse(item.data), null, 2) }}</pre>
+            </td>
+          </tr>
         </template>
       </legacy-data-table>
     </v-card>
@@ -43,15 +46,29 @@
 <script>
 import { mapState } from "vuex"
 
+function parseEventData(json) {
+  try {
+    let parsed = JSON.parse(json);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
 function addedData(data) {
   data.forEach((event) => {
-    let grain = JSON.parse(event.data);
-    for (let key in grain) {
+    let parsed = parseEventData(event.data);
+    for (let key in parsed) {
       if (key === "id") {
-        event["minion_id"] = grain[key];
+        event["minion_id"] = parsed[key];
       } else {
-        event[key] = grain[key];
+        event[key] = parsed[key];
       }
+    }
+    // salt/job/<jid>/new carries the arguments as `arg`, the return events as
+    // `fun_args`; the table shows a single Arguments column for both.
+    if (event.fun_args === undefined && parsed.arg !== undefined) {
+      event.fun_args = parsed.arg;
     }
   });
   return data;
@@ -97,13 +114,7 @@ export default {
       });
     },
     safeParse(json) {
-      let parsed;
-      try {
-        parsed = JSON.parse(json);
-      } catch (e) {
-        return {};
-      }
-      return parsed;
+      return parseEventData(json);
     },
   },
   computed: {

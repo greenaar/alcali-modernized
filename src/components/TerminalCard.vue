@@ -97,7 +97,7 @@
         this.initTerm()
       }, 100)
     },
-    beforeDestroy() {
+    beforeUnmount() {
       if (this.term !== null) {
         this.term.dispose()
       }

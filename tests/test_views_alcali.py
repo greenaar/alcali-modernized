@@ -2,6 +2,7 @@ import datetime
 import os
 
 import pytest
+from django.contrib.auth.models import User
 from django.urls import reverse
 
 from api.models import (
@@ -18,6 +19,25 @@ from api.models import (
 def test_index(admin_client):
     response = admin_client.get(reverse("index"))
     assert response.status_code == 200
+
+
+@pytest.mark.django_db()
+@pytest.mark.parametrize(
+    "path",
+    ["/login", "/minions", "/minions/minion1", "/jobs/20200101000000000000/minion1"],
+)
+def test_spa_routes_serve_the_shell(admin_client, path):
+    # The frontend routes on the History API: a refresh or a direct link to one
+    # of its routes has to return index.html, not a 404.
+    response = admin_client.get(path)
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db()
+def test_unknown_api_route_still_404s(admin_client, jwt):
+    # The catch-all must not swallow the API namespace.
+    response = admin_client.get("/api/does-not-exist/", **jwt)
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db()
@@ -181,6 +201,18 @@ def test_users_create(admin_client, admin_user, dummy_user, jwt):
     user = {"username": "foo", "email": "foo@example.com", "password": "not_so_good"}
     response = admin_client.post("/api/users/", user, **jwt)
     assert response.status_code == 201
+
+
+def test_users_create_json(admin_client, admin_user, jwt):
+    # The frontend sends JSON, which omits every field the form left empty.
+    user = {"username": "jsonfoo", "email": "jsonfoo@example.com", "password": "not_so_good"}
+    response = admin_client.post(
+        "/api/users/", user, content_type="application/json", **jwt
+    )
+    assert response.status_code == 201
+    created = User.objects.get(username="jsonfoo")
+    assert created.check_password("not_so_good")
+    assert created.is_active is True
 
 
 def test_users_update(admin_client, admin_user, dummy_user, jwt):

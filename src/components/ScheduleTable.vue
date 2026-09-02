@@ -14,11 +14,11 @@
         ></v-text-field>
       </v-card-title>
       <legacy-data-table
-        :sort-by.sync="settings.ScheduleTable.table.sortBy"
+        v-model:sort-by="settings.ScheduleTable.table.sortBy"
         @update:sort-by="updateSettings"
-        :sort-desc.sync="settings.ScheduleTable.table.sortDesc"
+        v-model:sort-desc="settings.ScheduleTable.table.sortDesc"
         @update:sort-desc="updateSettings"
-        :items-per-page.sync="settings.ScheduleTable.table.itemsPerPage"
+        v-model:items-per-page="settings.ScheduleTable.table.itemsPerPage"
         @update:items-per-page="updateSettings"
         :headers="headers"
         :items="schedules"

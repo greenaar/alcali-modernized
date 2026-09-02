@@ -25,7 +25,7 @@
               sort-desc
               :headers="jobs_headers"
               :items="jobs"
-              :search="search"
+              :search="job_search"
               :items-per-page="5"
               class="elevation-1"
             >
@@ -70,7 +70,7 @@
               Minions
               <v-spacer></v-spacer>
               <v-text-field
-                v-model="search"
+                v-model="minion_search"
                 append-icon="search"
                 :label="$t('common.Search')"
                 single-line
@@ -80,6 +80,7 @@
           <legacy-data-table
               :headers="minions_headers"
               :items="minions"
+              :search="minion_search"
               :items-per-page="5"
               class="elevation-1"
             >
@@ -137,6 +138,7 @@ export default {
         { text: "Date", value: "alter_time" },
       ],
       job_search: "",
+      minion_search: "",
       minions: [],
       minions_headers: [
         { text: "Minion Id", value: "minion_id" },

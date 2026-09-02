@@ -1,5 +1,51 @@
 # Changelog
 
+## [3008.2.1] - 2026-09-01
+
+Fixes for the Vue 3 / Vuetify 3 migration: several Vue 2 and Vuetify 2 APIs had
+been left in place, where they are silently ignored rather than failing loudly.
+
+- fix: every API call was addressed relatively, so on a nested route such as
+  `/jobs/<jid>/<id>` it resolved to `/jobs/<jid>/api/...` and 404'd. Job detail
+  and minion detail showed an empty record and a failed status
+
+- fix: no server-side route served the SPA shell, so a refresh or a direct link
+  to anything but `/` returned a Django 404
+
+- fix: the settings store started empty while every table read nested paths out
+  of it, which aborted `Layout`'s created hook
+
+- fix: `v-select` items shaped `{text, value}` rendered as `[object Object]` on
+  the overview (Filter, Period) and the run page (Client Type, Target Type);
+  `item-text` was renamed `item-title` in Vuetify 3, leaving the settings page
+  target, functions and language dropdowns empty
+
+- fix: the refresh speed dial rendered unpositioned and its actions were
+  unreachable, so minions, keys and schedules could not be refreshed from the UI
+
+- fix: the conformity chart never drew — a `ref` in `v-for` is an array in
+  Vue 3, and the canvas is a `v-menu` activator, so the ref never resolved
+
+- fix: events could not be expanded (`expanded-item` is `expanded-row` in
+  Vuetify 3), and one malformed row blanked the whole table
+
+- fix: creating a user returned 500, because the serializer deleted fields a
+  JSON request never sends
+
+- fix: conformity detail crashed rendering, `$t()` having been handed a boolean
+
+- fix: `v-tabs-slider`, `v-expansion-panel-header`, Vue 2 filters, `.native`
+  and `beforeDestroy` removed; `.sync` replaced with `v-model` arguments, so
+  table sort and page-size preferences persist again
+
+- fix: both search boxes on the search page were inert
+
+- fix: missing `views.JobDetail.failed` and `views.Search.Jobs` translations,
+  and a `MinionDetail.Refreshing` key with a trailing space
+
+- int: ESLint moved to the Vue 3 preset, which is what surfaced the remaining
+  Vue 2 constructs
+
 ## [3008.2.0] - 2026-08-19
 
 First release from the Forgejo fork.
