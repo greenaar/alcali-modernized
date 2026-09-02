@@ -74,7 +74,7 @@ class FunctionsSerializer(serializers.ModelSerializer):
 class MinionsSerializer(serializers.ModelSerializer):
     last_job = serializers.DateTimeField(source="last_job.alter_time", default=None)
     last_highstate = serializers.DateTimeField(
-        source="last_highstate.alter_time", default=None
+        source="last_highstate_time", default=None
     )
     conformity = serializers.BooleanField()
     custom_fields = MinionsCustomFieldsSerializer(many=True, read_only=True)

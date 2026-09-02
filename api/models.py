@@ -161,29 +161,40 @@ class Minions(models.Model):
             .first()
         )
 
-    def last_highstate(self):
-        # Memoised: the serializer asks for it, and conformity() asks again.
-        if not hasattr(self, "_last_highstate_cache"):
-            self._last_highstate_cache = self._compute_last_highstate()
-        return self._last_highstate_cache
-
     # How far back to look for a highstate. Whether a run counts depends on
     # its arguments, which live inside the JSON payload and cannot be filtered
     # in SQL, so a bounded window is read and examined here.
     HIGHSTATE_SEARCH_DEPTH = 20
 
-    def _compute_last_highstate(self):
+    def _state_run_jids(self):
+        """The newest state run ids for this minion, newest first.
+
+        Only the ids: a state return carries the whole run in `full_ret`, and
+        pulling twenty of those to look at one field each is what made listing
+        minions expensive.
+        """
+        return list(
+            SaltReturns.objects.filter(
+                Q(fun="state.apply") | Q(fun="state.highstate"), id=self.minion_id
+            )
+            .order_by("-jid")
+            .values_list("jid", flat=True)[: self.HIGHSTATE_SEARCH_DEPTH]
+        )
+
+    def _compute_last_highstate(self, jids=None):
         # Newest first. This used to take the two most recent state runs and
         # then re-sort them oldest-first before returning the first match, so
         # "last highstate" was really the one before last: a minion whose most
         # recent highstate passed still reported the previous failure.
-        states = SaltReturns.objects.filter(
-            Q(fun="state.apply") | Q(fun="state.highstate"), id=self.minion_id
-        ).order_by("-jid")[: self.HIGHSTATE_SEARCH_DEPTH]
-
+        #
         # A run with arguments is a targeted state, not a highstate; a test run
-        # still describes the minion's conformity.
-        for state in states:
+        # still describes the minion's conformity. Rows are pulled one at a
+        # time because the first is almost always the answer, and each one
+        # parsed is a full run's worth of JSON.
+        for jid in self._state_run_jids() if jids is None else jids:
+            state = SaltReturns.objects.filter(jid=jid, id=self.minion_id).first()
+            if state is None:
+                continue
             try:
                 fun_args = state.loaded_ret().get("fun_args") or []
             except ValueError:
@@ -196,11 +207,15 @@ class Minions(models.Model):
                 return state
         return None
 
-    def conformity(self):
-        last_highstate = self.last_highstate()
-        if not last_highstate:
+    @staticmethod
+    def _verdict_for(highstate):
+        """Whether a highstate return describes a conformant minion."""
+        if not highstate:
             return None
-        highstate_ret = last_highstate.loaded_ret()
+        try:
+            highstate_ret = highstate.loaded_ret()
+        except ValueError:
+            return False
 
         # Flat out error(return is a string)
         return_item = highstate_ret.get("return")
@@ -219,6 +234,50 @@ class Minions(models.Model):
             if not result.get("result"):
                 return False
         return True
+
+    def conformity_entry(self):
+        """The stored verdict, recomputed only when a newer state run exists.
+
+        Memoised per instance as well: the serializer asks for the verdict and
+        for the highstate time, and both come from here.
+        """
+        if hasattr(self, "_conformity_entry_cache"):
+            return self._conformity_entry_cache
+
+        jids = self._state_run_jids()
+        newest = jids[0] if jids else ""
+        entry = ConformityCache.objects.filter(minion_id=self.minion_id).first()
+        if entry is None or entry.source_jid != newest:
+            highstate = self._compute_last_highstate(jids)
+            entry, _ = ConformityCache.objects.update_or_create(
+                minion_id=self.minion_id,
+                defaults={
+                    "source_jid": newest,
+                    "verdict": self._verdict_for(highstate),
+                    "highstate_jid": highstate.jid if highstate else "",
+                    "highstate_time": highstate.alter_time if highstate else None,
+                },
+            )
+        self._conformity_entry_cache = entry
+        return entry
+
+    def last_highstate(self):
+        # Memoised: kept returning the return itself for callers that want the
+        # run, while the minions list reads the cached time instead.
+        if not hasattr(self, "_last_highstate_cache"):
+            jid = self.conformity_entry().highstate_jid
+            self._last_highstate_cache = (
+                SaltReturns.objects.filter(jid=jid, id=self.minion_id).first()
+                if jid
+                else None
+            )
+        return self._last_highstate_cache
+
+    def last_highstate_time(self):
+        return self.conformity_entry().highstate_time
+
+    def conformity(self):
+        return self.conformity_entry().verdict
 
     def custom_conformity(self, fun, *args):
         # First, filter with fun.
@@ -342,6 +401,38 @@ class Conformity(models.Model):
 
     class Meta:
         db_table = "conformity"
+        app_label = "api"
+
+
+class ConformityCache(models.Model):
+    """The last computed highstate verdict for a minion.
+
+    Deriving conformity means JSON-parsing `full_ret`, and a real highstate is
+    hundreds of states - a megabyte or so per minion, parsed on every request
+    that lists minions. The verdict can only change when a newer state run
+    lands, so it is stored against the newest run seen and recomputed only
+    when that moves.
+
+    This is Alcali's own table: the returner tables are Salt's and unmanaged.
+    Losing it costs a recomputation, nothing more.
+    """
+
+    minion_id = models.CharField(max_length=128, unique=True)
+    # Invalidation key: the newest state run for this minion when the verdict
+    # was computed, whether or not that run is the one it was computed from.
+    source_jid = models.CharField(max_length=255)
+    # True conformant, False drifted, null no highstate to judge.
+    verdict = models.BooleanField(null=True)
+    # The run the verdict came from, for the "last highstate" column.
+    highstate_jid = models.CharField(max_length=255, blank=True)
+    highstate_time = models.DateTimeField(null=True, blank=True)
+    computed = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "{}: {}".format(self.minion_id, self.verdict)
+
+    class Meta:
+        db_table = "alcali_conformity_cache"
         app_label = "api"
 
 

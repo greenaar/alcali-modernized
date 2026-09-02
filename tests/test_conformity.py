@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from api.models import Minions, SaltReturns
+from api.models import ConformityCache, Minions, SaltReturns
 
 
 def highstate(minion, jid, result, fun_args=None):
@@ -114,3 +114,63 @@ def test_one_drifted_state_among_many_is_not_conformant():
         alter_time="2026-09-01 00:00:00",
     )
     assert minion.conformity() is False
+
+
+@pytest.mark.django_db()
+def test_the_verdict_is_reused_until_a_newer_state_run_lands():
+    """Deriving conformity parses a whole run out of JSON, so it is stored
+    against the newest run seen and only redone when that moves."""
+    minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
+    highstate("m1", "20260901000000000001", True)
+    assert minion.conformity() is True
+
+    # Rewrite that run to a failure without adding a newer one. A fresh
+    # instance still answers from the stored verdict.
+    SaltReturns.objects.filter(jid="20260901000000000001").update(
+        full_ret=json.dumps({
+            "fun": "state.apply", "fun_args": [],
+            "return": {"pkg_|-a_|-a_|-installed": {"result": False, "changes": {}}},
+        })
+    )
+    assert Minions.objects.get(pk=minion.pk).conformity() is True
+
+    # A newer run is what invalidates it.
+    highstate("m1", "20260901000000000002", False)
+    assert Minions.objects.get(pk=minion.pk).conformity() is False
+
+
+@pytest.mark.django_db()
+def test_the_cached_verdict_records_which_run_it_came_from():
+    minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
+    highstate("m1", "20260901000000000001", True)
+    # A targeted run is newer, but is not what the verdict is judged on.
+    highstate("m1", "20260901000000000002", False, fun_args=["users"])
+    assert minion.conformity() is True
+
+    entry = ConformityCache.objects.get(minion_id="m1")
+    assert entry.highstate_jid == "20260901000000000001"
+    assert entry.source_jid == "20260901000000000002"
+    assert entry.highstate_time is not None
+
+
+@pytest.mark.django_db()
+def test_listing_a_minion_twice_does_not_reread_the_run(django_assert_num_queries):
+    minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
+    highstate("m1", "20260901000000000001", True)
+    minion.conformity()
+
+    # Warm: the id lookup plus the cache row, and no fetch of full_ret.
+    fresh = Minions.objects.get(pk=minion.pk)
+    with django_assert_num_queries(2):
+        assert fresh.conformity() is True
+        assert fresh.last_highstate_time() is not None
+
+
+@pytest.mark.django_db()
+def test_a_minion_with_no_state_runs_is_unknown_and_stays_cached():
+    minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
+    assert minion.conformity() is None
+    entry = ConformityCache.objects.get(minion_id="m1")
+    assert entry.source_jid == ""
+    assert entry.verdict is None
+    assert Minions.objects.get(pk=minion.pk).conformity() is None
