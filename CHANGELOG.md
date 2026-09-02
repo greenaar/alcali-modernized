@@ -1,5 +1,14 @@
 # Changelog
 
+## [3008.11.1] - 2026-09-02
+
+### Fixed
+
+- Five references to the old `alcali_check` and `alcali_notify` command names
+  survived the 3008.11.0 rename: three translated strings, the notifications
+  card, and the returner index notes. All pointed users at a command that no
+  longer exists.
+
 ## [3008.11.0] - 2026-09-02
 
 ### Fixed

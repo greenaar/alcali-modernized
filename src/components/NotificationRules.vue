@@ -74,7 +74,7 @@
         </p>
         <p class="text-caption text-medium-emphasis mt-4 mb-0">
           {{ $t("components.NotificationRules.Cron") }}
-          <code>python manage.py alcali_notify</code>
+          <code>alcali notify</code>
         </p>
       </v-card-text>
     </v-card>

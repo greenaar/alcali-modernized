@@ -246,7 +246,7 @@
       "JobAll": "Lancer une tâche sur tous les minions",
       "Refreshing": "Actualisation des minions",
       "NbMinionsRefreshed": "{0} minions actualisés",
-      "NoMinionsReplied": "Le master a répondu, mais aucun minion. Vérifiez que le master peut lire son cache de tâches (manage.py alcali_check).",
+      "NoMinionsReplied": "Le master a répondu, mais aucun minion. Vérifiez que le master peut lire son cache de tâches (manage.py diagnose).",
       "RefreshedFromCache": "{0} minion(s) chargés depuis le cache du master ; aucun minion n'a répondu directement"
     },
     "MinionDetail": {

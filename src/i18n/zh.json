@@ -246,7 +246,7 @@
             "JobAll": "在客户端上执行所有Job",
             "Refreshing": "刷新客户端",
             "NbMinionsRefreshed": "{0} 个客户端已刷新",
-            "NoMinionsReplied": "master 已响应，但没有客户端回复。请检查 master 能否读取其作业缓存（manage.py alcali_check）。",
+            "NoMinionsReplied": "master 已响应，但没有客户端回复。请检查 master 能否读取其作业缓存（manage.py diagnose）。",
             "RefreshedFromCache": "已从 master 缓存加载 {0} 个客户端；没有客户端直接响应"
         },
         "MinionDetail": {

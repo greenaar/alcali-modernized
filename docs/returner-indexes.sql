@@ -4,7 +4,7 @@
 -- fun, and salt_events by tag. Alcali orders by alter_time on nearly every
 -- query, so on a database that has been collecting returns for a while those
 -- queries degrade into a full scan plus a filesort over two mediumtext
--- columns. `manage.py alcali_check` reports which of these are missing.
+-- columns. `manage.py diagnose` reports which of these are missing.
 --
 -- Adding an index to a large InnoDB table is online in MySQL 5.6+/MariaDB 10.0+
 -- but still costs I/O; run it during a quiet period.
