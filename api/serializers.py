@@ -16,6 +16,7 @@ from .models import (
     Functions,
     Schedule,
     JobTemplate,
+    AuditLog,
 )
 
 
@@ -185,3 +186,9 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         data["email"] = self.user.email
         data["is_staff"] = self.user.is_staff
         return data
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuditLog
+        fields = ("id", "username", "action", "target", "detail", "created")

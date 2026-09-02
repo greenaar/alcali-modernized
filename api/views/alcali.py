@@ -48,7 +48,9 @@ from api.models import (
     MinionsCustomFields,
     Functions,
     JobTemplate,
+    AuditLog,
 )
+from api.audit import AuditedModelViewSet, record
 from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser, IsAdminUserOrReadOnly
 from api.renderer import StreamingRenderer
 from api.serializers import (
@@ -63,6 +65,7 @@ from api.serializers import (
     JobTemplateSerializer,
     KeysSerializer,
     MinionsSerializer,
+    AuditLogSerializer,
 )
 from api.utils import graph_data, render_conformity, RawCommand
 from api.utils.matching import glob_match, list_match, subdict_match
@@ -107,10 +110,11 @@ class KeysViewSet(viewsets.ReadOnlyModelViewSet):
         ret = manage_key(key_action, key, kwargs)
         if "error" in ret:
             return Response(ret["error"], status=401)
+        record("key.{}".format(key_action), target=key)
         return Response({"result": "{} on {}: done".format(key_action, key)})
 
 
-class MinionsViewSet(viewsets.ModelViewSet):
+class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
     queryset = Minions.objects.all()
     serializer_class = MinionsSerializer
     permission_classes = [IsAdminUserOrReadOnly]
@@ -339,7 +343,7 @@ class MinionsViewSet(viewsets.ModelViewSet):
         )
 
 
-class MinionsCustomFieldsViewSet(viewsets.ModelViewSet):
+class MinionsCustomFieldsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
     queryset = MinionsCustomFields.objects.all()
     serializer_class = MinionsCustomFieldsSerializer
     permission_classes = [IsAdminUserOrReadOnly]
@@ -352,10 +356,11 @@ class MinionsCustomFieldsViewSet(viewsets.ModelViewSet):
     def delete_field(self, request):
         field = request.data.get("name")
         MinionsCustomFields.objects.filter(name=field).delete()
+        record("minionscustomfields.delete", target=field)
         return Response({"result": "{} field deleted".format(field)})
 
 
-class ConformityViewSet(viewsets.ModelViewSet):
+class ConformityViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
     queryset = Conformity.objects.all()
     serializer_class = ConformitySerializer
     permission_classes = [IsAdminUserOrReadOnly]
@@ -459,12 +464,13 @@ class ScheduleViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"result": "not good"})
         if "error" in ret:
             return Response(ret["error"], status=401)
+        record("schedule.{}".format(action), target="{}:{}".format(minion, name))
         return Response(
             {"result": "schedule " + name + " on " + minion + " " + action + "d"}
         )
 
 
-class UsersViewSet(viewsets.ModelViewSet):
+class UsersViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UsersSerializer
 
@@ -494,7 +500,31 @@ class UsersViewSet(viewsets.ModelViewSet):
         elif action == "revoke":
             user.user_settings.token = "REVOKED"
             user.user_settings.save()
+        record("token.{}".format(action), target=user.username)
         return Response({"result": "{} successful".format(action)})
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Who changed what in Alcali itself.
+
+    Jobs are traceable through Salt's own jids table; these are the changes
+    that never reach the master.
+    """
+
+    queryset = AuditLog.objects.all()
+    serializer_class = AuditLogSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        queryset = AuditLog.objects.select_related("user")
+        action = self.request.query_params.get("action")
+        if action:
+            queryset = queryset.filter(action=action)
+        try:
+            limit = int(self.request.query_params.get("limit", 200))
+        except (TypeError, ValueError):
+            limit = 200
+        return queryset[: max(1, min(limit, 2000))]
 
 
 class UserSettingsViewSet(viewsets.ModelViewSet):
@@ -510,7 +540,7 @@ class UserSettingsViewSet(viewsets.ModelViewSet):
         return UserSettings.objects.filter(user=self.request.user)
 
 
-class JobTemplateViewSet(viewsets.ModelViewSet):
+class JobTemplateViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
     queryset = JobTemplate.objects.all()
     serializer_class = JobTemplateSerializer
     permission_classes = [IsAdminUserOrReadOnly]

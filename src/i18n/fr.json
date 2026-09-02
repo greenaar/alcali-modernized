@@ -127,7 +127,8 @@
       "Function": "Fonction",
       "Arguments": "Arguments",
       "Date": "Date",
-      "ShowingLatest": "affichage des {0} derniers sur {1}"
+      "ShowingLatest": "affichage des {0} derniers sur {1}",
+      "SearchScope": "recherche parmi les {0} lignes chargées"
     },
     "InfosCard": {
       "Common": "Général",
@@ -166,7 +167,8 @@
       "Rerun": "relancer",
       "Detail": "détail",
       "MissingReturns": "{0} minions sur {1} ciblés n'ont jamais répondu :",
-      "JobBreakdown": "{0} réussis, {1} échoués, {2} sans réponse"
+      "JobBreakdown": "{0} réussis, {1} échoués, {2} sans réponse",
+      "SearchScope": "recherche parmi les {0} lignes chargées ; filtrez ci-dessus pour tout l'historique"
     },
     "JobTemplatesTable": {
       "JobTemplate": "Modèles de tâches",
@@ -356,6 +358,14 @@
       "Day": "24 heures",
       "Week": "7 jours",
       "Month": "30 jours"
+    },
+    "AuditLogTable": {
+      "Title": "Journal d'audit",
+      "Subtitle": "modifications propres à Alcali ; les tâches sont tracées par Salt",
+      "When": "Quand",
+      "Who": "Qui",
+      "Action": "Action",
+      "Target": "Cible"
     }
   },
   "views": {

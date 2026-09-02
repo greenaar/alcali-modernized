@@ -1,5 +1,69 @@
 # Changelog
 
+## [3008.4.0] - 2026-09-01
+
+Features built on data the Salt returner was already storing and Alcali was
+not reading.
+
+### Added
+
+- **Minions that stopped reporting.** A minion that goes quiet writes nothing
+  to `salt_returns`, so it appeared in no view and looked like a healthy one.
+  The accepted keys are the roster: `/api/minions/silent/` compares them
+  against each minion's most recent return and separates "never returned" from
+  "stale". Shown on the overview with a selectable window.
+
+- **Jobs nothing answered.** `salt_returns` only gets a row from a minion that
+  replied, so a job that timed out on part of its targets looked complete. The
+  `salt/job/<jid>/new` event holds the roster the master expected, which is the
+  only record of the ones that never replied; `/api/jobs/<jid>/summary/`
+  reconciles the two and the per-jid view leads with the discrepancy. A missing
+  `new` event is reported as an unknown roster rather than as "nothing missing".
+
+- **State cost and drift.** Every state in a highstate return carries
+  `duration`, `__sls__` and `__id__`, all of which were being discarded.
+  `/api/states/durations/` aggregates them over a window - total, mean and
+  worst time per state, how many minions run it, and the share of runs that
+  reported changes. A state changing on nearly every run is being re-applied
+  rather than converging, which a conformity boolean cannot show.
+
+- **Blast-radius preview.** The Run page shows how many known minions a target
+  expression selects, evaluated from stored grains and pillar. Compound, pcre,
+  range and nodegroup expressions are reported as not evaluated rather than
+  approximated - a wrong blast radius is worse than none.
+
+- **Search that finds minions by their grains.** The global search now matches
+  inside the stored grains and pillar, so a minion can be found by address, MAC
+  or kernel version.
+
+- **Audit log.** Changes to Alcali's own records - minions, conformity rules,
+  custom fields, job templates, users, tokens, key actions - left no trace
+  anywhere, since they never reach Salt. They are recorded with the acting user
+  and shown to staff on the users page. Writing an entry can never fail the
+  action it describes.
+
+- **Job filters for function and status**, answered in SQL, plus the target
+  expression, submitting user and Salt job metadata from `jids.load` on the job
+  summary. That load also carries the master publish key and sometimes an eauth
+  token, so the response is built from an allowlist.
+
+- **`manage.py prune_returns --days N`** trims the returner tables, which the
+  mysql returner never does. Separate window for `salt_events`, orphaned `jids`
+  removed, dry run by default.
+
+### Changed
+
+- The jobs list no longer serialises `return` and `full_ret` - the entire job
+  payload, and nothing rendered either.
+- `alcali_check` reports returner indexes Alcali sorts on that Salt's schema
+  does not create; `docs/returner-indexes.sql` adds them to an existing
+  database.
+- The jobs and events search boxes say how many loaded rows they filter, rather
+  than looking like they search all history.
+- The test database builds the returner tables from Salt's own DDL. Building
+  them from the models made `salt_returns.id` UNIQUE, which no real deployment
+  is, hiding anything that assumed one row per minion.
+
 ## [3008.3.0] - 2026-09-01
 
 ### Security

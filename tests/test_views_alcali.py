@@ -600,3 +600,57 @@ def test_search_finds_a_minion_by_its_grains(admin_client, jwt):
     )
     body = admin_client.get("/api/search/?q=10.0.3.14", **jwt).json()
     assert [m["minion_id"] for m in body["minions"]] == ["web01"]
+
+
+# --- audit log -----------------------------------------------------------
+
+
+@pytest.mark.django_db()
+def test_alcali_changes_are_recorded(admin_client, admin_user, jwt, minion):
+    from api.models import AuditLog
+
+    admin_client.post(
+        "/api/conformity/", {"name": "audited", "function": "cmd.run"},
+        content_type="application/json", **jwt
+    )
+    admin_client.delete("/api/minions/{}/".format(minion.minion_id), **jwt)
+
+    entries = {(e.action, e.target): e for e in AuditLog.objects.all()}
+    assert ("conformity.create", "Conformity object (1)") in entries or any(
+        a == "conformity.create" for a, _ in entries
+    )
+    assert ("minions.delete", minion.minion_id) in entries
+    # The acting user is named, and kept as text so the record survives them.
+    assert entries[("minions.delete", minion.minion_id)].username == admin_user.username
+
+
+@pytest.mark.django_db()
+def test_token_and_key_actions_are_recorded(admin_client, admin_user, jwt):
+    from api.models import AuditLog
+
+    admin_client.post(
+        "/api/users/{}/manage_token/".format(admin_user.id),
+        {"action": "renew"}, content_type="application/json", **jwt
+    )
+    assert AuditLog.objects.filter(
+        action="token.renew", target=admin_user.username
+    ).exists()
+
+
+@pytest.mark.django_db()
+def test_audit_log_is_staff_only(dummy_client, admin_client, jwt, jwt_dummy_user):
+    assert dummy_client.get("/api/audit/", **jwt_dummy_user).status_code == 403
+    assert admin_client.get("/api/audit/", **jwt).status_code == 200
+
+
+@pytest.mark.django_db()
+def test_a_failing_audit_write_does_not_break_the_action(
+    admin_client, jwt, minion, monkeypatch
+):
+    # Auditing must never be the reason a user's change fails.
+    def boom(*args, **kwargs):
+        raise RuntimeError("audit backend down")
+
+    monkeypatch.setattr("api.models.AuditLog.objects.create", boom)
+    response = admin_client.delete("/api/minions/{}/".format(minion.minion_id), **jwt)
+    assert response.status_code == 204

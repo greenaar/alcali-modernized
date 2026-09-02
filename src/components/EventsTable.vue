@@ -13,7 +13,8 @@
           append-icon="search"
           :label="$t('common.Search')"
           single-line
-          hide-details
+          :hint="$t('components.EventsTable.SearchScope', [events.length])"
+          persistent-hint
         ></v-text-field>
       </v-card-title>
       <legacy-data-table

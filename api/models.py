@@ -306,3 +306,35 @@ class Conformity(models.Model):
     class Meta:
         db_table = "conformity"
         app_label = "api"
+
+
+class AuditLog(models.Model):
+    """What Alcali itself was asked to change, and by whom.
+
+    Anything Alcali delegates to the master is recorded by Salt in `jids`, so
+    it can be traced there. Its own records - deleting a minion, editing a job
+    template, changing a conformity rule or a user - never reached Salt and so
+    left no trace anywhere.
+    """
+
+    user = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="audit_entries",
+    )
+    # Kept alongside the FK so the record survives the user being deleted.
+    username = models.CharField(max_length=150, blank=True)
+    action = models.CharField(max_length=64, db_index=True)
+    target = models.CharField(max_length=255, blank=True)
+    detail = models.TextField(blank=True)
+    created = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    def __str__(self):
+        return "{} {} {}".format(self.username or "-", self.action, self.target)
+
+    class Meta:
+        db_table = "alcali_audit_log"
+        app_label = "api"
+        ordering = ("-created",)

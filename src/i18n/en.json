@@ -127,7 +127,8 @@
       "Function": "Function",
       "Arguments": "Arguments",
       "Date": "Date",
-      "ShowingLatest": "showing latest {0} of {1}"
+      "ShowingLatest": "showing latest {0} of {1}",
+      "SearchScope": "searches the {0} loaded rows"
     },
     "InfosCard": {
       "Common": "Common",
@@ -166,7 +167,8 @@
       "Rerun": "rerun",
       "Detail": "detail",
       "MissingReturns": "{0} of {1} targeted minions never returned:",
-      "JobBreakdown": "{0} succeeded, {1} failed, {2} no reply"
+      "JobBreakdown": "{0} succeeded, {1} failed, {2} no reply",
+      "SearchScope": "searches the {0} loaded rows; narrow above to search history"
     },
     "JobTemplatesTable": {
       "JobTemplate": "Job Templates",
@@ -356,6 +358,14 @@
       "Day": "24 hours",
       "Week": "7 days",
       "Month": "30 days"
+    },
+    "AuditLogTable": {
+      "Title": "Audit log",
+      "Subtitle": "changes to Alcali's own records; jobs are traced through Salt",
+      "When": "When",
+      "Who": "Who",
+      "Action": "Action",
+      "Target": "Target"
     }
   },
   "views": {

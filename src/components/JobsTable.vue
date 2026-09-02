@@ -151,7 +151,8 @@
               append-icon="search"
               :label="$t('common.Search')"
               single-line
-              hide-details
+              :hint="$t('components.JobsTable.SearchScope', [jobs.length])"
+              persistent-hint
             ></v-text-field>
           </v-card-title>
           <legacy-data-table

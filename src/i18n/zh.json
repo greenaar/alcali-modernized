@@ -127,7 +127,8 @@
             "Function": "方法",
             "Arguments": "参数",
             "Date": "日期",
-            "ShowingLatest": "显示最新 {0} 条，共 {1} 条"
+            "ShowingLatest": "显示最新 {0} 条，共 {1} 条",
+            "SearchScope": "仅搜索已加载的 {0} 行"
         },
         "InfosCard": {
             "Common": "通用",
@@ -166,7 +167,8 @@
             "Rerun": "返回",
             "Detail": "详情",
             "MissingReturns": "{1} 个目标客户端中有 {0} 个从未返回：",
-            "JobBreakdown": "{0} 成功，{1} 失败，{2} 无响应"
+            "JobBreakdown": "{0} 成功，{1} 失败，{2} 无响应",
+            "SearchScope": "仅搜索已加载的 {0} 行；请在上方筛选以检索全部历史"
         },
         "JobTemplatesTable": {
             "JobTemplate": "Job模板",
@@ -356,6 +358,14 @@
             "Day": "24 小时",
             "Week": "7 天",
             "Month": "30 天"
+        },
+        "AuditLogTable": {
+            "Title": "审计日志",
+            "Subtitle": "Alcali 自身记录的变更；作业由 Salt 追踪",
+            "When": "时间",
+            "Who": "操作者",
+            "Action": "操作",
+            "Target": "目标"
         }
     },
     "views": {
