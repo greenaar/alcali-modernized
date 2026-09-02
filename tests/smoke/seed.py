@@ -74,7 +74,10 @@ def seed(username="smoke-admin", password="smoke-password-123"):
         )
 
     Keys.objects.all().delete()
+    # never-returned.example.test has an accepted key and no returns at all,
+    # which is what the fleet-health card is for.
     for name, status in [
+        ("never-returned.example.test", "accepted"),
         (MINIONS[0], "accepted"), (MINIONS[1], "accepted"), (MINIONS[2], "accepted"),
         ("old01.example.test", "rejected"), ("rogue.example.test", "denied"),
         ("new01.example.test", "unaccepted"),
@@ -119,6 +122,14 @@ def seed(username="smoke-admin", password="smoke-password-123"):
                 "success": ok, "fun_args": [], "id": minion}
         Jids.objects.create(jid=jid, load=json.dumps(
             {"user": "smoke-admin", "fun": fun, "tgt": minion, "arg": []}))
+        # A published event naming a minion that never returns, so the job
+        # reconciliation has something to report.
+        SaltEvents.objects.create(
+            tag="salt/job/%s/new" % jid,
+            data=json.dumps({"jid": jid, "fun": fun, "tgt": minion,
+                             "minions": [minion, "never-returned.example.test"]}),
+            alter_time=base - datetime.timedelta(minutes=i * 13, seconds=2),
+            master_id="master")
         SaltReturns.objects.create(
             fun=fun, jid=jid, return_field=json.dumps(payload), id=minion,
             success=str(ok), full_ret=json.dumps(full),

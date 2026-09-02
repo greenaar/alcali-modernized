@@ -163,7 +163,9 @@
             "Success": "成功",
             "Failed": "失败",
             "Rerun": "返回",
-            "Detail": "详情"
+            "Detail": "详情",
+            "MissingReturns": "{1} 个目标客户端中有 {0} 个从未返回：",
+            "JobBreakdown": "{0} 成功，{1} 失败，{2} 无响应"
         },
         "JobTemplatesTable": {
             "JobTemplate": "Job模板",
@@ -324,6 +326,17 @@
         },
         "TerminalCard": {
             "Running": "运行中 "
+        },
+        "SilentMinionsCard": {
+            "Title": "未上报",
+            "AllReporting": "全部 {0} 个已接受客户端均已上报。",
+            "Summary": "{1} 个已接受客户端中有 {0} 个未上报：",
+            "NeverReturned": "从未返回",
+            "DaysAgo": "{0} 天前",
+            "Day": "24 小时",
+            "ThreeDays": "3 天",
+            "Week": "1 周",
+            "Month": "30 天"
         }
     },
     "views": {

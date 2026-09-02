@@ -152,3 +152,21 @@ def test_tables_are_populated(page):
         page.wait_for_timeout(1500)
         rows = page.locator("table tbody tr").count()
         assert rows >= expected, f"{route} showed {rows} rows, expected {expected}"
+
+
+def test_overview_reports_a_minion_that_stopped_returning(page):
+    page, base, _ = page
+    page.goto(base + "/", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    body = page.locator(".v-main").inner_text()
+    # An accepted key with no returns appears nowhere else in the UI.
+    assert "never-returned.example.test" in body
+
+
+def test_job_view_reports_minions_that_never_replied(page):
+    page, base, creds = page
+    jid, _ = creds["job"]
+    page.goto(base + "/jobs/" + jid, wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    body = page.locator(".v-main").inner_text()
+    assert "never returned" in body or "never-returned.example.test" in body

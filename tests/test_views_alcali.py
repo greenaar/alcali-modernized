@@ -502,3 +502,46 @@ def test_refresh_minions_reads_a_json_minion_id(admin_client, jwt, monkeypatch):
     assert response.status_code == 200
     # Without this the view fell through to the refresh-everything branch.
     assert seen == {"minion_id": "minion1"}
+
+
+# --- fleet health --------------------------------------------------------
+
+
+@pytest.mark.django_db()
+def test_silent_reports_accepted_minions_that_stopped_returning(
+    admin_client, jwt, key, minion
+):
+    import datetime
+
+    from django.utils import timezone
+
+    # `key` is an accepted key for 2e220fd40bc5 with no returns at all.
+    body = admin_client.get("/api/minions/silent/?days=1", **jwt).json()
+    assert body["accepted"] == 1
+    assert [row["minion_id"] for row in body["silent"]] == ["2e220fd40bc5"]
+    assert body["silent"][0]["reason"] == "never returned"
+
+    # A recent return clears it.
+    SaltReturns.objects.create(
+        fun="test.ping", jid="20200101000000000001", return_field="{}",
+        id="2e220fd40bc5", success="1", full_ret='{"success": true, "fun_args": []}',
+        alter_time=timezone.now(),
+    )
+    body = admin_client.get("/api/minions/silent/?days=1", **jwt).json()
+    assert body["silent"] == []
+
+    # An old one does not.
+    SaltReturns.objects.all().update(
+        alter_time=timezone.now() - datetime.timedelta(days=5)
+    )
+    body = admin_client.get("/api/minions/silent/?days=1", **jwt).json()
+    assert [row["reason"] for row in body["silent"]] == ["stale"]
+    assert body["silent"][0]["days"] == 5
+
+
+@pytest.mark.django_db()
+def test_silent_ignores_keys_that_are_not_accepted(admin_client, jwt):
+    Keys.objects.create(minion_id="rejected1", status="rejected", pub="x")
+    body = admin_client.get("/api/minions/silent/", **jwt).json()
+    assert body["accepted"] == 0
+    assert body["silent"] == []

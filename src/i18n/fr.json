@@ -163,7 +163,9 @@
       "Success": " Succès",
       "Failed": "Échec",
       "Rerun": "relancer",
-      "Detail": "détail"
+      "Detail": "détail",
+      "MissingReturns": "{0} minions sur {1} ciblés n'ont jamais répondu :",
+      "JobBreakdown": "{0} réussis, {1} échoués, {2} sans réponse"
     },
     "JobTemplatesTable": {
       "JobTemplate": "Modèles de tâches",
@@ -324,6 +326,17 @@
     },
     "TerminalCard": {
       "Running": "Lancement de "
+    },
+    "SilentMinionsCard": {
+      "Title": "Sans nouvelles",
+      "AllReporting": "Les {0} minions acceptés ont tous répondu.",
+      "Summary": "{0} minions acceptés sur {1} n'ont pas répondu :",
+      "NeverReturned": "jamais répondu",
+      "DaysAgo": "il y a {0}j",
+      "Day": "24 heures",
+      "ThreeDays": "3 jours",
+      "Week": "1 semaine",
+      "Month": "30 jours"
     }
   },
   "views": {

@@ -5,7 +5,8 @@ from collections import Counter, OrderedDict
 from ansi2html import Ansi2HTMLConverter
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db.models import Q
+from django.db.models import Max, Q
+from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.http import (
     HttpResponse,
@@ -119,7 +120,12 @@ class MinionsViewSet(viewsets.ModelViewSet):
         # Refreshing runs test.ping and grains.items through the caller's own
         # Salt credentials, so the master applies their eauth ACL. Deleting a
         # minion only touches Alcali's table, and stays staff only.
-        if self.action in ("refresh_minions", "conformity", "conformity_detail"):
+        if self.action in (
+            "refresh_minions",
+            "conformity",
+            "conformity_detail",
+            "silent",
+        ):
             return []
         return super().get_permissions()
 
@@ -151,6 +157,60 @@ class MinionsViewSet(viewsets.ModelViewSet):
             if "error" in ret:
                 return Response(ret["error"], status=401)
         return Response({"refreshed": accepted_minions})
+
+    @action(detail=False)
+    def silent(self, request):
+        """Accepted minions that have not returned anything lately.
+
+        A minion that stops answering leaves no trace in salt_returns - there
+        is simply no new row - so nothing in a job or event view shows it. The
+        accepted keys are the roster to compare against.
+        """
+        try:
+            days = int(request.query_params.get("days", 1))
+        except (TypeError, ValueError):
+            days = 1
+        days = max(1, min(days, 365))
+        cutoff = timezone.now() - datetime.timedelta(days=days)
+
+        accepted = list(
+            Keys.objects.filter(status="accepted").values_list("minion_id", flat=True)
+        )
+        # One grouped query for the whole roster rather than one per minion.
+        last_seen = dict(
+            SaltReturns.objects.filter(id__in=accepted)
+            .values_list("id")
+            .annotate(last=Max("alter_time"))
+            .values_list("id", "last")
+        )
+        inventoried = set(
+            Minions.objects.filter(minion_id__in=accepted).values_list(
+                "minion_id", flat=True
+            )
+        )
+
+        silent = []
+        for minion_id in accepted:
+            last = last_seen.get(minion_id)
+            if last is not None and last >= cutoff:
+                continue
+            silent.append(
+                {
+                    "minion_id": minion_id,
+                    "last_job": last,
+                    "days": (timezone.now() - last).days if last else None,
+                    "reason": "never returned" if last is None else "stale",
+                    "inventoried": minion_id in inventoried,
+                }
+            )
+        silent.sort(key=lambda row: (row["last_job"] is not None, row["last_job"]))
+        return Response(
+            {
+                "threshold_days": days,
+                "accepted": len(accepted),
+                "silent": silent,
+            }
+        )
 
     @action(detail=False)
     def conformity(self, request):

@@ -118,6 +118,48 @@ class SaltReturnsListJid(generics.ListAPIView):
 
 
 @api_view(["GET"])
+def job_summary(request, jid):
+    """Reconcile what a job was published to against what came back.
+
+    salt_returns only ever gets a row from a minion that answered, so a job
+    that timed out on some of its targets looks complete in the jobs table.
+    The salt/job/<jid>/new event carries the list the master expected, which is
+    the only record of the minions that never replied.
+    """
+    published = []
+    for data in SaltEvents.objects.filter(
+        tag="salt/job/{}/new".format(jid)
+    ).values_list("data", flat=True):
+        try:
+            payload = json.loads(data)
+        except (TypeError, ValueError):
+            continue
+        for minion in payload.get("minions") or []:
+            if minion not in published:
+                published.append(minion)
+
+    returned, succeeded, failed = [], [], []
+    for row in SaltReturns.objects.filter(jid=jid).defer("return_field"):
+        returned.append(row.id)
+        (succeeded if row.success_bool() is True else failed).append(row.id)
+
+    # No `new` event (pruned, or the master never wrote one) means the expected
+    # roster is unknown - which is not the same as "nothing is missing".
+    missing = [m for m in published if m not in returned] if published else []
+    return Response(
+        {
+            "jid": jid,
+            "published_to": published,
+            "expected_known": bool(published),
+            "returned": returned,
+            "succeeded": succeeded,
+            "failed": failed,
+            "missing": missing,
+        }
+    )
+
+
+@api_view(["GET"])
 def jobs_filters(request):
     # Filter options.
     user_list = list(set(jid_users(Jids.objects.values_list("jid", flat=True)).values()))

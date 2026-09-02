@@ -12,7 +12,10 @@
       </v-col>
     </v-row>
     <v-row>
-      <v-col lg="12">
+      <v-col sm="12" lg="4">
+        <SilentMinionsCard></SilentMinionsCard>
+      </v-col>
+      <v-col sm="12" lg="8">
         <JobsChartCard></JobsChartCard>
       </v-col>
     </v-row>
@@ -33,11 +36,13 @@
   import AlcaliStatusCard from "../components/AlcaliStatusCard"
   import ConformityChart from "../components/ConformityChart"
   import JobsTable from "../components/JobsTable"
+  import SilentMinionsCard from "../components/SilentMinionsCard"
 
   export default {
     name: "home",
     components: {
       JobsTable,
+      SilentMinionsCard,
       ConformityChart,
       AlcaliStatusCard,
       KeysStatusCard,

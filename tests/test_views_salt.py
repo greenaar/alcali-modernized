@@ -87,3 +87,50 @@ def test_jobs_filters_lists_functions(admin_client, jwt, highstate, jid):
     highstate()
     body = admin_client.get("/api/jobs/filters/", **jwt).json()
     assert "state.apply" in body["functions"]
+
+
+@pytest.mark.django_db()
+def test_job_summary_reports_minions_that_never_returned(admin_client, jwt):
+    jid = "20200101000000000009"
+    SaltEvents.objects.create(
+        tag="salt/job/{}/new".format(jid),
+        data='{"jid": "%s", "fun": "test.ping", "minions": '
+             '["minion1", "minion2", "minion3"]}' % jid,
+        alter_time="2020-01-01 00:00:00", master_id="master",
+    )
+    for minion, ok in (("minion1", "true"), ("minion2", "false")):
+        SaltReturns.objects.create(
+            fun="test.ping", jid=jid, return_field="{}", id=minion,
+            success="1", alter_time="2020-01-01 00:00:01",
+            full_ret='{"success": %s, "fun_args": []}' % ok,
+        )
+    body = admin_client.get("/api/jobs/{}/summary/".format(jid), **jwt).json()
+    assert body["expected_known"] is True
+    assert sorted(body["published_to"]) == ["minion1", "minion2", "minion3"]
+    assert sorted(body["returned"]) == ["minion1", "minion2"]
+    assert body["succeeded"] == ["minion1"]
+    assert body["failed"] == ["minion2"]
+    # The whole point: minion3 answered nothing and appears nowhere else.
+    assert body["missing"] == ["minion3"]
+
+
+@pytest.mark.django_db()
+def test_job_summary_without_a_new_event_does_not_invent_a_roster(admin_client, jwt):
+    jid = "20200101000000000010"
+    SaltReturns.objects.create(
+        fun="test.ping", jid=jid, return_field="{}", id="minion1", success="1",
+        full_ret='{"success": true, "fun_args": []}',
+        alter_time="2020-01-01 00:00:01",
+    )
+    body = admin_client.get("/api/jobs/{}/summary/".format(jid), **jwt).json()
+    # Unknown expected roster is not the same as "nothing missing".
+    assert body["expected_known"] is False
+    assert body["missing"] == []
+    assert body["returned"] == ["minion1"]
+
+
+@pytest.mark.django_db()
+def test_job_summary_route_is_not_shadowed_by_the_detail_route(admin_client, jwt):
+    response = admin_client.get("/api/jobs/20200101000000000011/summary/", **jwt)
+    assert response.status_code == 200
+    assert "published_to" in response.json()

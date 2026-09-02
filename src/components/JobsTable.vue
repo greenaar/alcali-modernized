@@ -3,12 +3,16 @@
     <v-row no-gutters v-if="filter == null">
       <v-col sm="12">
         <v-card class="mb-8">
-          <v-row>
-            <v-col lg="2">
-              <v-card-title>{{
-                $t("components.JobsTable.SearchJobs")
-              }}</v-card-title>
-            </v-col>
+          <v-row no-gutters align="center" class="px-2 pt-2">
+            <v-card-title class="pl-2">{{
+              $t("components.JobsTable.SearchJobs")
+            }}</v-card-title>
+            <v-spacer></v-spacer>
+            <v-btn color="primary" class="mr-4" @click="filterJobs"
+              >{{ $t("common.Search") }}
+            </v-btn>
+          </v-row>
+          <v-row class="px-2">
             <v-col lg="2">
               <v-menu
                 ref="menu"
@@ -95,7 +99,7 @@
                 </template>
               </v-autocomplete>
             </v-col>
-            <v-col lg="1">
+            <v-col lg="2">
               <v-select
                 :items="statuses"
                 item-title="text"
@@ -107,7 +111,7 @@
               >
               </v-select>
             </v-col>
-            <v-col lg="1">
+            <v-col lg="2">
               <v-select
                 :items="limit"
                 v-model="selectedLimit"
@@ -115,13 +119,6 @@
                 single-line
               >
               </v-select>
-            </v-col>
-            <v-col lg="1" align-self="center">
-              <div class="text-center">
-                <v-btn color="primary" @click="filterJobs"
-                  >{{ $t("common.Search") }}
-                </v-btn>
-              </div>
             </v-col>
           </v-row>
         </v-card>
@@ -132,8 +129,21 @@
         <v-card
           :elevation="filter == null || filter.hasOwnProperty('limit') ? 2 : 0"
         >
+          <v-alert
+            v-if="summary && summary.missing.length > 0"
+            type="warning"
+            variant="tonal"
+            class="ma-4"
+            density="compact"
+          >
+            {{ $t("components.JobsTable.MissingReturns", [summary.missing.length, summary.published_to.length]) }}
+            <strong>{{ summary.missing.join(", ") }}</strong>
+          </v-alert>
           <v-card-title>
             {{ $t("components.JobsTable.Job") }}
+            <span v-if="summary && summary.expected_known" class="text-caption text-medium-emphasis ml-3">
+              {{ $t("components.JobsTable.JobBreakdown", [summary.succeeded.length, summary.failed.length, summary.missing.length]) }}
+            </span>
             <v-spacer></v-spacer>
             <v-text-field
               class="search"
@@ -282,6 +292,7 @@ export default {
         },
       ],
       jobs: [],
+      summary: null,
       loading: true,
     };
   },
@@ -327,6 +338,16 @@ export default {
           this.jobs = response.data;
           this.loading = false;
         });
+        // salt_returns has no row for a minion that never answered, so the
+        // table alone cannot show a partial run.
+        this.$http
+          .get(`api/jobs/${this.jid}/summary/`)
+          .then((response) => {
+            this.summary = response.data;
+          })
+          .catch(() => {
+            this.summary = null;
+          });
       } else {
         this.$http
           .get("api/jobs/", { params: this.filter })
