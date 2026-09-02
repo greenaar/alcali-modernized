@@ -197,6 +197,19 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
                         "source": "master cache",
                     }
                 )
+            # Say why the fallback did not help. Swallowing that leaves the
+            # same "0 minions refreshed" as a fleet with no minions, with
+            # nothing to say the fallback was even attempted.
+            return Response(
+                {
+                    "refreshed": [],
+                    "responded": len(connected),
+                    "no_minions_replied": True,
+                    "source": "none",
+                    "cache_error": cached.get("error")
+                    or "the master's grain cache named no minions",
+                }
+            )
         for minion in accepted_minions:
             ret = refresh_minion(minion)
             if "error" in ret:

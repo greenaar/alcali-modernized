@@ -108,8 +108,11 @@ def refresh_minions_from_cache():
     """
     try:
         api = api_connect()
-        grains = api.runner("cache.grains", tgt="*")["return"][0]
-        pillars = api.runner("cache.pillar", tgt="*")["return"][0]
+        # The runner client takes its arguments from `kwarg`; a top level
+        # `tgt` is dropped on the floor, and cache.grains with no target
+        # returns nothing at all rather than failing.
+        grains = api.runner("cache.grains", kwarg={"tgt": "*"})["return"][0]
+        pillars = api.runner("cache.pillar", kwarg={"tgt": "*"})["return"][0]
     except SaltApiError as e:
         return {"error": str(e)}
     except (KeyError, IndexError, TypeError) as e:

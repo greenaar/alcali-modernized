@@ -878,3 +878,30 @@ def test_schedule_refresh_flags_a_master_that_answered_with_nobody(
     )
     body = admin_client.post("/api/schedules/refresh/", **jwt).json()
     assert body["no_minions_replied"] is False and body["minions"] == 1
+
+
+@pytest.mark.django_db()
+def test_refresh_reports_why_the_cache_fallback_did_not_help(
+    admin_client, jwt, monkeypatch
+):
+    """A fallback whose failure is invisible is no better than no fallback:
+    the page looks the same as a fleet with no minions."""
+    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    monkeypatch.setattr(
+        "api.views.alcali.refresh_minions_from_cache",
+        lambda: {"error": "Salt API request failed: 500 - Function unavailable"},
+    )
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["source"] == "none"
+    assert "Function unavailable" in body["cache_error"]
+
+
+@pytest.mark.django_db()
+def test_refresh_reports_an_empty_master_cache(admin_client, jwt, monkeypatch):
+    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    monkeypatch.setattr(
+        "api.views.alcali.refresh_minions_from_cache", lambda: {"refreshed": []}
+    )
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["source"] == "none"
+    assert "named no minions" in body["cache_error"]

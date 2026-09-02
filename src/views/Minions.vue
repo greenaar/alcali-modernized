@@ -45,7 +45,13 @@
           // "0 minions refreshed" reads like success. A master that answers
           // with nobody almost always means it could not read the job back.
           if (response.data.no_minions_replied) {
-            this.$toast.error(this.$i18n.t("components.Minions.NoMinionsReplied"))
+            // Include why the master's own cache did not help either, rather
+            // than reporting this the same way as a fleet with no minions.
+            let detail = response.data.cache_error
+            this.$toast.error(
+              this.$i18n.t("components.Minions.NoMinionsReplied") +
+                (detail ? " " + detail : "")
+            )
           } else {
             this.$toast(this.$i18n.t("components.Minions.NbMinionsRefreshed", [response.data.refreshed.length]))
           }

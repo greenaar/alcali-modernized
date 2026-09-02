@@ -93,14 +93,25 @@ def test_cache_refresh_stores_what_the_master_holds(monkeypatch):
     from api.backend import netapi
     from api.models import Minions
 
+    calls = []
+
     class FakeApi:
         def runner(self, fun, **kwargs):
+            calls.append((fun, kwargs))
             if fun == "cache.grains":
                 return {"return": [{"web01": {"os": "Ubuntu"}, "gone": {}}]}
             return {"return": [{"web01": {"role": "web"}}]}
 
     monkeypatch.setattr(netapi, "api_connect", lambda: FakeApi())
     result = netapi.refresh_minions_from_cache()
+
+    # Salt's runner client reads its arguments out of `kwarg`. A top level
+    # `tgt` is dropped, and cache.grains without a target returns nothing
+    # rather than failing, so the call shape is the thing worth asserting -
+    # a mock that takes **kwargs and answers anyway cannot catch it.
+    assert [fun for fun, _ in calls] == ["cache.grains", "cache.pillar"]
+    for fun, kwargs in calls:
+        assert kwargs == {"kwarg": {"tgt": "*"}}, "{} lost its target".format(fun)
     assert result["refreshed"] == ["web01"]          # the empty one is skipped
     stored = Minions.objects.get(minion_id="web01")
     assert json.loads(stored.grain)["os"] == "Ubuntu"

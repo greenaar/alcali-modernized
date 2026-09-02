@@ -1,5 +1,18 @@
 # Changelog
 
+## [3008.7.1] - 2026-09-02
+
+### Fixed
+
+- The master-cache fallback added in 3008.7.0 failed silently. When
+  `cache.grains` errored or named no minions, the response was the same "no
+  minions replied" as a fleet with genuinely no minions, with nothing to say
+  the fallback had been attempted or why it had not helped. It now reports
+  which source was used and, when none worked, what the master said.
+
+- The runner arguments are passed in `kwarg` rather than as top-level keys.
+  That is the documented shape, and the same one the local calls already use.
+
 ## [3008.7.0] - 2026-09-02
 
 ### Added
