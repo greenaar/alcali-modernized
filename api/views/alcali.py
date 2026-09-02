@@ -30,6 +30,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from api.backend.salt_api import SaltApiError
 from api.backend.netapi import (
+    minion_presence,
     refresh_minion,
     refresh_minions_from_cache,
     manage_key,
@@ -139,11 +140,25 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
             "conformity",
             "conformity_detail",
             "silent",
+            "presence",
         ):
             # Not `[]`: an empty list means no permission class runs at all,
             # which would open these to anonymous callers.
             return [IsAuthenticated()]
         return super().get_permissions()
+
+    @action(detail=False)
+    def presence(self, request):
+        """Up or down as the master sees it, not as the returner records it.
+
+        The minions list shows when a minion last returned, which conflates a
+        host that is down with one that is up but whose returns are not being
+        collected. Those need telling apart.
+        """
+        status = minion_presence()
+        if status.get("error"):
+            return Response(status, status=502)
+        return Response(status)
 
     @action(detail=False, methods=["post"])
     def refresh_minions(self, request):

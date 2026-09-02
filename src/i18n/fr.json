@@ -275,7 +275,10 @@
       "Deleted": " supprimé",
       "Close": "Fermer",
       "Detail": "Détail",
-      "Actions": "Actions"
+      "Actions": "Actions",
+      "presence_up": "En ligne",
+      "presence_down": "Hors ligne",
+      "presence_unknown": "Inconnu"
     },
     "NetworkCard": {
       "Network": "Réseau",

@@ -216,6 +216,31 @@ def kill_job(jid, target="*", tgt_type="glob", signal="term"):
         return {"error": str(e)}
 
 
+def minion_presence():
+    """Which minions are answering the master right now.
+
+    Distinct from "last returned", which is what the minions list shows: a
+    minion can be up and healthy while its returns are not being collected,
+    and the two look identical from the returner tables alone. manage.status
+    pings the fleet and reports up and down separately.
+    """
+    try:
+        api = api_connect()
+        api_ret = api.runner("manage.status")
+    except SaltApiError as e:
+        return {"error": str(e)}
+    try:
+        status = first_return(api_ret, "manage.status")
+    except SaltApiError as e:
+        return {"error": str(e)}
+    if not isinstance(status, dict):
+        return {"error": "manage.status did not return up and down lists"}
+    return {
+        "up": sorted(status.get("up") or []),
+        "down": sorted(status.get("down") or []),
+    }
+
+
 def get_events():
     """The master's event stream.
 

@@ -275,7 +275,10 @@
             "Deleted": " 已删除",
             "Close": "关闭",
             "Detail": "详情",
-            "Actions": "操作"
+            "Actions": "操作",
+            "presence_up": "在线",
+            "presence_down": "离线",
+            "presence_unknown": "未知"
         },
         "NetworkCard": {
             "Network": "网络",

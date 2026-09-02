@@ -52,6 +52,11 @@
         <template v-slot:item.minion_id="{ item }">
           <v-btn variant="text" size="small" class="text-none" :to="'/minions/' + item.minion_id">{{ item.minion_id }}</v-btn>
         </template>
+        <template v-slot:item.presence="{ item }">
+          <v-chip :color="presenceColor(item.presence)">
+            {{ $t(`components.MinionsTable.presence_${item.presence}`) }}
+          </v-chip>
+        </template>
         <template v-slot:item.conformity="{ item }">
           <v-chip :color="boolRepr(item.conformity)" :to="'/conformity/'+item.minion_id">{{ $t(`components.ConformityTable.${item.conformity}`) }}
           </v-chip>
@@ -130,6 +135,7 @@ export default {
       dialog: false,
       default_headers: [
         "minion_id",
+        "presence",
         "conformity",
         "fqdn",
         "os",
@@ -144,6 +150,11 @@ export default {
       menu: false,
       target: null,
       loading: true,
+      // Whether the master can reach each minion right now. Distinct from
+      // last_job, which says when a return was last recorded: a minion can be
+      // up while its returns are not being collected, and from the returner
+      // tables alone those two look the same.
+      presence: {},
     };
   },
   computed: {
@@ -210,6 +221,27 @@ export default {
     updateSettings() {
       this.$store.commit('updateSettings')
     },
+    presenceColor(state) {
+      return { up: "success", down: "error" }[state] || "grey"
+    },
+    loadPresence() {
+      // Best effort: a master that cannot answer leaves every minion unknown
+      // rather than failing the table that does not depend on it.
+      this.$http
+        .get("api/minions/presence/")
+        .then((response) => {
+          let map = {}
+          ;(response.data.up || []).forEach((id) => (map[id] = "up"))
+          ;(response.data.down || []).forEach((id) => (map[id] = "down"))
+          this.presence = map
+          this.minions.forEach((min) => {
+            min.presence = map[min.minion_id] || "unknown"
+          })
+        })
+        .catch(() => {
+          this.presence = {}
+        })
+    },
     loadData() {
       this.$http.get("api/minions/").then((response) => {
         // A minion whose grains failed to serialise must not take the whole
@@ -233,7 +265,11 @@ export default {
         }
 
         this.minions = addedGrains(response.data);
+        this.minions.forEach((min) => {
+          min.presence = this.presence[min.minion_id] || "unknown"
+        });
         this.loading = false;
+        this.loadPresence();
         // Compute available headers
         this.available_headers = this.available_headers.concat(this.default_headers);
         if (this.minions.length > 0) {
