@@ -128,7 +128,7 @@
             "Arguments": "参数",
             "Date": "日期",
             "ShowingLatest": "显示最新 {0} 条，共 {1} 条",
-            "SearchScope": "仅搜索已加载的 {0} 行",
+            "SearchScope": "已加载 {0} 行",
             "NoData": "该事件不含数据",
             "UnparsedData": "data 列不是 JSON，按原样显示："
         },
@@ -170,7 +170,7 @@
             "Detail": "详情",
             "MissingReturns": "{1} 个目标客户端中有 {0} 个从未返回：",
             "JobBreakdown": "{0} 成功，{1} 失败，{2} 无响应",
-            "SearchScope": "仅搜索已加载的 {0} 行；请在上方筛选以检索全部历史",
+            "SearchScope": "已加载 {0} 行 — 在上方筛选",
             "Unknown": "未知"
         },
         "JobTemplatesTable": {
@@ -190,7 +190,7 @@
             "TemplateDeleted": "模板已删除"
         },
         "KeysStatusCard": {
-            "keys": "秘钥",
+            "keys": "密钥",
             "saltWebsocket": "Salt Websocket",
             "accepted": "接受",
             "rejected": "驳回",
@@ -251,7 +251,8 @@
             "Refreshing": "正在刷新 ",
             "Deleted": " 已删除",
             "Close": "关闭",
-            "Detail": "详情"
+            "Detail": "详情",
+            "Actions": "操作"
         },
         "NetworkCard": {
             "Network": "网络",
@@ -388,7 +389,8 @@
             "Status": "状态:",
             "StartTime": "开始事件:",
             "Results": "结果数",
-            "Unknown": "未知"
+            "Unknown": "未知",
+            "RunOn": "运行于 {0}"
         },
         "Login": {
             "LoginTitle": "登录",

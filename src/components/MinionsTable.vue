@@ -50,10 +50,10 @@
         loading-text="Loading... Please wait"
       >
         <template v-slot:item.minion_id="{ item }">
-          <v-btn text small class="text-none" :to="'/minions/' + item.minion_id">{{ item.minion_id }}</v-btn>
+          <v-btn variant="text" size="small" class="text-none" :to="'/minions/' + item.minion_id">{{ item.minion_id }}</v-btn>
         </template>
         <template v-slot:item.conformity="{ item }">
-          <v-chip :color="boolRepr(item.conformity)" dark :to="'/conformity/'+item.minion_id">{{ $t(`components.ConformityTable.${item.conformity}`) }}
+          <v-chip :color="boolRepr(item.conformity)" :to="'/conformity/'+item.minion_id">{{ $t(`components.ConformityTable.${item.conformity}`) }}
           </v-chip>
         </template>
         <template v-slot:item.last_job="{ item }">
@@ -63,24 +63,34 @@
           {{ item.last_highstate === null ? "" : new Date(item.last_highstate).toLocaleString("en-GB") }}
         </template>
         <template v-slot:item.action="{ item }">
-          <div class="text-center">
-            <v-btn small class="ma-2" color="blue" tile dark @click="refreshMinion(item.minion_id)">
-              {{ $t("components.MinionsTable.Refresh") }}
-            </v-btn>
-            <v-btn small class="ma-2" color="purple" tile dark :to="'/minions/' + item.minion_id">
-                  {{$t("components.MinionsTable.Detail")}}
-            </v-btn>
-            <v-btn small class="ma-2" color="blue-grey" tile dark :to="'/run?tgt=' + item.minion_id">
-              {{ $t("components.MinionsTable.Run") }}
-            </v-btn>
-            <v-btn small class="ma-2" color="red" tile dark @click.stop="showDialog(item.minion_id)">
-              {{ $t("components.MinionsTable.Delete") }}
-            </v-btn>
+          <!-- Four labelled buttons could not fit the actions column beside
+               eight data columns, so they wrapped one per line and made every
+               row four rows tall. -->
+          <div class="d-flex flex-nowrap justify-end ga-1">
+            <v-tooltip
+              v-for="action in rowActions(item)"
+              :key="action.key"
+              :text="action.label"
+              location="top"
+            >
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  :icon="action.icon"
+                  :color="action.color"
+                  :to="action.to"
+                  variant="text"
+                  size="small"
+                  density="comfortable"
+                  @click="action.run && action.run()"
+                ></v-btn>
+              </template>
+            </v-tooltip>
           </div>
         </template>
       </legacy-data-table>
     </v-card>
-    <div class="text-center">
+    <div class="d-flex flex-nowrap justify-end ga-1">
       <v-dialog v-model="dialog" width="500">
         <v-card>
           <v-card-title class="headline red" primary-title>
@@ -96,10 +106,10 @@
 
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn color="primary" text @click="dialog = false">
+            <v-btn color="primary" variant="text" @click="dialog = false">
               {{ $t("components.MinionsTable.Close") }}
             </v-btn>
-            <v-btn color="red" text @click="deleteMinion(target)">
+            <v-btn color="red" variant="text" @click="deleteMinion(target)">
               {{ $t("components.MinionsTable.Delete") }}
             </v-btn>
           </v-card-actions>
@@ -146,7 +156,15 @@ export default {
           .join(" ");
         custom.push({ text: titled, value: header });
       });
-      custom.push({ text: "Actions", value: "action", sortable: false });
+      // Wide enough for the four icon buttons; without it the last one is
+      // clipped out of the column entirely.
+      custom.push({
+        text: this.$t("components.MinionsTable.Actions"),
+        value: "action",
+        sortable: false,
+        width: 170,
+        align: "end",
+      });
       return custom;
     },
     ...mapState({
@@ -157,6 +175,38 @@ export default {
     this.loadData();
   },
   methods: {
+    rowActions(item) {
+      return [
+        {
+          key: "refresh",
+          icon: "refresh",
+          color: "primary",
+          label: this.$t("components.MinionsTable.Refresh"),
+          run: () => this.refreshMinion(item.minion_id),
+        },
+        {
+          key: "detail",
+          icon: "info",
+          color: "",
+          label: this.$t("components.MinionsTable.Detail"),
+          to: "/minions/" + item.minion_id,
+        },
+        {
+          key: "run",
+          icon: "play_arrow",
+          color: "",
+          label: this.$t("components.MinionsTable.Run"),
+          to: "/run?tgt=" + item.minion_id,
+        },
+        {
+          key: "delete",
+          icon: "delete",
+          color: "error",
+          label: this.$t("components.MinionsTable.Delete"),
+          run: () => this.showDialog(item.minion_id),
+        },
+      ]
+    },
     updateSettings() {
       this.$store.commit('updateSettings')
     },

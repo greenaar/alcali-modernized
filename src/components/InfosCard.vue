@@ -32,7 +32,7 @@
                   {{ new Date(minion[item.grain]).toLocaleString("en-GB") }}
                 </td>
                 <td v-else-if="item.grain === 'conformity'" class="text-right">
-                  <v-chip :color="boolRepr(minion[item.grain])" dark>{{
+                  <v-chip :color="boolRepr(minion[item.grain])">{{
                     minion[item.grain] == null ? "unknown" : minion[item.grain]
                   }}</v-chip>
                 </td>

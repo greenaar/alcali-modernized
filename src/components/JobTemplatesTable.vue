@@ -32,33 +32,33 @@
               <b>{{ item.name }}</b>
             </template>
             <template v-slot:item.action="{ item }">
-              <div class="text-center">
-                <v-btn
-                  small
-                  class="ma-2"
+              <div class="d-flex flex-nowrap justify-end ga-1">
+                <v-btn variant="tonal"
+                  size="small"
+                 
                   color="blue-grey"
-                  tile
-                  dark
+                 
+                 
                   :to="computeUrl(item, false)"
                 >
                   {{ $t("components.JobTemplatesTable.Run") }}
                 </v-btn>
-                <v-btn
-                  small
-                  class="ma-2"
+                <v-btn variant="tonal"
+                  size="small"
+                 
                   color="orange"
-                  tile
-                  dark
+                 
+                 
                   :to="computeUrl(item, true)"
                 >
                   {{ $t("components.JobTemplatesTable.Edit") }}
                 </v-btn>
-                <v-btn
-                  small
-                  class="ma-2"
+                <v-btn variant="tonal"
+                  size="small"
+                 
                   color="red"
-                  tile
-                  dark
+                 
+                 
                   @click="deleteTemplate(item.id)"
                 >
                   {{ $t("components.JobTemplatesTable.Delete") }}

@@ -1,35 +1,35 @@
 <template>
   <v-container fluid>
     <v-card :elevation="minion == null ? 2 : 0">
-      <v-list-item three-line dense>
-        <v-list-item-content>
-          <v-list-item-title class="headline mb-1">{{
-            $t("components.JobsChartCard.Stats")
-          }}</v-list-item-title>
-        </v-list-item-content>
+      <v-card-title class="d-flex align-center flex-wrap ga-4 py-4">
+        <span>{{ $t("components.JobsChartCard.Stats") }}</span>
         <v-spacer></v-spacer>
-        <v-list-item-content class="mr-6">
-          <v-select
-            :items="filters"
-            item-title="text"
-            item-value="value"
-            :label="$t('components.JobsChartCard.Filter')"
-            v-model="settings.Home.JobsChartCard.filter"
-            @update:model-value="updateSettings"
-          ></v-select>
-        </v-list-item-content>
-        <v-list-item-content>
-          <v-select
-            :items="periods"
-            item-title="text"
-            item-value="value"
-            :label="$t('components.JobsChartCard.Period')"
-            v-model="settings.Home.JobsChartCard.period"
-            @update:model-value="updateSettings"
-          ></v-select>
-        </v-list-item-content>
-      </v-list-item>
-      <canvas ref="chart"></canvas>
+        <v-select
+          :items="filters"
+          item-title="text"
+          item-value="value"
+          :label="$t('components.JobsChartCard.Filter')"
+          v-model="settings.Home.JobsChartCard.filter"
+          @update:model-value="updateSettings"
+          density="compact"
+          hide-details
+          class="chart-control"
+        ></v-select>
+        <v-select
+          :items="periods"
+          item-title="text"
+          item-value="value"
+          :label="$t('components.JobsChartCard.Period')"
+          v-model="settings.Home.JobsChartCard.period"
+          @update:model-value="updateSettings"
+          density="compact"
+          hide-details
+          class="chart-control"
+        ></v-select>
+      </v-card-title>
+      <div class="px-4 pb-4">
+        <canvas ref="chart"></canvas>
+      </div>
     </v-card>
   </v-container>
 </template>
@@ -169,7 +169,7 @@ export default {
 </script>
 
 <style scoped>
-.v-list-item--dense .v-list-item__title{
-  line-height: 1;
+.chart-control {
+  max-width: 200px;
 }
 </style>

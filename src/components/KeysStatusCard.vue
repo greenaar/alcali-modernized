@@ -2,17 +2,22 @@
   <v-container fluid>
     <v-card>
       <v-card-title>{{ $t('components.KeysStatusCard.keys') }}</v-card-title>
-      <v-table>
-        <tbody>
-        <tr v-for="(count, status) in keys_status" :key="status">
-          <td class="pr-0">
-            <v-icon>{{statusIcon(status)}}</v-icon>
-          </td>
-          <td class="pl-0">{{ $t(`components.KeysStatusCard.${status}`) }}</td>
-          <td class="text-right">{{ count }} / {{keys_total}}</td>
-        </tr>
-        </tbody>
-      </v-table>
+      <!-- A three column table could not fit "n / total" in a narrow card, so
+           the counts were clipped off the right edge. -->
+      <v-list density="compact" class="py-0 pb-2">
+        <v-list-item
+          v-for="(count, status) in keys_status"
+          :key="status"
+          :prepend-icon="statusIcon(status)"
+        >
+          <div class="d-flex align-center justify-space-between ga-2">
+            <span>{{ $t(`components.KeysStatusCard.${status}`) }}</span>
+            <span class="text-no-wrap font-weight-medium">
+              {{ count }}<span class="text-medium-emphasis">&nbsp;/&nbsp;{{ keys_total }}</span>
+            </span>
+          </div>
+        </v-list-item>
+      </v-list>
     </v-card>
   </v-container>
 </template>

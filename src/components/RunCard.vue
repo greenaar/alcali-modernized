@@ -291,24 +291,24 @@
                   <v-spacer></v-spacer>
                   <v-btn
                     color="orange"
-                    large
-                    dark
+                    size="large"
+                   
                     @click="runJob((test = true))"
                     v-show="!saveJobSwitch"
                     >{{ $t("components.RunCard.Test") }}</v-btn
                   >
                   <v-btn
                     color="info"
-                    large
-                    dark
+                    size="large"
+                   
                     @click="runJob"
                     v-show="!saveJobSwitch"
                     >{{ $t("components.RunCard.Run") }}</v-btn
                   >
                   <v-btn
                     color="green"
-                    large
-                    dark
+                    size="large"
+                   
                     @click="saveJob"
                     v-show="saveJobSwitch"
                     >{{ $t("components.RunCard.Save") }}</v-btn
@@ -332,7 +332,7 @@
         <v-card v-if="results">
           <v-card-title>{{ $t("components.RunCard.Results") }}
             <v-spacer></v-spacer>
-            <v-btn color="primary" dark @click="results = ''">{{ $t("components.RunCard.Clear") }}</v-btn>
+            <v-btn color="primary" @click="results = ''">{{ $t("components.RunCard.Clear") }}</v-btn>
           </v-card-title>
           <v-card-text v-html="$sanitize(results)" class="ansiStyle"></v-card-text>
         </v-card>

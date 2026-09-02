@@ -34,7 +34,7 @@
                 <v-col lg="4"><b>{{item.name}}</b></v-col>
                 <v-col lg="4">{{item["function"]}}</v-col>
                 <v-col align-self="center">
-                  <v-btn color="red" dark @click="deleteMinionsFields(item.name)">{{$t('components.CommonSettings.Delete')}}</v-btn>
+                  <v-btn color="red" @click="deleteMinionsFields(item.name)">{{$t('components.CommonSettings.Delete')}}</v-btn>
                 </v-col>
               </v-row>
               <v-row>
@@ -72,7 +72,7 @@
                 <v-col lg="4"><b>{{item.name}}</b></v-col>
                 <v-col lg="4">{{item.function}}</v-col>
                 <v-col align-self="center">
-                  <v-btn color="red" @click="deleteConformity(item.id)" dark>{{$t('components.CommonSettings.Delete')}}</v-btn>
+                  <v-btn color="red" @click="deleteConformity(item.id)">{{$t('components.CommonSettings.Delete')}}</v-btn>
                 </v-col>
               </v-row>
               <v-row>

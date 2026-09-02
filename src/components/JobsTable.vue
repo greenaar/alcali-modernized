@@ -39,11 +39,11 @@
                   range
                 >
                   <div class="flex-grow-1"></div>
-                  <v-btn text color="primary" @click="menu = false">{{
+                  <v-btn variant="text" color="primary" @click="menu = false">{{
                     $t("components.JobsTable.Cancel")
                   }}</v-btn>
                   <v-btn
-                    text
+                    variant="text"
                     color="primary"
                     @click="$refs.menu.save(selectedDate)"
                     >OK</v-btn
@@ -171,8 +171,8 @@
           >
             <template v-slot:item.jid="{ item }">
               <v-btn
-                text
-                small
+                variant="text"
+                size="small"
                 class="text-none"
                 :to="'/jobs/' + item.jid + '/' + item.id"
                 >{{ item.jid }}</v-btn
@@ -180,8 +180,8 @@
             </template>
             <template v-slot:item.id="{ item }">
               <v-btn
-                text
-                small
+                variant="text"
+                size="small"
                 class="text-none"
                 :to="'/minions/' + item.id"
                 v-show="!filter || filter.hasOwnProperty('limit')"
@@ -203,7 +203,7 @@
               }}
             </template>
             <template v-slot:item.success="{ item }">
-              <v-chip :color="boolRepr(item.success)" dark>{{
+              <v-chip :color="boolRepr(item.success)">{{
                 boolText(item.success)
               }}</v-chip>
             </template>
@@ -211,23 +211,23 @@
               {{ new Date(item.alter_time).toLocaleString("en-GB") }}
             </template>
             <template v-slot:item.action="{ item }">
-              <div class="text-center">
-                <v-btn
-                  small
-                  class="ma-2"
+              <div class="d-flex flex-nowrap justify-end ga-1">
+                <v-btn variant="tonal"
+                  size="small"
+                 
                   color="blue"
-                  tile
-                  dark
+                 
+                 
                   :to="'/jobs/' + item.jid + '/' + item.id"
                 >
                   {{$t("components.JobsTable.Detail")}}
                 </v-btn>
-                <v-btn
-                  small
-                  class="ma-2"
+                <v-btn variant="tonal"
+                  size="small"
+                 
                   color="blue-grey"
-                  tile
-                  dark
+                 
+                 
                   :to="
                     '/run?tgt=' +
                     item.id +

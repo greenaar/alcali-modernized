@@ -7,7 +7,7 @@
         <tr>
           <td>{{ $t('components.ConformityCard.Highstate') }}</td>
           <td class="text-right">
-            <v-chip :color="boolRepr(conformity)" dark>{{ conformityLabel(conformity) }}</v-chip>
+            <v-chip :color="boolRepr(conformity)">{{ conformityLabel(conformity) }}</v-chip>
           </td>
         </tr>
         </tbody>
@@ -18,7 +18,7 @@
             <v-chip
                 v-if="isBool(val)"
                 :color="boolRepr(val)"
-                dark
+               
             >{{ conformityLabel(val) }}
             </v-chip>
             <span v-else>{{ valRepr(val) }}</span>

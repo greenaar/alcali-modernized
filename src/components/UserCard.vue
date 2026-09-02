@@ -82,35 +82,35 @@
             </template>
 
             <template v-slot:item.is_staff="{ item }">
-              <v-chip color="primary" v-if="item.is_staff" dark>{{ item.is_staff }}</v-chip>
+              <v-chip color="primary" v-if="item.is_staff">{{ item.is_staff }}</v-chip>
             </template>
             <template v-slot:item.token="{ item }">
-              <div class="text-center">
-                <v-btn
-                    small
-                    class="ma-2"
+              <div class="d-flex flex-nowrap justify-end ga-1">
+                <v-btn variant="tonal"
+                    size="small"
+                   
                     color="primary"
-                    tile
-                    dark
+                   
+                   
                     @click="showToken(item)"
                 >
                   {{$t('components.mixins.UserCard.View')}}
                 </v-btn>
-                <v-btn
-                    small
-                    class="ma-2"
+                <v-btn variant="tonal"
+                    size="small"
+                   
                     color="orange"
-                    tile
-                    dark
+                   
+                   
                     @click="manageToken('renew', item)"
                 >
                   {{$t('components.mixins.UserCard.Renew')}}
                 </v-btn>
-                <v-btn
-                    small
+                <v-btn variant="tonal"
+                    size="small"
                     color="red"
-                    tile
-                    dark
+                   
+                   
                     :disabled="String(item.id) === currentUserId"
                     @click="manageToken('revoke', item)"
                 >
@@ -122,22 +122,22 @@
               {{new Date(item.date_joined).toLocaleString("en-GB")}}
             </template>
             <template v-slot:item.action="{ item }">
-              <div class="text-center">
-                <v-btn
-                    small
-                    class="ma-2"
+              <div class="d-flex flex-nowrap justify-end ga-1">
+                <v-btn variant="tonal"
+                    size="small"
+                   
                     color="orange"
-                    tile
-                    dark
+                   
+                   
                     @click="editUser(item)"
                 >
                   {{$t('components.mixins.UserCard.Update')}}
                 </v-btn>
-                <v-btn
-                    small
+                <v-btn variant="tonal"
+                    size="small"
                     color="red"
-                    tile
-                    dark
+                   
+                   
                     :disabled="String(item.id) === currentUserId"
                     @click="confirmDelete(item)"
                 >
@@ -149,7 +149,7 @@
         </v-card>
       </v-col>
     </v-row>
-    <div class="text-center">
+    <div class="d-flex flex-nowrap justify-end ga-1">
       <v-dialog
           v-model="dialogDelete"
           width="500"
@@ -173,14 +173,14 @@
             <v-spacer></v-spacer>
             <v-btn
                 color="primary"
-                text
+                variant="text"
                 @click="dialogDelete = false"
             >
               {{$t('components.mixins.UserCard.Close')}}
             </v-btn>
             <v-btn
                 color="red"
-                text
+                variant="text"
                 @click="deleteUser(user.id)"
             >
               {{$t('components.mixins.UserCard.Delete')}}
@@ -189,7 +189,7 @@
         </v-card>
       </v-dialog>
     </div>
-    <div class="text-center">
+    <div class="d-flex flex-nowrap justify-end ga-1">
       <v-dialog
           v-model="dialogToken"
           width="500"
@@ -213,7 +213,7 @@
             <v-spacer></v-spacer>
             <v-btn
                 color="primary"
-                text
+                variant="text"
                 @click="dialogToken = false"
             >
               {{$t('components.mixins.UserCard.Close')}}

@@ -102,8 +102,8 @@
     },
     "ConformityTable": {
       "Conformity": "Conformité",
-      "detail": "détail",
-      "highstate": "highstate",
+      "detail": "Détail",
+      "highstate": "Highstate",
       "Unknown": "Inconnu",
       "True": "Oui",
       "False": "Non",
@@ -128,7 +128,7 @@
       "Arguments": "Arguments",
       "Date": "Date",
       "ShowingLatest": "affichage des {0} derniers sur {1}",
-      "SearchScope": "recherche parmi les {0} lignes chargées",
+      "SearchScope": "{0} lignes chargées",
       "NoData": "cet évènement ne contient aucune donnée",
       "UnparsedData": "la colonne data n'est pas du JSON ; affichage brut :"
     },
@@ -166,17 +166,17 @@
       "SelectDate": "Sélection de date(s)",
       "Success": " Succès",
       "Failed": "Échec",
-      "Rerun": "relancer",
-      "Detail": "détail",
+      "Rerun": "Relancer",
+      "Detail": "Détail",
       "MissingReturns": "{0} minions sur {1} ciblés n'ont jamais répondu :",
       "JobBreakdown": "{0} réussis, {1} échoués, {2} sans réponse",
-      "SearchScope": "recherche parmi les {0} lignes chargées ; filtrez ci-dessus pour tout l'historique",
+      "SearchScope": "{0} lignes chargées — filtrez ci-dessus",
       "Unknown": "Inconnu"
     },
     "JobTemplatesTable": {
       "JobTemplate": "Modèles de tâches",
-      "Run": "Exécuter",
-      "Edit": "Éditer",
+      "Run": "Lancer",
+      "Edit": "Modifier",
       "Delete": "Supprimer",
       "Name": "Nom",
       "Client": "Client",
@@ -210,9 +210,9 @@
       "Status": "État",
       "PublicKey": "Clés publiques",
       "Actions": "Actions",
-      "reject": "rejeter",
-      "delete": "supprimer",
-      "accept": "accepter",
+      "reject": "Rejeter",
+      "delete": "Supprimer",
+      "accept": "Accepter",
       "accepted": "Acceptée",
       "unaccepted": "En attente",
       "rejected": "Rejetée",
@@ -244,14 +244,15 @@
       "Minion": "Minion",
       "Column": "Colonne",
       "Refresh": "Actualiser",
-      "Run": "Exécuter tâche",
+      "Run": "Lancer une tâche",
       "Delete": "Supprimer",
       "Msg1": "Si vous supprimez ",
       "Msg2": " de la base de données, vous devrez actualiser tous les minions.",
       "Refreshing": "Raffraîchissement de ",
       "Deleted": " supprimé",
       "Close": "Fermer",
-      "Detail": "Détails"
+      "Detail": "Détail",
+      "Actions": "Actions"
     },
     "NetworkCard": {
       "Network": "Réseau",
@@ -305,8 +306,8 @@
     },
     "ScheduleTable": {
       "Schedules": "Plannings",
-      "Disable": "désactiver",
-      "Enable": "activer",
+      "Disable": "Désactiver",
+      "Enable": "Activer",
       "Delete": "Supprimer",
       "MinionJobAction": "{0} sur ${1} pour la tâche ${2}",
       "MinionJobActionDone": "${0} sur ${1} pour la tâche ${2}: terminé"
@@ -388,7 +389,8 @@
       "Status": "ÉTAT:",
       "StartTime": "DÉBUT:",
       "Results": "Résultats",
-      "Unknown": "Inconnu"
+      "Unknown": "Inconnu",
+      "RunOn": "Exécuté le {0}"
     },
     "Login": {
       "LoginTitle": "Connexion",

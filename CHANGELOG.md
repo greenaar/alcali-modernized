@@ -1,5 +1,44 @@
 # Changelog
 
+## [3008.5.0] - 2026-09-02
+
+### Fixed
+
+- Every navigation icon sat above its label rather than beside it. The
+  `v-list-item-content`, `-action` and `-avatar` wrappers those items nested
+  are Vue 2 components; the migration kept them alive as shims that render a
+  plain `div`, and a div is block level. The lists use Vuetify 3's own
+  `v-list-item` now, and the shims are gone.
+
+- Twenty-nine `text`, `small`, `tile` and `dark` props on buttons and chips
+  were Vuetify 2 spellings that Vuetify 3 ignores, so everything meant to be a
+  quiet text button rendered as a full-size filled block.
+
+- The minions table put four labelled buttons in the actions column, which
+  wrapped one per line and made every row four rows tall. They are icon
+  buttons with tooltips in a column wide enough to hold them.
+
+- The keys card on the overview was a twelfth of the width, which clipped the
+  counts off its right edge, and the jobs search hint was cut off mid-word.
+
+- Button labels were a mix of `detail`, `run job` and `Refresh`. Vuetify 2
+  upper-cased them all, which hid it; they are consistently title case now.
+  `Actions` and `Run on` were hard-coded English and are translated.
+
+- Certificate verification against a loopback salt-api. salt-api generally
+  serves the certificate for the master's public name, which cannot match
+  127.0.0.1, so verification fails on an address mismatch while proving
+  nothing - the traffic never leaves the host. With `SALT_VERIFY_TLS` unset,
+  a real host is still verified and loopback is not; setting it forces either
+  behaviour, and `SALT_CA_BUNDLE` still wins over both.
+
+### Changed
+
+- The theme defines its grounds rather than only `primary` and `secondary`, so
+  cards sit on a page background instead of white on white, and the bars follow
+  the theme rather than being hard-coded black. Cards, buttons, fields and
+  chips take their radius and density from one place.
+
 ## [3008.4.2] - 2026-09-02
 
 ### Fixed

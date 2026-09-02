@@ -27,18 +27,18 @@
         :loading="loading"
       >
         <template v-slot:item.enabled="{ item }">
-          <v-chip :color="boolRepr(item.enabled)" dark>{{
+          <v-chip :color="boolRepr(item.enabled)">{{
             item.enabled
           }}</v-chip>
         </template>
         <template v-slot:item.action="{ item }">
-          <div class="text-center">
-            <v-btn
-              small
+          <div class="d-flex flex-nowrap justify-end ga-1">
+            <v-btn variant="tonal"
+              size="small"
               :color="item.enabled ? 'orange' : 'green'"
-              tile
-              class="ma-2"
-              dark
+             
+             
+             
               @click="
                 manageSchedule(
                   item.enabled ? 'disable_job' : 'enable_job',
@@ -53,12 +53,12 @@
                   : `${$t("components.ScheduleTable.Enable")}`
               }}
             </v-btn>
-            <v-btn
-              small
+            <v-btn variant="tonal"
+              size="small"
               color="red"
-              tile
-              class="ma-2"
-              dark
+             
+             
+             
               @click="manageSchedule('delete', item.name, item.minion)"
             >
               {{ $t("components.ScheduleTable.Delete") }}

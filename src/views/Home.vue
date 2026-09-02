@@ -1,21 +1,23 @@
 <template>
   <v-container fluid>
     <v-row>
-      <v-col sm="12" lg="7">
+      <v-col cols="12" lg="6">
         <ConformityChart></ConformityChart>
       </v-col>
-      <v-col sm="6" lg="2">
+      <!-- The key card was a twelfth wide, which left no room for the status
+           labels next to their counts. -->
+      <v-col cols="12" sm="6" lg="3">
         <KeysStatusCard></KeysStatusCard>
       </v-col>
-      <v-col sm="6" lg="3">
+      <v-col cols="12" sm="6" lg="3">
         <AlcaliStatusCard></AlcaliStatusCard>
       </v-col>
     </v-row>
     <v-row>
-      <v-col sm="12" lg="4">
+      <v-col cols="12" lg="4">
         <SilentMinionsCard></SilentMinionsCard>
       </v-col>
-      <v-col sm="12" lg="8">
+      <v-col cols="12" lg="8">
         <JobsChartCard></JobsChartCard>
       </v-col>
     </v-row>

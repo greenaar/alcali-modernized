@@ -29,8 +29,8 @@
       >
         <template v-slot:item.minion_id="{ item }">
           <v-btn
-            text
-            small
+            variant="text"
+            size="small"
             class="text-none"
             :to="'/conformity/' + item.minion_id"
             >{{ item.minion_id }}</v-btn
@@ -44,7 +44,7 @@
           }}
         </template>
         <template v-slot:item.conformity="{ item }">
-          <v-chip :color="boolRepr(item.conformity)" dark
+          <v-chip :color="boolRepr(item.conformity)"
             >{{ $t(`components.ConformityTable.${item.conformity}`) }}
           </v-chip>
         </template>
@@ -85,23 +85,23 @@
           </v-chip>
         </template>
         <template v-slot:item.action="{ item }">
-          <div class="text-center">
-            <v-btn
-              small
-              class="ma-2"
+          <div class="d-flex flex-nowrap justify-end ga-1">
+            <v-btn variant="tonal"
+              size="small"
+             
               color="blue"
-              tile
-              dark
+             
+             
               :to="'/conformity/' + item.minion_id"
             >
               {{ $t("components.ConformityTable.detail") }}
             </v-btn>
-            <v-btn
-              small
-              class="ma-2"
+            <v-btn variant="tonal"
+              size="small"
+             
               color="orange"
-              tile
-              dark
+             
+             
               :to="'/run?tgt=' + item.minion_id + '&fun=state.apply'"
             >
               {{ $t("components.ConformityTable.highstate") }}

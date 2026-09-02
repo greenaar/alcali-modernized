@@ -14,6 +14,8 @@
             color="primary"
             icon
             size="large"
+            rounded="circle"
+            elevation="4"
         >
           <v-icon v-if="fab">close</v-icon>
           <v-icon v-else>menu</v-icon>
@@ -25,6 +27,8 @@
               v-bind="tooltipProps"
               icon
               size="small"
+              rounded="circle"
+              elevation="2"
               :color="f.color"
               @click="emit('fab_action', f.action)"
           >

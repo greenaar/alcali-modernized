@@ -4,25 +4,23 @@
       <v-col sm="12" lg="4">
         <v-container fluid>
           <v-card>
-            <v-list-item two-line>
-              <v-list-item-content>
-                <v-list-item-title class="headline">{{ job.fun }}</v-list-item-title>
-                <v-list-item-subtitle>Run on {{ formatDate(job.alter_time) }}</v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
+            <v-card-item>
+              <v-card-title>{{ job.fun }}</v-card-title>
+              <v-card-subtitle>{{ $t("views.JobDetail.RunOn", [formatDate(job.alter_time)]) }}</v-card-subtitle>
+            </v-card-item>
             <v-divider></v-divider>
             <v-table>
               <tbody>
               <tr>
                 <td>{{$t("views.JobDetail.MinionID")}}</td>
                 <td class="text-right">
-                  <v-btn text small class="pr-0 text-none" :to="'/minions/'+job.id">{{ job.id }}</v-btn>
+                  <v-btn variant="text" size="small" class="pr-0 text-none" :to="'/minions/'+job.id">{{ job.id }}</v-btn>
                 </td>
               </tr>
               <tr>
                 <td>{{$t("views.JobDetail.JobID")}}</td>
                 <td class="text-right">
-                  <v-btn text small class="pr-0" :to="'/jobs/'+job.jid">{{ job.jid }}</v-btn>
+                  <v-btn variant="text" size="small" class="pr-0" :to="'/jobs/'+job.jid">{{ job.jid }}</v-btn>
                 </td>
               </tr>
               <tr>
@@ -40,7 +38,7 @@
               <tr>
                 <td>{{$t("views.JobDetail.Status")}}</td>
                 <td class="text-right">
-                  <v-chip :color="boolRepr(job.success)" dark>{{ boolText(job.success) }}</v-chip>
+                  <v-chip :color="boolRepr(job.success)">{{ boolText(job.success) }}</v-chip>
 
                 </td>
               </tr>

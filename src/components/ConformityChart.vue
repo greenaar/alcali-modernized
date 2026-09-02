@@ -73,11 +73,11 @@
             Object.keys(conformity).forEach((value) => {
               let color = ""
               if (["conflict", "false"].indexOf(value) >= 0) {
-                color = "#F44336"
+                color = this.$vuetify.theme.current.colors.error
               } else if (["conform", "true"].indexOf(value) >= 0) {
-                color = "#41f40e"
+                color = this.$vuetify.theme.current.colors.success
               } else if (["None", "unknown", "null"].indexOf(value) >= 0) {
-                color = this.$vuetify.theme.current.colors.primary
+                color = this.$vuetify.theme.current.colors["surface-variant"]
               } else {
                 let keys = Object.keys(colors)
                 color = colors[keys[keys.length * Math.random() << 0]].darken2

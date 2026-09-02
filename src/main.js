@@ -1,4 +1,4 @@
-import { createApp, h } from "vue";
+import { createApp } from "vue";
 import App from "./App.vue";
 import LegacyDataTable from "./components/core/LegacyDataTable.vue";
 import vuetify from "./plugins/vuetify";
@@ -154,19 +154,6 @@ toast.error = (message) => toast(message, "error");
 
 const app = createApp(App);
 app.component("LegacyDataTable", LegacyDataTable);
-const legacyBlock = className => ({
-  inheritAttrs: false,
-  render() {
-    return h(
-      "div",
-      { ...this.$attrs, class: [className, this.$attrs.class] },
-      this.$slots.default ? this.$slots.default() : [],
-    );
-  },
-});
-app.component("VListItemContent", legacyBlock("legacy-list-item-content"));
-app.component("VListItemAction", legacyBlock("legacy-list-item-action"));
-app.component("VListItemAvatar", legacyBlock("legacy-list-item-avatar"));
 app.config.globalProperties.$http = axios;
 app.config.globalProperties.$sanitize = (html) => DOMPurify.sanitize(html);
 app.config.globalProperties.$toast = toast;

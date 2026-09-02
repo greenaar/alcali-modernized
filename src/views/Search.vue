@@ -31,8 +31,8 @@
             >
               <template v-slot:item.jid="{ item }">
                 <v-btn
-                  text
-                  small
+                  variant="text"
+                  size="small"
                   class="text-none"
                   :class="item.jid.includes(query) ? 'red' : ''"
                   :to="'/jobs/' + item.jid + '/' + item.id"
@@ -52,7 +52,7 @@
                 }}
               </template>
               <template v-slot:item.success="{ item }">
-                <v-chip :color="boolRepr(item.success)" dark>{{
+                <v-chip :color="boolRepr(item.success)">{{
                   boolText(item.success)
                 }}</v-chip>
               </template>
@@ -86,8 +86,8 @@
             >
               <template v-slot:item.minion_id="{ item }">
                 <v-btn
-                  text
-                  small
+                  variant="text"
+                  size="small"
                   class="text-none"
                   :class="item.minion_id.includes(query) ? 'red' : ''"
                   :to="'/minions/' + item.minion_id"
@@ -95,7 +95,7 @@
                 </v-btn>
               </template>
               <template v-slot:item.conformity="{ item }">
-                <v-chip :color="boolRepr(item.conformity)" dark
+                <v-chip :color="boolRepr(item.conformity)"
                   >{{ item.conformity == null ? "unknown" : item.conformity }}
                 </v-chip>
               </template>

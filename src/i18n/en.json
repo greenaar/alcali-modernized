@@ -102,8 +102,8 @@
     },
     "ConformityTable": {
       "Conformity": "Conformity",
-      "detail": "detail",
-      "highstate": "highstate",
+      "detail": "Detail",
+      "highstate": "Highstate",
       "Unknown": "Unknow",
       "True": "True",
       "False": "False",
@@ -128,7 +128,7 @@
       "Arguments": "Arguments",
       "Date": "Date",
       "ShowingLatest": "showing latest {0} of {1}",
-      "SearchScope": "searches the {0} loaded rows",
+      "SearchScope": "{0} loaded rows",
       "NoData": "this event carried no data",
       "UnparsedData": "data column is not JSON; showing it as stored:"
     },
@@ -166,18 +166,18 @@
       "SelectDate": "Select date(s)",
       "Success": "Success",
       "Failed": "Failed",
-      "Rerun": "rerun",
-      "Detail": "detail",
+      "Rerun": "Rerun",
+      "Detail": "Detail",
       "MissingReturns": "{0} of {1} targeted minions never returned:",
       "JobBreakdown": "{0} succeeded, {1} failed, {2} no reply",
-      "SearchScope": "searches the {0} loaded rows; narrow above to search history",
+      "SearchScope": "{0} loaded rows — filter above for more",
       "Unknown": "Unknown"
     },
     "JobTemplatesTable": {
       "JobTemplate": "Job Templates",
-      "Run": "run",
-      "Edit": "edit",
-      "Delete": "delete",
+      "Run": "Run",
+      "Edit": "Edit",
+      "Delete": "Delete",
       "Name": "Name",
       "Client": "Client",
       "TargetType": "Target Type",
@@ -190,7 +190,7 @@
       "TemplateDeleted": "Template deleted"
     },
     "KeysStatusCard": {
-      "keys": "keys",
+      "keys": "Keys",
       "saltWebsocket": "Salt Websocket",
       "accepted": "accepted",
       "rejected": "rejected",
@@ -210,9 +210,9 @@
       "Status": "Status",
       "PublicKey": "Public keys",
       "Actions": "Actions",
-      "reject": "reject",
-      "delete": "delete",
-      "accept": "accept",
+      "reject": "Reject",
+      "delete": "Delete",
+      "accept": "Accept",
       "accepted": "Accepted",
       "unaccepted": "Unaccepted",
       "rejected": "Rejected",
@@ -237,21 +237,22 @@
       "Pillar": "Pillar",
       "History": "History",
       "Graph": "Graph",
-      "Fold": "fold",
-      "Unfold": "unfold"
+      "Fold": "Fold",
+      "Unfold": "Unfold"
     },
     "MinionsTable": {
       "Minion": "Minion",
       "Column": "Column",
       "Refresh": "Refresh",
-      "Run": "run job",
+      "Run": "Run job",
       "Delete": "Delete",
       "Msg1": "If you delete ",
       "Msg2": " from the database, you will need to refresh all minions.",
       "Refreshing": "Refreshing ",
       "Deleted": " deleted",
       "Close": "Close",
-      "Detail": "Details"
+      "Detail": "Detail",
+      "Actions": "Actions"
     },
     "NetworkCard": {
       "Network": "Network",
@@ -305,8 +306,8 @@
     },
     "ScheduleTable": {
       "Schedules": "Schedules",
-      "Disable": "disable",
-      "Enable": "enable",
+      "Disable": "Disable",
+      "Enable": "Enable",
       "Delete": "Delete",
       "MinionJobAction": "{0} on {1} for job {2}",
       "MinionJobActionDone": "{0} on {1} for job {2}: done"
@@ -388,7 +389,8 @@
       "Status": "STATUS:",
       "StartTime": "START TIME:",
       "Results": "Results",
-      "Unknown": "Unknown"
+      "Unknown": "Unknown",
+      "RunOn": "Run on {0}"
     },
     "Login": {
       "LoginTitle": "Login",
@@ -396,7 +398,7 @@
       "Password": "Password",
       "InvalidCredentials": "Invalid Login / Password",
       "Unauthorized": "Unauthorized",
-      "SignIn": "sign in"
+      "SignIn": "Sign in"
     },
     "Search": {
       "NoResult": "Sorry... No results.",

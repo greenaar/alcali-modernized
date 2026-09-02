@@ -1,101 +1,93 @@
 <template>
   <v-app>
-    <v-navigation-drawer v-model="settings.Layout.drawer"
-                         :mini-variant="settings.Layout.mini" app clipped>
-    <v-list dense nav dark color="#212121" class="py-0">
-        <v-list-item two-line :class="settings.Layout.mini && 'px-0'">
-          <v-list-item-avatar>
-            <v-icon large>person</v-icon>
-          </v-list-item-avatar>
-          <v-list-item-content>
-            <v-list-item-title>{{ username }}</v-list-item-title>
-            <v-list-item-subtitle>{{ email }}</v-list-item-subtitle>
-          </v-list-item-content>
+    <v-navigation-drawer
+      v-model="settings.Layout.drawer"
+      :rail="settings.Layout.mini"
+      :expand-on-hover="settings.Layout.mini"
+      color="surface"
+      border="0"
+    >
+      <!-- Vuetify 3's own list item: prepend-icon and title lay the icon
+           beside the label. The v-list-item-content/-action wrappers this
+           used to nest were Vue 2 components, shimmed here as plain divs,
+           and a div is block level - which is why every icon sat above its
+           label rather than next to it. -->
+      <v-list class="py-2">
+        <v-list-item
+          :prepend-avatar="undefined"
+          :title="username"
+          :subtitle="email"
+          class="drawer-account"
+        >
+          <template v-slot:prepend>
+            <v-avatar color="primary" size="36">
+              <v-icon size="20">person</v-icon>
+            </v-avatar>
+          </template>
         </v-list-item>
       </v-list>
       <v-divider></v-divider>
-      <v-list dense>
-        <v-list-item v-for="route in routes" :key="route.name" :to="`${route.path}`">
-          <v-list-item-action v-if="settings.Layout.mini">
-            <v-tooltip right>
-              <template v-slot:activator="{ props }">
-                <v-icon v-bind="props">{{ route.icon }}</v-icon>
-              </template>
-              <span>{{ $t(route.name) }}</span>
-            </v-tooltip>
-          </v-list-item-action>
-          <v-list-item-action v-else>
-            <v-icon>{{ route.icon }}</v-icon>
-          </v-list-item-action>
-          <v-list-item-content>
-            <v-list-item-title>{{ $t(route.name) }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+      <v-list density="compact" nav class="py-2">
+        <v-list-item
+          v-for="route in routes"
+          :key="route.name"
+          :to="route.path"
+          :prepend-icon="route.icon"
+          :title="$t(route.name)"
+          color="primary"
+          rounded="lg"
+        ></v-list-item>
       </v-list>
       <v-divider></v-divider>
-      <v-list dense>
-        <v-list-item to="/users">
-          <v-list-item-action v-if="settings.Layout.mini">
-            <v-tooltip right>
-              <template v-slot:activator="{ props }">
-                <v-icon v-bind="props">group</v-icon>
-              </template>
-              <span>{{ $t("components.core.Layout.Users") }}</span>
-            </v-tooltip>
-          </v-list-item-action>
-          <v-list-item-action v-else>
-            <v-icon>group</v-icon>
-          </v-list-item-action>
-          <v-list-item-content>
-            <v-list-item-title>{{ $t("components.core.Layout.Users") }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item to="/settings">
-          <v-list-item-action v-if="settings.Layout.mini">
-            <v-tooltip right>
-              <template v-slot:activator="{ props }">
-                <v-icon v-bind="props">settings</v-icon>
-              </template>
-              <span>{{ $t("components.core.Layout.Settings") }}</span>
-            </v-tooltip>
-          </v-list-item-action>
-          <v-list-item-action v-else>
-            <v-icon>settings</v-icon>
-          </v-list-item-action>
-          <v-list-item-content>
-            <v-list-item-title>{{ $t("components.core.Layout.Settings") }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+      <v-list density="compact" nav class="py-2">
+        <v-list-item
+          to="/users"
+          prepend-icon="group"
+          :title="$t('components.core.Layout.Users')"
+          color="primary"
+          rounded="lg"
+        ></v-list-item>
+        <v-list-item
+          to="/settings"
+          prepend-icon="settings"
+          :title="$t('components.core.Layout.Settings')"
+          color="primary"
+          rounded="lg"
+        ></v-list-item>
       </v-list>
       <template v-slot:append>
-        <v-list-item @click.stop="updateDomAndSettings('mini')" class="elevation-24">
-          <v-list-item-action>
-            <v-icon v-if="settings.Layout.mini">arrow_forward</v-icon>
-            <v-icon v-else>arrow_back</v-icon>
-          </v-list-item-action>
-          <v-list-item-content>
-            <v-list-item-title>{{ $t("components.core.Layout.Collapse") }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
+        <v-divider></v-divider>
+        <v-list density="compact" nav class="py-2">
+          <v-list-item
+            @click.stop="updateDomAndSettings('mini')"
+            :prepend-icon="settings.Layout.mini ? 'chevron_right' : 'chevron_left'"
+            :title="$t('components.core.Layout.Collapse')"
+            rounded="lg"
+          ></v-list-item>
+        </v-list>
       </template>
     </v-navigation-drawer>
-    <v-app-bar color="black" dark app clipped-left>
+    <!-- Was hard-coded black with `dark`, so it ignored the theme entirely
+         and stayed the same slab in both. -->
+    <v-app-bar color="surface" flat border="0 0 thin 0" height="60">
       <v-app-bar-nav-icon @click.stop="updateDomAndSettings('drawer')"></v-app-bar-nav-icon>
-      <v-toolbar-title class="font-weight-bold">ALCALI</v-toolbar-title>
+      <v-toolbar-title class="font-weight-bold text-primary app-title">ALCALI</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-expand-transition>
         <v-text-field
           v-show="expand_search"
           class="mx-auto search"
-          flat
+          density="compact"
           hide-details
+          variant="solo-filled"
+          flat
+          prepend-inner-icon="search"
           :label="$t('components.core.Layout.Search')"
-          solo-inverted
           v-model="searchInput"
           @keyup.enter="searchBar"
         ></v-text-field>
       </v-expand-transition>
-      <v-btn icon @click="expand_search = !expand_search" class="mr-2">
+      <v-btn icon variant="text" @click="expand_search = !expand_search" class="mr-1">
         <v-icon>search</v-icon>
       </v-btn>
       <v-menu v-model="notif_menu" bottom left offset-y offset-x>
@@ -108,32 +100,34 @@
           </v-badge>
         </template>
         <v-card min-width="500px" max-width="500px">
-          <v-list max-height="700px">
-            <v-list-item v-if="messages.length === 0">
-              <v-list-item-content>
-                <v-list-item-subtitle>{{ $t("components.core.Layout.NoNotifications") }}</v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-            <v-list-item v-for="(item, i) in messages" :key="i" :to="item.link">
-              <v-list-item-avatar>
-                <v-icon dark :color="item.color" size="62">{{ item.icon }}</v-icon>
-              </v-list-item-avatar>
-
-              <v-list-item-content>
-                <v-list-item-title>{{ item.text }}</v-list-item-title>
-                <v-list-item-subtitle>{{ item.tag }}</v-list-item-subtitle>
-              </v-list-item-content>
+          <v-list max-height="700px" lines="two">
+            <v-list-item
+              v-if="messages.length === 0"
+              :subtitle="$t('components.core.Layout.NoNotifications')"
+            ></v-list-item>
+            <v-list-item
+              v-for="(item, i) in messages"
+              :key="i"
+              :to="item.link"
+              :title="item.text"
+              :subtitle="item.tag"
+            >
+              <template v-slot:prepend>
+                <v-avatar :color="item.color" size="32">
+                  <v-icon size="18">{{ item.icon }}</v-icon>
+                </v-avatar>
+              </template>
             </v-list-item>
           </v-list>
           <v-card-actions v-show="messages.length > 0">
             <v-spacer></v-spacer>
-            <v-btn text @click="messages = []">{{ $t("components.core.Layout.Clear") }}</v-btn>
+            <v-btn variant="text" @click="messages = []">{{ $t("components.core.Layout.Clear") }}</v-btn>
           </v-card-actions>
         </v-card>
       </v-menu>
       <v-menu bottom left offset-y offset-x close-on-click>
         <template v-slot:activator="{ props }">
-          <v-btn v-bind="props" icon>
+          <v-btn v-bind="props" icon variant="text">
             <v-icon>more_vert</v-icon>
           </v-btn>
         </template>
@@ -386,6 +380,16 @@ export default {
 </script>
 
 <style>
+/* The bar and drawer share the card surface, so a hairline is what separates
+   them from the content rather than a block of solid colour. */
+.app-title {
+  letter-spacing: 0.12em;
+}
+
+.drawer-account {
+  min-height: 56px;
+}
+
 ::-webkit-scrollbar-track {
   -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
   border-radius: 10px;
@@ -412,6 +416,6 @@ span .v-chip__content {
 }
 
 .search {
-  max-width: 300px !important;
+  max-width: 380px !important;
 }
 </style>
