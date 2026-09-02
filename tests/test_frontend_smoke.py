@@ -357,3 +357,60 @@ def test_status_card_reports_no_master(page):
     # No master is reachable here, and the indicator has to say so without
     # waiting for a reload: it only ever moved towards "OK" before.
     assert "NOT OK" in status.upper().replace("_", " ")
+
+
+def _pick(page, control_index, option_index):
+    page.locator(".chart-control").nth(control_index).click()
+    page.wait_for_timeout(500)
+    page.locator(".v-overlay .v-list-item").nth(option_index).click()
+    page.wait_for_timeout(2000)
+
+
+def test_overview_chart_dropdowns_redraw_the_graph(page):
+    """Both selects must refetch and repaint.
+
+    Asking the server for new data is only half of it: the chart is a canvas
+    driven imperatively, so a refetch that never reaches Chart.js leaves the
+    old picture on screen with no error anywhere.
+    """
+    page, base, _ = page
+    calls = []
+    page.on(
+        "request",
+        lambda r: calls.append(r.url) if "jobs/graph" in r.url else None,
+    )
+    visit(page, base + "/", settle=2500)
+    assert calls, "the overview never asked for the chart data"
+
+    # The overview has several canvases; this is the jobs chart.
+    canvas = page.locator("canvas.jobs-chart")
+    page.wait_for_function(
+        "() => { const c = document.querySelector('canvas.jobs-chart');"
+        " return c && c.dataset.points; }",
+        timeout=15000,
+    )
+    before_calls = len(calls)
+    before_points = canvas.get_attribute("data-points")
+
+    # Second control, second option: the 14 day period.
+    _pick(page, 1, 1)
+    assert len(calls) > before_calls, (
+        "changing the period fetched nothing.\nrequests seen: {}".format(calls)
+    )
+    assert "period=14" in calls[-1], "wrong period: {}".format(calls[-1])
+    after_points = canvas.get_attribute("data-points")
+    assert after_points != before_points, (
+        "the period was refetched but the chart still plots {} points"
+        .format(before_points)
+    )
+
+    # First control, second option: the highstate filter.
+    calls_before_filter = len(calls)
+    _pick(page, 0, 1)
+    assert len(calls) > calls_before_filter, (
+        "changing the filter fetched nothing.\nrequests seen: {}".format(calls)
+    )
+    assert "fun=highstate" in calls[-1], "wrong filter: {}".format(calls[-1])
+    assert canvas.get_attribute("data-points") is not None, (
+        "the filter was refetched but the chart never redrew"
+    )
