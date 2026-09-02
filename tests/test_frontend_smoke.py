@@ -61,6 +61,12 @@ def live_app():
     tmp = tempfile.TemporaryDirectory()
     env = dict(
         os.environ,
+        # No master here. A runner whose networking does not refuse the
+        # connection outright would otherwise spend SALT_TIMEOUT on every
+        # event-stream reconnection, and the frontend reconnects for as long
+        # as the page is open.
+        SALT_URL="https://127.0.0.1:1",
+        SALT_TIMEOUT="2",
         DB_BACKEND="sqlite3",
         DB_NAME=str(Path(tmp.name) / "smoke.sqlite3"),
         SECRET_KEY="smoke-tests-only-secret-key-at-least-32-bytes",
@@ -115,7 +121,8 @@ def page(live_app):
         browser = p.chromium.launch()
         context = browser.new_context(viewport={"width": 1600, "height": 1200})
         page = context.new_page()
-        page.goto(base + "/login", wait_until="networkidle")
+        page.goto(base + "/login", wait_until="domcontentloaded")
+        page.wait_for_selector("input[name=login]", timeout=30000)
         page.fill("input[name=login]", creds["username"])
         page.fill("input[name=password]", creds["password"])
         page.locator(".v-card-actions button").first.click()
@@ -123,6 +130,20 @@ def page(live_app):
         assert "/login" not in page.url, "could not sign in to the built frontend"
         yield page, base, creds
         browser.close()
+
+
+def visit(page, url, settle=1200):
+    """Navigate and wait for the app shell, not for network silence.
+
+    The frontend keeps an event stream open and reconnects on a backoff, so
+    the network never reliably goes idle; `networkidle` then comes down to a
+    race between that backoff and Playwright's 500ms idle window, which is
+    won locally and lost on a slower runner.
+    """
+    page.goto(url, wait_until="domcontentloaded")
+    # The router renders into v-main once the bundle has booted.
+    page.wait_for_selector(".v-main", state="attached", timeout=30000)
+    page.wait_for_timeout(settle)
 
 
 def _drain(messages):
@@ -136,8 +157,7 @@ def test_route_renders_without_console_errors(page, route):
     page.on("console", lambda m: messages.append(f"[{m.type}] {m.text}")
             if m.type in ("error", "warning") else None)
     page.on("pageerror", lambda e: messages.append(f"[pageerror] {e}"))
-    page.goto(base + route, wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, base + route, settle=1500)
     problems = _drain(messages)
     assert not problems, f"{route} reported:\n" + "\n".join(problems)
 
@@ -145,8 +165,7 @@ def test_route_renders_without_console_errors(page, route):
 def test_job_detail_loads_the_record(page):
     page, base, creds = page
     jid, minion = creds["job"]
-    page.goto(f"{base}/jobs/{jid}/{minion}", wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, f"{base}/jobs/{jid}/{minion}", settle=1500)
     body = page.locator(".v-main").inner_text()
     # The relative-URL bug produced an empty record on this nested route.
     assert jid in body and minion in body
@@ -156,16 +175,14 @@ def test_job_detail_loads_the_record(page):
 def test_tables_are_populated(page):
     page, base, _ = page
     for route, expected in [("/minions", 3), ("/keys", 6), ("/schedules", 6)]:
-        page.goto(base + route, wait_until="networkidle")
-        page.wait_for_timeout(1500)
+        visit(page, base + route, settle=1500)
         rows = page.locator("table tbody tr").count()
         assert rows >= expected, f"{route} showed {rows} rows, expected {expected}"
 
 
 def test_overview_reports_a_minion_that_stopped_returning(page):
     page, base, _ = page
-    page.goto(base + "/", wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, base + "/", settle=1500)
     body = page.locator(".v-main").inner_text()
     # An accepted key with no returns appears nowhere else in the UI.
     assert "never-returned.example.test" in body
@@ -174,16 +191,14 @@ def test_overview_reports_a_minion_that_stopped_returning(page):
 def test_job_view_reports_minions_that_never_replied(page):
     page, base, creds = page
     jid, _ = creds["job"]
-    page.goto(base + "/jobs/" + jid, wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, base + "/jobs/" + jid, settle=1500)
     body = page.locator(".v-main").inner_text()
     assert "never returned" in body or "never-returned.example.test" in body
 
 
 def test_state_costs_are_reported(page):
     page, base, _ = page
-    page.goto(base + "/states", wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, base + "/states", settle=1500)
     body = page.locator(".v-main").inner_text()
     # Per-state duration and sls live in full_ret and nothing else reads them.
     assert "nginx" in body and "web.nginx" in body
@@ -192,8 +207,7 @@ def test_state_costs_are_reported(page):
 
 def test_run_page_previews_the_blast_radius(page):
     page, base, _ = page
-    page.goto(base + "/run", wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, base + "/run", settle=1500)
     target = page.get_by_label("Target", exact=True)
     target.fill("*")
     page.wait_for_timeout(1500)
@@ -205,8 +219,7 @@ def test_run_page_previews_the_blast_radius(page):
 def test_job_output_is_readable_in_light_mode(page):
     page, base, creds = page
     jid, minion = creds["job"]
-    page.goto("{}/jobs/{}/{}".format(base, jid, minion), wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, "{}/jobs/{}/{}".format(base, jid, minion), settle=1500)
     panel = page.evaluate("""() => {
       const el = document.querySelector('.ansiStyle');
       if (!el) return null;
@@ -227,8 +240,7 @@ def test_job_output_is_readable_in_light_mode(page):
 
 def test_state_table_sorts_when_a_header_is_clicked(page):
     page, base, _ = page
-    page.goto(base + "/states", wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, base + "/states", settle=1500)
 
     def first_state():
         return page.locator("table tbody tr td").first.inner_text().strip()
@@ -244,8 +256,7 @@ def test_state_table_sorts_when_a_header_is_clicked(page):
 
 def test_run_page_controls_fit_their_row(page):
     page, base, _ = page
-    page.goto(base + "/run", wait_until="networkidle")
-    page.wait_for_timeout(1500)
+    visit(page, base + "/run", settle=1500)
     overflow = page.evaluate("""() => {
       const row = document.querySelector('.v-window-item .v-row');
       if (!row) return null;
@@ -259,8 +270,7 @@ def test_run_page_controls_fit_their_row(page):
 
 def test_status_card_reports_no_master(page):
     page, base, _ = page
-    page.goto(base + "/", wait_until="networkidle")
-    page.wait_for_timeout(2500)
+    visit(page, base + "/", settle=2500)
     status = page.locator(".v-card", has_text="Status").first.inner_text()
     # No master is reachable here, and the indicator has to say so without
     # waiting for a reload: it only ever moved towards "OK" before.

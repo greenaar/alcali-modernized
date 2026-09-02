@@ -1,5 +1,20 @@
 # Changelog
 
+## [3008.5.1] - 2026-09-02
+
+### Fixed
+
+- The frontend smoke tests timed out in CI while passing locally. They waited
+  for `networkidle`, and the frontend holds an event stream open and reconnects
+  on a backoff for as long as the page is open, so the network never reliably
+  goes quiet - whether the wait returns is a race between that backoff and
+  Playwright's 500ms idle window. It is won on a machine where the unreachable
+  master refuses the connection instantly and lost on one where that connection
+  hangs. Navigation now waits for the application shell, which is what the
+  assertions actually need. The smoke fixture also points at a closed port with
+  a short timeout, so an unreachable master cannot cost 30 seconds a request
+  whatever the runner's networking does.
+
 ## [3008.5.0] - 2026-09-02
 
 ### Fixed
