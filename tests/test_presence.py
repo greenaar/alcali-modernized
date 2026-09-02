@@ -22,7 +22,9 @@ def test_presence_splits_up_from_down(client):
                     return_value={"up": ["a"], "down": ["b"]}):
         response = client.get("/api/minions/presence/")
     assert response.status_code == 200
-    assert response.json() == {"up": ["a"], "down": ["b"]}
+    assert response.json() == {
+        "up": ["a"], "down": ["b"], "error": None, "unavailable": False,
+    }
 
 
 @pytest.mark.django_db()
@@ -30,7 +32,11 @@ def test_an_unreachable_master_is_reported(client):
     with mock.patch("api.views.alcali.minion_presence",
                     return_value={"error": "Salt API request failed"}):
         response = client.get("/api/minions/presence/")
-    assert response.status_code == 502
+    # The minions list works without presence, so this degrades to unknown
+    # rather than failing the request.
+    assert response.status_code == 200
+    assert response.json()["unavailable"] is True
+    assert response.json()["up"] == []
 
 
 @pytest.mark.django_db()

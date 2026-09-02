@@ -376,7 +376,10 @@ def active_jobs(request):
     """
     ret = salt_active_jobs()
     if isinstance(ret, dict) and ret.get("error"):
-        return Response(ret, status=502)
+        # Not a 502: the jobs page is complete without this, and an
+        # unreachable master is an ordinary state here rather than a failure
+        # of the request. The condition is reported in the body and shown.
+        return Response({"jobs": [], "error": ret["error"], "unavailable": True})
     jobs = []
     for jid, info in (ret or {}).items():
         if not isinstance(info, dict):
@@ -394,7 +397,7 @@ def active_jobs(request):
             }
         )
     jobs.sort(key=lambda job: job["jid"], reverse=True)
-    return Response(jobs)
+    return Response({"jobs": jobs, "error": None, "unavailable": False})
 
 
 @api_view(["POST"])

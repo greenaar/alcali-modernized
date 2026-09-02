@@ -1,5 +1,43 @@
 # Changelog
 
+## [3008.9.0] - 2026-09-02
+
+### Added
+
+- A diagnostics panel in Settings, for staff. It reports the Salt login, each
+  netapi client separately, whether the master is actually collecting the
+  returns it publishes for, whether `master_job_cache` is keeping up with the
+  returner, which of Alcali's caches are empty and what fills them, and which
+  indexes the returner tables are missing. Every check is isolated, so one
+  failing does not hide the rest - knowing which still pass is what localises
+  a fault.
+
+- Running jobs are listed and can be stopped. A job only reaches the returner
+  once it finishes, so a long state run was invisible for exactly as long as
+  it was doing the most damage, and could only be stopped from the CLI. The
+  stop is aimed at the job's own recorded target rather than broadcast, and
+  the dialog says what a forced kill risks.
+
+- Minion presence, from `manage.status`, shown separately from last return.
+  A minion that is up but whose returns are not being collected looked
+  identical to one that is down.
+
+- Beacon management, alongside schedules: list, enable, disable and delete,
+  read back from the minion after every change.
+
+### Changed
+
+- The conformity verdict is stored against the newest state run and
+  recomputed only when that moves, rather than parsed out of `full_ret` for
+  every minion on every request. A warm sweep of fifteen minions with
+  537-state highstates goes from 38ms to 5ms.
+
+- Minion presence and the running-jobs list report an unreachable master in
+  the response body rather than as a gateway error. Both are supplements to
+  pages that are complete without them, and a browser console error on every
+  load is the wrong way to say the master is down - diagnostics is where that
+  belongs.
+
 ## [3008.8.5] - 2026-09-02
 
 ### Fixed

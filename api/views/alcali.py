@@ -63,6 +63,7 @@ from api.models import (
     Beacon,
 )
 from api.audit import AuditedModelViewSet, record
+from api.diagnostics import FAIL, OK, WARN, collect as collect_diagnostics
 from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser, IsAdminUserOrReadOnly
 from api.renderer import StreamingRenderer
 from api.serializers import (
@@ -161,8 +162,13 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
         """
         status = minion_presence()
         if status.get("error"):
-            return Response(status, status=502)
-        return Response(status)
+            # The minions list is complete without presence, so a master that
+            # cannot answer leaves every minion unknown rather than failing
+            # the request. Diagnostics is where that condition is reported.
+            return Response(
+                {"up": [], "down": [], "error": status["error"], "unavailable": True}
+            )
+        return Response(dict(status, error=None, unavailable=False))
 
     @action(detail=False, methods=["post"])
     def refresh_minions(self, request):
@@ -968,3 +974,23 @@ def social(request):
         }
     )
 
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def diagnostics(request):
+    """Why a page is empty, answered without reading the master's logs.
+
+    Staff only: the results name the master URL, the eauth backend and the
+    shape of the returner tables, which is more than an ordinary user needs.
+    Each check runs real Salt calls, so this is deliberately on demand.
+    """
+    checks = collect_diagnostics(request.user)
+    worst = OK
+    for check in checks:
+        if check["status"] == FAIL:
+            worst = FAIL
+            break
+        if check["status"] == WARN:
+            worst = WARN
+    return Response({"status": worst, "checks": checks})

@@ -120,8 +120,8 @@ export default {
       this.$http
         .get("api/jobs/active/")
         .then((response) => {
-          this.jobs = response.data
-          this.error = null
+          this.jobs = response.data.jobs || []
+          this.error = response.data.error || null
         })
         .catch((error) => {
           this.jobs = []

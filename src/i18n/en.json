@@ -446,6 +446,16 @@
       "ConfirmBody": "This removes the beacon {0} from {1}. The minion stops watching immediately, and this cannot be undone from here.",
       "Refreshed": "Read beacons from {0} minion(s)",
       "NoReply": "No minion returned its beacons. The master reported every one as no-response."
+    },
+    "DiagnosticsCard": {
+      "Title": "Diagnostics",
+      "Run": "Run checks",
+      "Hint": "Why a page is empty, answered without reading the master's logs. Each check makes real Salt calls, so this runs on demand.",
+      "Idle": "No checks have run yet.",
+      "status_ok": "All good",
+      "status_warn": "Warnings",
+      "status_fail": "Problems found",
+      "status_unknown": "Unknown"
     }
   },
   "views": {

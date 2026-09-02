@@ -446,6 +446,16 @@
       "ConfirmBody": "Ceci retire le beacon {0} de {1}. Le minion cesse immédiatement de surveiller, et c'est irréversible depuis ici.",
       "Refreshed": "Beacons lus depuis {0} minion(s)",
       "NoReply": "Aucun minion n'a retourné ses beacons. Le master les a tous signalés sans réponse."
+    },
+    "DiagnosticsCard": {
+      "Title": "Diagnostics",
+      "Run": "Lancer les vérifications",
+      "Hint": "Pourquoi une page est vide, sans lire les journaux du master. Chaque vérification effectue de vrais appels Salt, donc elle s'exécute à la demande.",
+      "Idle": "Aucune vérification n'a encore été lancée.",
+      "status_ok": "Tout va bien",
+      "status_warn": "Avertissements",
+      "status_fail": "Problèmes détectés",
+      "status_unknown": "Inconnu"
     }
   },
   "views": {

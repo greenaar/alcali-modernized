@@ -34,7 +34,7 @@ def test_active_jobs_are_listed(client):
     with mock.patch("api.views.salt.salt_active_jobs", return_value=ACTIVE):
         response = client.get(reverse("jobs-active"))
     assert response.status_code == 200
-    assert response.json() == [
+    assert response.json()["jobs"] == [
         {
             "jid": "20260902010000000000",
             "fun": "state.apply",
@@ -53,7 +53,11 @@ def test_an_unreachable_master_is_reported_not_an_empty_list(client):
     with mock.patch("api.views.salt.salt_active_jobs",
                     return_value={"error": "Salt API request failed"}):
         response = client.get(reverse("jobs-active"))
-    assert response.status_code == 502
+    # Not a 502: the jobs page is complete without this, so the condition is
+    # reported in the body rather than failing the request.
+    assert response.status_code == 200
+    assert response.json()["unavailable"] is True
+    assert response.json()["jobs"] == []
     assert "Salt API request failed" in response.json()["error"]
 
 
@@ -65,7 +69,7 @@ def test_a_minion_that_is_not_a_mapping_is_skipped(client):
                     return_value=dict(ACTIVE, **{"2026090201": False})):
         response = client.get(reverse("jobs-active"))
     assert response.status_code == 200
-    assert [job["jid"] for job in response.json()] == ["20260902010000000000"]
+    assert [job["jid"] for job in response.json()["jobs"]] == ["20260902010000000000"]
 
 
 @pytest.mark.django_db()
