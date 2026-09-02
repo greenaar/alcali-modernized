@@ -155,6 +155,23 @@ STORAGES = {
 
 # Secure reverse-proxy defaults. TLS verification for Salt itself is configured
 # separately with SALT_VERIFY_TLS and SALT_CA_BUNDLE.
+# Notification email. Unset EMAIL_HOST leaves Django on its console backend,
+# which prints instead of sending - the right default for an installation that
+# has not asked for mail, and harmless if a rule is configured before the
+# server is.
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "25"))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS")
+    EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL")
+    EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "alcali@localhost")
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE")
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE")

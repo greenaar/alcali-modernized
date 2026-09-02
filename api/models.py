@@ -445,6 +445,65 @@ class Conformity(models.Model):
         app_label = "api"
 
 
+class NotificationRule(models.Model):
+    """When to tell someone that a minion needs attention.
+
+    Conformity and silence are already computed for the dashboard, but a
+    dashboard only helps someone who is looking at it. These are the same two
+    signals, pushed.
+    """
+
+    CONFORMITY = "conformity"
+    SILENT = "silent"
+    TRIGGERS = (
+        (CONFORMITY, "A minion's last highstate did not pass"),
+        (SILENT, "A minion has not returned anything lately"),
+    )
+
+    name = models.CharField(max_length=128)
+    trigger = models.CharField(max_length=32, choices=TRIGGERS, default=CONFORMITY)
+    # Only meaningful for the silence trigger.
+    threshold_days = models.PositiveIntegerField(default=1)
+    webhook_url = models.CharField(max_length=500, blank=True)
+    # Comma separated; kept as text so a rule can name several people without
+    # a second table for something this small.
+    email_to = models.CharField(max_length=500, blank=True)
+    enabled = models.BooleanField(default=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    def recipients(self):
+        return [a.strip() for a in self.email_to.split(",") if a.strip()]
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        app_label = "api"
+        ordering = ("name",)
+
+
+class NotificationState(models.Model):
+    """What a rule last said about a minion.
+
+    Without this every run would repeat every alert, which trains people to
+    ignore them. Alerts fire on the transition, in both directions.
+    """
+
+    ALERTING = "alerting"
+    CLEAR = "clear"
+
+    rule = models.ForeignKey(
+        NotificationRule, on_delete=models.CASCADE, related_name="states"
+    )
+    minion_id = models.CharField(max_length=128)
+    state = models.CharField(max_length=16, default=CLEAR)
+    changed = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "api"
+        unique_together = ("rule", "minion_id")
+
+
 class ConformityCache(models.Model):
     """The last computed highstate verdict for a minion.
 

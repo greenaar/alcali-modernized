@@ -12,6 +12,11 @@
     </v-row>
     <v-row v-if="isStaff">
       <v-col sm="12">
+        <NotificationRules></NotificationRules>
+      </v-col>
+    </v-row>
+    <v-row v-if="isStaff">
+      <v-col sm="12">
         <DiagnosticsCard></DiagnosticsCard>
       </v-col>
     </v-row>
@@ -28,10 +33,11 @@
   import UserSettings from "../components/UserSettings"
   import RetentionCard from "../components/RetentionCard"
   import DiagnosticsCard from "../components/DiagnosticsCard"
+  import NotificationRules from "../components/NotificationRules"
 
   export default {
     name: "Settings",
-    components: { UserSettings, CommonSettings, RetentionCard, DiagnosticsCard },
+    components: { UserSettings, CommonSettings, RetentionCard, DiagnosticsCard, NotificationRules },
     computed: {
       isStaff() {
         return this.$store.getters.isStaff

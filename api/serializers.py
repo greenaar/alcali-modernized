@@ -18,6 +18,7 @@ from .models import (
     JobTemplate,
     AuditLog,
     Beacon,
+    NotificationRule,
 )
 
 
@@ -203,3 +204,23 @@ class BeaconSerializer(serializers.ModelSerializer):
     class Meta:
         model = Beacon
         fields = ("id", "minion", "name", "config", "enabled")
+
+
+class NotificationRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationRule
+        fields = (
+            "id", "name", "trigger", "threshold_days",
+            "webhook_url", "email_to", "enabled", "created",
+        )
+        read_only_fields = ("created",)
+
+    def validate(self, attrs):
+        # A rule with nowhere to send is silently useless, which is worse than
+        # being refused: it looks configured.
+        merged = {**getattr(self.instance, "__dict__", {}), **attrs}
+        if not (merged.get("webhook_url") or merged.get("email_to")):
+            raise serializers.ValidationError(
+                "a rule needs a webhook URL, an email address, or both"
+            )
+        return attrs

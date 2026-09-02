@@ -1,5 +1,37 @@
 # Changelog
 
+## [3008.10.0] - 2026-09-02
+
+### Added
+
+- Notification rules, delivered by webhook, email, or both. The two signals
+  are the ones already on the dashboard - a minion whose last highstate did
+  not pass, and a minion that has not returned for N days - which only help
+  someone who is looking. Alerts fire on the transition rather than on the
+  state, because a rule that repeats itself every run is ignored within a
+  week; recoveries are sent for the same reason. A rule with no webhook and
+  no recipients is refused rather than accepted and silently useless, each
+  rule can send a test down its real channels, and a preview shows what would
+  fire without sending or remembering anything. Evaluation is a management
+  command, `alcali_notify`, meant for cron or a Salt schedule.
+
+- An orchestration page. `state.orchestrate` was reachable only by
+  hand-composing a runner command on the Run page, which is a poor home for
+  the one function that drives the whole fleet from a single call. It
+  defaults to a dry run and asks before applying for real.
+
+- The Run page offers the master's own state list, from
+  `fileserver.file_list`, for the functions whose first argument is a state
+  name. It stays a combobox: the list is a convenience, so an unlisted
+  argument is still typeable, and an unreachable master leaves the field as
+  plain free text rather than blocking a run.
+
+### Changed
+
+- Email settings are read from the environment. With `EMAIL_HOST` unset
+  Django stays on its console backend, so an installation that has not asked
+  for mail prints instead of sending.
+
 ## [3008.9.0] - 2026-09-02
 
 ### Added

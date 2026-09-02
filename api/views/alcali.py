@@ -62,9 +62,12 @@ from api.models import (
     JobTemplate,
     AuditLog,
     Beacon,
+    NotificationRule,
+    NotificationState,
 )
 from api.audit import AuditedModelViewSet, record
 from api.diagnostics import FAIL, OK, WARN, collect as collect_diagnostics
+from api.notifications import deliver as deliver_notification, run_rules as run_notification_rules
 from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser, IsAdminUserOrReadOnly
 from api.renderer import StreamingRenderer
 from api.serializers import (
@@ -81,6 +84,7 @@ from api.serializers import (
     MinionsSerializer,
     AuditLogSerializer,
     BeaconSerializer,
+    NotificationRuleSerializer,
 )
 from api.utils import graph_data, render_conformity, RawCommand
 from api.utils.matching import glob_match, list_match, subdict_match
@@ -521,6 +525,43 @@ class ConformityViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
 class FunctionsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Functions.objects.all()
     serializer_class = FunctionsSerializer
+
+
+class NotificationRuleViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
+    """Who gets told when a minion needs attention.
+
+    Staff only: a rule carries a webhook URL and mail recipients, and editing
+    one changes where information about the fleet is sent.
+    """
+
+    queryset = NotificationRule.objects.all()
+    serializer_class = NotificationRuleSerializer
+    permission_classes = [IsAdminUser]
+    audit_name = "notification_rule"
+
+    @action(methods=["POST"], detail=True)
+    def test(self, request, pk=None):
+        """Send a sample down this rule's channels.
+
+        Configuration that is only exercised by a real incident is
+        configuration nobody trusts.
+        """
+        rule = self.get_object()
+        payload = {
+            "rule": rule.name,
+            "trigger": rule.trigger,
+            "minion": "example.test",
+            "state": "alerting",
+            "reason": "this is a test from Alcali, no minion is affected",
+            "at": timezone.now().isoformat(),
+        }
+        errors = deliver_notification(rule, payload)
+        return Response({"sent": not errors, "errors": errors, "payload": payload})
+
+    @action(methods=["POST"], detail=False)
+    def preview(self, request):
+        """What every enabled rule would send right now, sending nothing."""
+        return Response({"events": run_notification_rules(dry_run=True)})
 
 
 class BeaconViewSet(viewsets.ReadOnlyModelViewSet):
