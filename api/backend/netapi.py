@@ -176,6 +176,46 @@ def run_raw(load):
         return {"error": str(e)}
 
 
+def active_jobs():
+    """Jobs the master believes are still running, keyed by jid.
+
+    The returner only records a job once it finishes, so a long state run is
+    invisible in the job list while it is doing the most damage. This is the
+    only view of what is in flight.
+    """
+    try:
+        api = api_connect()
+        api_ret = api.runner("jobs.active")
+    except SaltApiError as e:
+        return {"error": str(e)}
+    try:
+        return first_return(api_ret, "jobs.active")
+    except SaltApiError as e:
+        return {"error": str(e)}
+
+
+def kill_job(jid, target="*", tgt_type="glob", signal="term"):
+    """Stop a running job on the minions executing it.
+
+    `term` asks the minion to terminate the process, which lets a state run
+    unwind; `kill` is the unconditional version and can leave a half-applied
+    state behind. Both are Salt's own saltutil functions - there is no way to
+    recall a job that has already been published, only to stop what it started.
+    """
+    functions = {"term": "saltutil.term_job", "kill": "saltutil.kill_job"}
+    if signal not in functions:
+        return {"error": "unknown signal {!r}".format(signal)}
+    try:
+        api = api_connect()
+        api_ret = api.local(target, functions[signal], arg=[jid], tgt_type=tgt_type)
+    except SaltApiError as e:
+        return {"error": str(e)}
+    try:
+        return first_return(api_ret, functions[signal])
+    except SaltApiError as e:
+        return {"error": str(e)}
+
+
 def get_events():
     """The master's event stream.
 

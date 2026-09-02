@@ -3,6 +3,24 @@
     "Search": "Chercher"
   },
   "components": {
+    "ActiveJobsCard": {
+      "Title": "En cours",
+      "Refresh": "Rafraîchir",
+      "Jid": "Id de tâche",
+      "Function": "Fonction",
+      "Target": "Cible",
+      "User": "Utilisateur",
+      "Minions": "Minions",
+      "Stop": "Arrêter",
+      "Force": "Arrêt forcé",
+      "Cancel": "Annuler",
+      "Confirm": "Arrêter la tâche",
+      "ConfirmTitle": "Arrêter cette tâche ?",
+      "ConfirmBody": "{0} s'exécute sur {1} minion(s) correspondant à {2}.",
+      "TermNote": "Les minions sont invités à terminer la tâche, ce qui permet à un état de se dérouler. Le travail déjà effectué n'est pas annulé.",
+      "KillWarning": "Un arrêt forcé tue le processus et peut laisser un état à moitié appliqué. Préférez Arrêter sauf si cela a échoué.",
+      "Stopped": "Arrêtée sur {0} minion(s)"
+    },
     "mixins": {
       "UserCard": {
         "Users": "Utilisateurs",

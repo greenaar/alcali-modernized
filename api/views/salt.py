@@ -9,6 +9,8 @@ from rest_framework import generics, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from api.audit import record
+from api.backend.netapi import active_jobs as salt_active_jobs, kill_job as salt_kill_job
 from api.models import SaltReturns, SaltEvents, Jids
 from api.serializers import SaltReturnsSerializer, EventsSerializer
 from api.utils.output import highstate_output, nested_output
@@ -363,3 +365,71 @@ class EventsViewSet(viewsets.ReadOnlyModelViewSet):
         response = super().list(request, *args, **kwargs)
         response["X-Total-Count"] = str(SaltEvents.objects.count())
         return response
+
+
+@api_view(["GET"])
+def active_jobs(request):
+    """What the master is currently running.
+
+    A job only reaches the returner when it finishes, so this is the only
+    place a long run is visible while it is still in flight.
+    """
+    ret = salt_active_jobs()
+    if isinstance(ret, dict) and ret.get("error"):
+        return Response(ret, status=502)
+    jobs = []
+    for jid, info in (ret or {}).items():
+        if not isinstance(info, dict):
+            continue
+        jobs.append(
+            {
+                "jid": jid,
+                "fun": info.get("Function", ""),
+                "arguments": info.get("Arguments", []),
+                "target": info.get("Target", ""),
+                "user": info.get("User", ""),
+                "running": info.get("Running", []),
+                "minions": len(info.get("Running", []) or []),
+                "start": info.get("StartTime", ""),
+            }
+        )
+    jobs.sort(key=lambda job: job["jid"], reverse=True)
+    return Response(jobs)
+
+
+@api_view(["POST"])
+def kill_job(request, jid):
+    """Stop a running job on the minions still executing it."""
+    signal = request.data.get("signal", "term")
+    if signal not in ("term", "kill"):
+        return Response({"error": "signal must be term or kill"}, status=400)
+
+    # Aim at the job's own target rather than at every minion: a stop should
+    # not be a broadcast to machines that were never running it.
+    target, tgt_type = "*", "glob"
+    try:
+        load = Jids.objects.get(jid=jid).loaded_load()
+        target = load.get("tgt") or "*"
+        tgt_type = load.get("tgt_type") or "glob"
+    except (Jids.DoesNotExist, ValueError):
+        pass
+
+    ret = salt_kill_job(jid, target, tgt_type, signal)
+    if isinstance(ret, dict) and ret.get("error"):
+        return Response(ret, status=502)
+
+    stopped = sorted(k for k, v in (ret or {}).items() if v)
+    record(
+        "job.kill",
+        target=jid,
+        detail={"signal": signal, "target": target, "stopped": stopped},
+    )
+    return Response(
+        {
+            "jid": jid,
+            "signal": signal,
+            "target": target,
+            "stopped": stopped,
+            "answered": ret,
+        }
+    )

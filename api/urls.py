@@ -8,6 +8,8 @@ from api.views.salt import (
     SaltReturnsRetrieve,
     EventsViewSet,
     jobs_filters,
+    active_jobs,
+    kill_job,
     job_rendered,
     job_summary,
     state_durations,
@@ -66,6 +68,9 @@ urlpatterns = [
     path("api/event_stream/", event_stream, name="event_stream"),
     path("api/jobs/", SaltReturnsList.as_view(), name="jobs-list"),
     path("api/jobs/filters/", jobs_filters, name="jobs-filters"),
+    # Before the <str:jid> routes below, which would otherwise swallow it.
+    path("api/jobs/active/", active_jobs, name="jobs-active"),
+    path("api/jobs/<str:jid>/kill/", kill_job, name="jobs-kill"),
     path("api/run/", run, name="run"),
     # Ahead of the <jid>/<id> detail route, which would otherwise match this
     # with id="summary".

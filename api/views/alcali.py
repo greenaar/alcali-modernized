@@ -890,3 +890,4 @@ def social(request):
             "redirect_uri": settings.SOCIAL_AUTH_REDIRECT_URI,
         }
     )
+

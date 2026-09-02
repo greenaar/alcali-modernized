@@ -3,6 +3,24 @@
     "Search": "Search"
   },
   "components": {
+    "ActiveJobsCard": {
+      "Title": "Running now",
+      "Refresh": "Refresh",
+      "Jid": "Job id",
+      "Function": "Function",
+      "Target": "Target",
+      "User": "User",
+      "Minions": "Minions",
+      "Stop": "Stop",
+      "Force": "Force stop",
+      "Cancel": "Cancel",
+      "Confirm": "Stop the job",
+      "ConfirmTitle": "Stop this job?",
+      "ConfirmBody": "{0} is running on {1} minion(s) matching {2}.",
+      "TermNote": "The minions are asked to terminate the job, which lets a state run unwind. Work already done is not undone.",
+      "KillWarning": "A forced stop kills the process outright and can leave a state half applied. Prefer Stop unless that has failed.",
+      "Stopped": "Stopped on {0} minion(s)"
+    },
     "mixins": {
       "UserCard": {
         "Users": "Users",

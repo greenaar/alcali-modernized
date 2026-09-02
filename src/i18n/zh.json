@@ -3,6 +3,24 @@
         "Search": "搜索"
     },
     "components": {
+        "ActiveJobsCard": {
+            "Title": "正在运行",
+            "Refresh": "刷新",
+            "Jid": "作业 ID",
+            "Function": "函数",
+            "Target": "目标",
+            "User": "用户",
+            "Minions": "Minion 数",
+            "Stop": "停止",
+            "Force": "强制停止",
+            "Cancel": "取消",
+            "Confirm": "停止作业",
+            "ConfirmTitle": "停止此作业？",
+            "ConfirmBody": "{0} 正在 {1} 个匹配 {2} 的 minion 上运行。",
+            "TermNote": "将请求 minion 终止该作业，使状态运行得以收尾。已完成的工作不会被撤销。",
+            "KillWarning": "强制停止会直接杀死进程，可能导致状态只应用了一半。除非停止失败，否则请优先使用停止。",
+            "Stopped": "已在 {0} 个 minion 上停止"
+        },
         "mixins": {
             "UserCard": {
                 "Users": "用户",
