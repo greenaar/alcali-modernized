@@ -819,3 +819,62 @@ def test_prune_is_recorded_in_the_audit_log(admin_client, jwt, old_and_new_histo
 
     admin_client.post("/api/prune/", {"days": 30}, content_type="application/json", **jwt)
     assert AuditLog.objects.filter(action="returner.prune").exists()
+
+
+@pytest.mark.django_db()
+def test_refresh_falls_back_to_the_master_cache(admin_client, jwt, monkeypatch):
+    """A local client that collects nothing is usually a job cache that is not
+    being written, not an empty fleet. The master's grain cache needs neither a
+    minion reply nor the job cache, so it is worth asking."""
+    from api.models import Minions
+
+    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    monkeypatch.setattr(
+        "api.views.alcali.refresh_minions_from_cache",
+        lambda: {"refreshed": ["web01", "db01"]},
+    )
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["source"] == "master cache"
+    assert sorted(body["refreshed"]) == ["db01", "web01"]
+
+
+@pytest.mark.django_db()
+def test_refresh_prefers_live_minions_over_the_cache(admin_client, jwt, monkeypatch):
+    called = []
+    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {"minion1": True})
+    monkeypatch.setattr("api.views.alcali.refresh_minion", lambda m: {"result": "ok"})
+    monkeypatch.setattr(
+        "api.views.alcali.refresh_minions_from_cache",
+        lambda: called.append(1) or {"refreshed": []},
+    )
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["source"] == "minions"
+    assert called == [], "the cache must not be consulted when minions replied"
+
+
+@pytest.mark.django_db()
+def test_refresh_still_reports_an_empty_fleet_when_the_cache_is_empty_too(
+    admin_client, jwt, monkeypatch
+):
+    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    monkeypatch.setattr(
+        "api.views.alcali.refresh_minions_from_cache", lambda: {"refreshed": []}
+    )
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+    assert body["no_minions_replied"] is True
+    assert body["refreshed"] == []
+
+
+@pytest.mark.django_db()
+def test_schedule_refresh_flags_a_master_that_answered_with_nobody(
+    admin_client, jwt, monkeypatch
+):
+    monkeypatch.setattr("api.views.alcali.refresh_schedules", lambda: {})
+    body = admin_client.post("/api/schedules/refresh/", **jwt).json()
+    assert body["no_minions_replied"] is True
+
+    monkeypatch.setattr(
+        "api.views.alcali.refresh_schedules", lambda: {"minion1": {"highstate": {}}}
+    )
+    body = admin_client.post("/api/schedules/refresh/", **jwt).json()
+    assert body["no_minions_replied"] is False and body["minions"] == 1

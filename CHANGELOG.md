@@ -1,5 +1,29 @@
 # Changelog
 
+## [3008.7.0] - 2026-09-02
+
+### Added
+
+- Refreshing minions falls back to the master's own data cache. The local
+  client has to read a job back out of `master_job_cache` to collect returns,
+  so a job cache that is not being written makes every minion-targeted call
+  return nothing while the master logs `jid does not exist`. `cache.grains`
+  and `cache.pillar` are runners answered from what the master already holds:
+  no minion has to reply and the job cache is not involved. Live minions are
+  still preferred, and the response says which source was used.
+
+### Fixed
+
+- A Salt error reported only its status. salt-api puts the reason in the body
+  - an unknown function, a client the master has not enabled, a rejected ACL -
+  so `500 Server Error` said nothing about which it was. The body is now
+  included in the message.
+
+- Refreshing schedules reported success when no minion had answered, the same
+  way refreshing minions did before 3008.5.2. There is no master-side cache of
+  minion schedules, so this reports the condition rather than working around
+  it.
+
 ## [3008.6.1] - 2026-09-02
 
 ### Fixed

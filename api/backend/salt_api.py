@@ -49,6 +49,25 @@ def _is_loopback(base_url: str) -> bool:
         return False
 
 
+def _response_detail(exc: Exception, limit: int = 500) -> str:
+    """The body salt-api sent with an error, when there is one worth showing."""
+    response = getattr(exc, "response", None)
+    if response is None:
+        return ""
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = (response.text or "").strip()
+    if isinstance(payload, dict):
+        payload = payload.get("return") or payload.get("error") or payload
+    detail = str(payload).strip()
+    if not detail:
+        return ""
+    if len(detail) > limit:
+        detail = detail[:limit] + "..."
+    return " - {}".format(detail)
+
+
 class SaltApiClient:
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/") + "/"
@@ -118,7 +137,13 @@ class SaltApiClient:
             response.raise_for_status()
             payload = response.json()
         except (requests.RequestException, ValueError) as exc:
-            raise SaltApiError(f"Salt API request failed: {exc}") from exc
+            # salt-api puts the reason in the body - an unknown function, a
+            # client the master has not enabled, a rejected ACL. Without it
+            # the caller only ever sees "500 Server Error", which says
+            # nothing about which of those it was.
+            raise SaltApiError(
+                "Salt API request failed: {}{}".format(exc, _response_detail(exc))
+            ) from exc
         if not isinstance(payload, dict):
             raise SaltApiError("Salt API returned an unexpected response")
         return payload

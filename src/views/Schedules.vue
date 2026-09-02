@@ -35,9 +35,13 @@
       },
       refreshSchedules() {
         this.$toast(this.$i18n.t("components.Schedules.Refreshing"))
-        this.$http.post("/api/schedules/refresh/").then(() => {
+        this.$http.post("/api/schedules/refresh/").then((response) => {
           this.refreshKey += 1
-          this.$toast(this.$i18n.t("components.Schedules.Refreshed"))
+          if (response.data.no_minions_replied) {
+            this.$toast.error(this.$i18n.t("components.Minions.NoMinionsReplied"))
+          } else {
+            this.$toast(this.$i18n.t("components.Schedules.Refreshed"))
+          }
         }).catch((error) => {
           this.$toast.error(error.response.data)
         })

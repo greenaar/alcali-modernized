@@ -93,6 +93,47 @@ def refresh_minion(minion_id):
     return {"result": "{} refreshed".format(minion_id)}
 
 
+def refresh_minions_from_cache():
+    """Fill the minion table from the master's own data cache.
+
+    `cache.grains` and `cache.pillar` are runners: the master answers them from
+    what it already holds, so nothing is published, no minion has to reply, and
+    - unlike the local client - the master does not have to read the job back
+    out of its job cache. That last point matters, because a job cache that is
+    not being written makes every local-client call return nothing at all,
+    with the master logging "jid does not exist".
+
+    The data is only as fresh as the master's cache, which is why this is a
+    fallback rather than the first choice.
+    """
+    try:
+        api = api_connect()
+        grains = api.runner("cache.grains", tgt="*")["return"][0]
+        pillars = api.runner("cache.pillar", tgt="*")["return"][0]
+    except SaltApiError as e:
+        return {"error": str(e)}
+    except (KeyError, IndexError, TypeError) as e:
+        return {"error": "unexpected response from cache.grains: {}".format(e)}
+
+    if not isinstance(grains, dict):
+        return {"error": "the master's grain cache is empty"}
+
+    refreshed = []
+    for minion_id, grain in grains.items():
+        if not isinstance(grain, dict) or not grain:
+            continue
+        pillar = pillars.get(minion_id) if isinstance(pillars, dict) else None
+        Minions.objects.update_or_create(
+            minion_id=minion_id,
+            defaults={
+                "grain": json.dumps(grain),
+                "pillar": json.dumps(pillar if isinstance(pillar, dict) else {}),
+            },
+        )
+        refreshed.append(minion_id)
+    return {"refreshed": refreshed}
+
+
 def run_raw(load):
     try:
         api = api_connect()

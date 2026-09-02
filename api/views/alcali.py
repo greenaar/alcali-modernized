@@ -31,6 +31,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from api.backend.salt_api import SaltApiError
 from api.backend.netapi import (
     refresh_minion,
+    refresh_minions_from_cache,
     manage_key,
     get_events,
     init_db,
@@ -178,6 +179,24 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
             return Response(connected["error"], status=401)
 
         accepted_minions = [i for i in connected if connected.get(i) is True]
+        if not accepted_minions:
+            # The master answered and nobody replied. That is usually not an
+            # empty fleet: the local client has to read the job back out of
+            # the job cache to collect returns, and when that is not being
+            # written it gives up with "jid does not exist" and returns
+            # nothing. The master's own grain cache needs neither a minion
+            # reply nor the job cache, so fall back to it rather than
+            # reporting an empty fleet.
+            cached = refresh_minions_from_cache()
+            if "error" not in cached and cached.get("refreshed"):
+                return Response(
+                    {
+                        "refreshed": cached["refreshed"],
+                        "responded": len(connected),
+                        "no_minions_replied": True,
+                        "source": "master cache",
+                    }
+                )
         for minion in accepted_minions:
             ret = refresh_minion(minion)
             if "error" in ret:
@@ -192,6 +211,7 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
                 "refreshed": accepted_minions,
                 "responded": len(connected),
                 "no_minions_replied": not connected,
+                "source": "minions",
             }
         )
 
@@ -483,7 +503,16 @@ class ScheduleViewSet(viewsets.ReadOnlyModelViewSet):
         ret = refresh_schedules()
         if "error" in ret:
             return Response(ret["error"], status=401)
-        return Response({"result": "refreshed"})
+        # refresh_schedules returns what each minion reported, so an empty
+        # mapping means nobody answered - the same "jid does not exist" case
+        # that empties the minion refresh, not a fleet with no schedules.
+        return Response(
+            {
+                "result": "refreshed",
+                "minions": len(ret),
+                "no_minions_replied": not ret,
+            }
+        )
 
     @action(methods=["POST"], detail=False)
     def manage(self, request):
