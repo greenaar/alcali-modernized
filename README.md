@@ -146,11 +146,16 @@ If you'd like to contribute, check the [contribute](https://alcali.dev/contribut
 documentation on how to install a dev environment, then open a pull request
 against this repository rather than the original upstream.
 
-This mirror carries no CI configuration: development happens on a private
-Forgejo instance where the pipelines live, and shipping workflow files that
-GitHub would silently ignore is worse than shipping none. Run the checks
-locally before opening a pull request - `pytest`, `pytest -m smoke`,
-`pnpm lint --no-fix src`, `pnpm test:unit` and `pnpm build`.
+There is no CI on pull requests here: day-to-day development happens on a
+private Forgejo instance where those pipelines live. Run the checks locally
+before opening one - `pytest`, `pytest -m smoke`, `pnpm lint --no-fix src`,
+`pnpm test:unit` and `pnpm build`.
+
+Tagged releases *are* built here, by `.github/workflows/release.yml`. It runs
+the same checks, builds the frontend, and attaches the wheel and sdist to the
+GitHub release. That build step is not optional: `dist/` is untracked, so a
+wheel built without it installs cleanly and then serves every UI route as a
+500.
 
 And if you like this project, consider donating:
 
