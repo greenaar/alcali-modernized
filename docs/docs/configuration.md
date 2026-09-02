@@ -148,6 +148,56 @@ AUTH_LDAP_USER_BASE_CN=dc=example,dc=org
 AUTH_LDAP_USER_SEARCH_FILTER=(uid=%(user)s)
 ```
 
+## Notifications
+
+Alcali can alert when a minion's last highstate did not pass, or when a minion
+has not returned anything for a number of days. Both are signals it already
+computes for the dashboard; the rules push them outward instead.
+
+Rules are configured in the UI under **Settings -> Notifications**, and deliver
+by webhook, by email, or by both. Each rule can send a test down its real
+channels, and **Preview** shows what would fire right now without sending
+anything.
+
+Alerts fire on a *transition* rather than on a state: a minion that is still
+failing does not generate a new alert on every sweep, and a recovery is sent
+when it stops matching. A rule with neither a webhook nor a recipient is
+refused rather than saved, because a rule that looks configured and sends
+nothing is worse than no rule.
+
+### Sending mail
+
+Webhooks need no configuration beyond the URL on the rule. Email needs an SMTP
+relay in the `.env`:
+
+| Variable | Meaning |
+| --- | --- |
+| `EMAIL_HOST` | SMTP relay. **While this is unset, Django uses its console backend and mail is printed rather than sent.** |
+| `EMAIL_PORT` | Defaults to `25`. |
+| `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Only if the relay requires authentication. |
+| `EMAIL_USE_TLS`, `EMAIL_USE_SSL` | `true` to enable; leave both unset for a plain relay. |
+| `EMAIL_TIMEOUT` | Seconds, defaults to `10`. |
+| `DEFAULT_FROM_EMAIL` | Envelope sender, defaults to `alcali@localhost`. |
+
+### Evaluating the rules
+
+**Nothing is sent unless `alcali_notify` runs.** It is a management command
+rather than anything in the request path, because evaluating every rule walks
+the whole fleet. Schedule it - a systemd timer, cron, or a Salt schedule:
+
+```commandline
+sudo -u alcali ENV_PATH=/opt/alcali /opt/alcali/venv/bin/alcali alcali_notify
+```
+
+Check what it would do first with `--dry-run`, which sends nothing and records
+nothing, so it can be run repeatedly:
+
+```commandline
+sudo -u alcali ENV_PATH=/opt/alcali /opt/alcali/venv/bin/alcali alcali_notify --dry-run
+```
+
+See [management commands](running.md#management-commands).
+
 ## Docker
 
 You can pass the `.env` file to the `docker run` command with the `--env-file=FILE` option.
