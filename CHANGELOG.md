@@ -1,5 +1,15 @@
 # Changelog
 
+## [3008.8.2] - 2026-09-02
+
+### Fixed
+
+- A state entry that is not a result mapping no longer takes down the whole
+  minions list. A highstate spanning several hundred states covers a lot of
+  modules, and one returning a bare string or list where a state result was
+  expected raised AttributeError inside the conformity check - a 500 for every
+  minion rather than one odd state. Such an entry now reads as non-conformant.
+
 ## [3008.8.1] - 2026-09-02
 
 ### Fixed

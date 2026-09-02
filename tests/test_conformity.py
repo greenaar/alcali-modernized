@@ -60,3 +60,57 @@ def test_no_highstate_at_all_is_unknown():
     minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
     highstate("m1", "20260901000000000001", True, fun_args=["users"])
     assert minion.conformity() is None
+
+
+@pytest.mark.django_db()
+def test_a_state_entry_that_is_not_a_mapping_does_not_crash():
+    """A module returning a bare value puts a string here rather than a state
+    result, and calling .get on it took the whole minions list down."""
+    minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
+    SaltReturns.objects.create(
+        fun="state.apply", jid="20260901000000000001", return_field="{}",
+        id="m1", success="1",
+        full_ret=json.dumps({"fun": "state.apply", "fun_args": [],
+                             "return": {"odd_|-x_|-x_|-run": "not a mapping"}}),
+        alter_time="2026-09-01 00:00:00",
+    )
+    assert minion.conformity() is False
+
+
+@pytest.mark.django_db()
+def test_a_fully_converged_highstate_is_conformant():
+    """537 states, all result true with no changes - the shape of a healthy
+    highstate on a real fleet."""
+    minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
+    states = {
+        "file_|-f{0}_|-/etc/f{0}_|-managed".format(i): {
+            "result": True, "changes": {}, "comment": "already in the correct state",
+            "duration": 2.1, "__sls__": "common", "__id__": "f{}".format(i),
+        }
+        for i in range(537)
+    }
+    SaltReturns.objects.create(
+        fun="state.apply", jid="20260901000000000001", return_field="{}",
+        id="m1", success="1",
+        full_ret=json.dumps({"fun": "state.apply", "fun_args": [], "return": states}),
+        alter_time="2026-09-01 00:00:00",
+    )
+    assert minion.conformity() is True
+
+
+@pytest.mark.django_db()
+def test_one_drifted_state_among_many_is_not_conformant():
+    minion = Minions.objects.create(minion_id="m1", grain="{}", pillar="{}")
+    states = {
+        "file_|-f{0}_|-/etc/f{0}_|-managed".format(i): {"result": True, "changes": {}}
+        for i in range(100)
+    }
+    # None: made no changes but would have.
+    states["file_|-drift_|-/etc/drift_|-managed"] = {"result": None, "changes": {}}
+    SaltReturns.objects.create(
+        fun="state.apply", jid="20260901000000000001", return_field="{}",
+        id="m1", success="1",
+        full_ret=json.dumps({"fun": "state.apply", "fun_args": [], "return": states}),
+        alter_time="2026-09-01 00:00:00",
+    )
+    assert minion.conformity() is False

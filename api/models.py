@@ -207,9 +207,16 @@ class Minions(models.Model):
         if not return_item or isinstance(return_item, list):
             return False
 
-        for state in return_item:
-            # One of the state is not ok
-            if not return_item.get(state, {}).get("result"):
+        for result in return_item.values():
+            # Not every entry is guaranteed to be a state result mapping: a
+            # module that returns a bare value puts a string or a list here,
+            # and calling .get on it raised AttributeError - a 500 for the
+            # whole minions list rather than one odd state.
+            if not isinstance(result, dict):
+                return False
+            # A state reports None when it made no changes but would have,
+            # which is a highstate that has drifted, not one that passed.
+            if not result.get("result"):
                 return False
         return True
 
