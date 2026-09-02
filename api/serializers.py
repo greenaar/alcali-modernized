@@ -17,6 +17,7 @@ from .models import (
     Schedule,
     JobTemplate,
     AuditLog,
+    Beacon,
 )
 
 
@@ -194,3 +195,11 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = ("id", "username", "action", "target", "detail", "created")
+
+
+class BeaconSerializer(serializers.ModelSerializer):
+    enabled = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Beacon
+        fields = ("id", "minion", "name", "config", "enabled")

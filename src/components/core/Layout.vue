@@ -203,6 +203,11 @@ export default {
         icon: "schedule",
       },
       {
+        name: "components.core.Layout.Beacons",
+        path: "/beacons",
+        icon: "sensors",
+      },
+      {
         name: "components.core.Layout.Conformity",
         path: "/conformity",
         icon: "done_all",

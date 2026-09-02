@@ -83,7 +83,8 @@
         "_returned for_": " returned for ",
         "JobEvent": "Job Event",
         "NewJobCreated": "New Job Created",
-        "States": "States"
+        "States": "States",
+        "Beacons": "Beacons"
       }
     },
     "CommonSettings": {
@@ -423,6 +424,28 @@
       "ConfirmTitle": "Delete returner history?",
       "ConfirmBody": "This permanently removes {0} row(s): jobs older than {1} days and events older than {2} days. It cannot be undone.",
       "Removed": "{0} row(s) removed"
+    },
+    "BeaconTable": {
+      "Title": "Beacons",
+      "Subtitle": "minion-side watchers, as the minions report them",
+      "Search": "Search",
+      "Refresh": "Refresh from minions",
+      "Minion": "Minion",
+      "Name": "Beacon",
+      "State": "State",
+      "Config": "Watching",
+      "Actions": "Actions",
+      "Enabled": "Enabled",
+      "Disabled": "Disabled",
+      "Enable": "Enable",
+      "Disable": "Disable",
+      "Delete": "Delete",
+      "Cancel": "Cancel",
+      "Empty": "No beacons are configured, or none have been read from the minions yet.",
+      "ConfirmTitle": "Delete this beacon?",
+      "ConfirmBody": "This removes the beacon {0} from {1}. The minion stops watching immediately, and this cannot be undone from here.",
+      "Refreshed": "Read beacons from {0} minion(s)",
+      "NoReply": "No minion returned its beacons. The master reported every one as no-response."
     }
   },
   "views": {

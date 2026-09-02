@@ -32,6 +32,7 @@ from api.views.alcali import (
     run,
     UserSettingsViewSet,
     ScheduleViewSet,
+    BeaconViewSet,
     MyTokenObtainPairView,
     search,
     verify,
@@ -52,6 +53,7 @@ router.register(r"userssettings", UserSettingsViewSet)
 router.register(r"minionsfields", MinionsCustomFieldsViewSet)
 router.register(r"functions", FunctionsViewSet)
 router.register(r"schedules", ScheduleViewSet)
+router.register(r"beacons", BeaconViewSet)
 router.register(r"job_templates", JobTemplateViewSet)
 router.register(r"audit", AuditLogViewSet)
 

@@ -30,7 +30,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from api.backend.salt_api import SaltApiError
 from api.backend.netapi import (
+    manage_beacons,
     minion_presence,
+    refresh_beacons,
     refresh_minion,
     refresh_minions_from_cache,
     manage_key,
@@ -58,6 +60,7 @@ from api.models import (
     Functions,
     JobTemplate,
     AuditLog,
+    Beacon,
 )
 from api.audit import AuditedModelViewSet, record
 from api.permissions import IsLoggedInUserOrAdmin, IsAdminUser, IsAdminUserOrReadOnly
@@ -75,6 +78,7 @@ from api.serializers import (
     KeysSerializer,
     MinionsSerializer,
     AuditLogSerializer,
+    BeaconSerializer,
 )
 from api.utils import graph_data, render_conformity, RawCommand
 from api.utils.matching import glob_match, list_match, subdict_match
@@ -510,6 +514,64 @@ class ConformityViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
 class FunctionsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Functions.objects.all()
     serializer_class = FunctionsSerializer
+
+
+class BeaconViewSet(viewsets.ReadOnlyModelViewSet):
+    """Beacons as the minions report them.
+
+    Read only for the same reason schedules are: the minion owns this
+    configuration, and Alcali mirrors it. Changes go through Salt and the
+    table is re-read from what the minion says afterwards.
+    """
+
+    queryset = Beacon.objects.all()
+    serializer_class = BeaconSerializer
+
+    def list(self, request, *args, **kwargs):
+        ret = []
+        for beacon in Beacon.objects.all():
+            ret.append(
+                {
+                    "id": beacon.id,
+                    "minion": beacon.minion,
+                    "name": beacon.name,
+                    "config": beacon.config,
+                    "enabled": beacon.enabled(),
+                }
+            )
+        return Response(ret)
+
+    @action(methods=["POST"], detail=False)
+    def refresh(self, request):
+        ret = refresh_beacons(request.data.get("minion"))
+        if isinstance(ret, dict) and ret.get("error"):
+            return Response(ret, status=502)
+        return Response(
+            {
+                "result": "refreshed",
+                "minions": len(ret),
+                "no_minions_replied": not ret,
+            }
+        )
+
+    @action(methods=["POST"], detail=False)
+    def manage(self, request):
+        beacon_action = request.data.get("action")
+        minion = request.data.get("minion")
+        name = request.data.get("name")
+        if not (beacon_action and minion and name):
+            return Response(
+                {"error": "action, minion and name are all required"}, status=400
+            )
+        ret = manage_beacons(beacon_action, name, minion)
+        if isinstance(ret, dict) and ret.get("error"):
+            return Response(ret, status=502)
+        record(
+            "beacon.{}".format(beacon_action),
+            target="{}:{}".format(minion, name),
+            detail=ret,
+        )
+        return Response(ret)
 
 
 class ScheduleViewSet(viewsets.ReadOnlyModelViewSet):

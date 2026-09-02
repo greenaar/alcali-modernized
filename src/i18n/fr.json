@@ -83,7 +83,8 @@
         "_returned for_": " retournée pour ",
         "JobEvent": "Événement de tâche",
         "NewJobCreated": "Nouvelle Tâche créée",
-        "States": "États"
+        "States": "États",
+        "Beacons": "Beacons"
       }
     },
     "CommonSettings": {
@@ -423,6 +424,28 @@
       "ConfirmTitle": "Supprimer l'historique du returner ?",
       "ConfirmBody": "Ceci supprime définitivement {0} ligne(s) : tâches de plus de {1} jours et évènements de plus de {2} jours. Irréversible.",
       "Removed": "{0} ligne(s) supprimée(s)"
+    },
+    "BeaconTable": {
+      "Title": "Beacons",
+      "Subtitle": "observateurs côté minion, tels que rapportés",
+      "Search": "Rechercher",
+      "Refresh": "Actualiser depuis les minions",
+      "Minion": "Minion",
+      "Name": "Beacon",
+      "State": "État",
+      "Config": "Surveille",
+      "Actions": "Actions",
+      "Enabled": "Activé",
+      "Disabled": "Désactivé",
+      "Enable": "Activer",
+      "Disable": "Désactiver",
+      "Delete": "Supprimer",
+      "Cancel": "Annuler",
+      "Empty": "Aucun beacon configuré, ou aucun n'a encore été lu depuis les minions.",
+      "ConfirmTitle": "Supprimer ce beacon ?",
+      "ConfirmBody": "Ceci retire le beacon {0} de {1}. Le minion cesse immédiatement de surveiller, et c'est irréversible depuis ici.",
+      "Refreshed": "Beacons lus depuis {0} minion(s)",
+      "NoReply": "Aucun minion n'a retourné ses beacons. Le master les a tous signalés sans réponse."
     }
   },
   "views": {

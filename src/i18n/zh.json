@@ -83,7 +83,8 @@
                 "_returned for_": "返回给",
                 "JobEvent": "Job Event",
                 "NewJobCreated": "新Job创建",
-                "States": "状态"
+                "States": "状态",
+                "Beacons": "Beacons"
             }
         },
         "CommonSettings": {
@@ -423,6 +424,28 @@
             "ConfirmTitle": "删除 returner 历史？",
             "ConfirmBody": "将永久删除 {0} 行：超过 {1} 天的作业与超过 {2} 天的事件。此操作不可撤销。",
             "Removed": "已删除 {0} 行"
+        },
+        "BeaconTable": {
+            "Title": "Beacons",
+            "Subtitle": "minion 端监视器，按 minion 的报告显示",
+            "Search": "搜索",
+            "Refresh": "从 minion 刷新",
+            "Minion": "Minion",
+            "Name": "Beacon",
+            "State": "状态",
+            "Config": "监视",
+            "Actions": "操作",
+            "Enabled": "已启用",
+            "Disabled": "已禁用",
+            "Enable": "启用",
+            "Disable": "禁用",
+            "Delete": "删除",
+            "Cancel": "取消",
+            "Empty": "未配置 beacon，或尚未从 minion 读取。",
+            "ConfirmTitle": "删除此 beacon？",
+            "ConfirmBody": "这将从 {1} 移除 beacon {0}。minion 会立即停止监视，且无法在此撤销。",
+            "Refreshed": "已从 {0} 个 minion 读取 beacons",
+            "NoReply": "没有 minion 返回其 beacons。master 将它们全部报告为无响应。"
         }
     },
     "views": {

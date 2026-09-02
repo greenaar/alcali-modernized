@@ -4,7 +4,7 @@ from django_currentuser.middleware import get_current_user
 
 from .salt_api import SaltApiClient, SaltApiError
 from ..utils.input import RawCommand
-from ..models import Minions, Functions, MinionsCustomFields, Keys, Schedule
+from ..models import Minions, Functions, MinionsCustomFields, Keys, Schedule, Beacon
 
 url = os.environ.get("SALT_URL", "https://127.0.0.1:8080")
 
@@ -379,3 +379,84 @@ def manage_schedules(action, name, minion):
                 schedule.job = json.dumps(loaded_job)
                 schedule.save()
     return {"result": "ok"}
+
+
+def refresh_beacons(minion=None):
+    """Mirror each minion's beacon configuration into Alcali's table.
+
+    Beacons live on the minion, so this is a read of their state and never a
+    source of truth; the table is rebuilt from what answers.
+    """
+    minion = minion or "*"
+    try:
+        api = api_connect()
+        api_ret = api.local(minion, "beacons.list", kwarg={"return_yaml": False})
+    except SaltApiError as e:
+        return {"error": str(e)}
+    try:
+        beacons = first_return(api_ret, "beacons.list")
+    except SaltApiError as e:
+        return {"error": str(e)}
+    if not isinstance(beacons, dict):
+        return {"error": "beacons.list returned {}".format(type(beacons).__name__)}
+
+    answered = {}
+    for minion_id, minion_beacons in beacons.items():
+        # As with schedules, a minion the master could not collect from is
+        # reported as False rather than as a mapping.
+        if not isinstance(minion_beacons, dict):
+            continue
+        answered[minion_id] = minion_beacons
+        Beacon.objects.filter(minion=minion_id).delete()
+        for name, config in minion_beacons.items():
+            # beacons.list carries the minion-wide on/off switch in the same
+            # mapping as the beacons themselves; it is not one of them.
+            if name in ("enabled", "beacons"):
+                continue
+            Beacon.objects.create(
+                minion=minion_id, name=name, config=json.dumps(config)
+            )
+    if beacons and not answered:
+        return {
+            "error": "{} minion(s) were targeted and none returned their "
+            "beacons. The master reported each of them as no-response, which "
+            "is what it does when it cannot read the job back from its job "
+            "cache.".format(len(beacons))
+        }
+    return answered
+
+
+def manage_beacons(action, name, minion):
+    """Enable, disable or delete one beacon on one minion."""
+    functions = {
+        "delete": "beacons.delete",
+        "enable": "beacons.enable_beacon",
+        "disable": "beacons.disable_beacon",
+    }
+    if action not in functions:
+        return {"error": "unknown action {!r}".format(action)}
+    try:
+        api = api_connect()
+        api_ret = api.local(minion, functions[action], arg=[name])
+    except SaltApiError as e:
+        return {"error": str(e)}
+    try:
+        results = first_return(api_ret, functions[action])
+    except SaltApiError as e:
+        return {"error": str(e)}
+    if not isinstance(results, dict):
+        return {"error": "{} returned no result".format(functions[action])}
+
+    # Re-read rather than patching the stored copy: the minion decides what
+    # its beacon configuration is, and a partial edit here would drift.
+    changed = {
+        target: bool(result.get("result"))
+        if isinstance(result, dict)
+        else bool(result)
+        for target, result in results.items()
+    }
+    if any(changed.values()):
+        refreshed = refresh_beacons(minion)
+        if isinstance(refreshed, dict) and refreshed.get("error"):
+            return refreshed
+    return changed

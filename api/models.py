@@ -355,6 +355,47 @@ class Schedule(models.Model):
         app_label = "api"
 
 
+class Beacon(models.Model):
+    """A minion-side beacon, as reported by beacons.list.
+
+    The direct sibling of Schedule, and kept the same shape deliberately:
+    both are minion-local configuration that Alcali mirrors rather than owns,
+    refreshed from the minion and never treated as the source of truth.
+    """
+
+    minion = models.CharField(max_length=128, null=False, blank=False)
+    name = models.CharField(max_length=255, blank=False, null=False)
+    config = models.TextField()
+
+    def loaded_config(self):
+        return json.loads(self.config)
+
+    def enabled(self):
+        """Beacons report their own enabled flag inside the config list.
+
+        beacons.list gives each beacon as a list of single-key mappings, one
+        of which may be {"enabled": bool}. Absent means enabled.
+        """
+        try:
+            entries = self.loaded_config()
+        except ValueError:
+            return True
+        if isinstance(entries, dict):
+            entries = [entries]
+        if not isinstance(entries, list):
+            return True
+        for entry in entries:
+            if isinstance(entry, dict) and "enabled" in entry:
+                return bool(entry["enabled"])
+        return True
+
+    def __str__(self):
+        return "{}:{}".format(self.minion, self.name)
+
+    class Meta:
+        app_label = "api"
+
+
 def generate_key():
     return binascii.hexlify(os.urandom(20)).decode()
 
