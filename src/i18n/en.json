@@ -84,7 +84,8 @@
         "JobEvent": "Job Event",
         "NewJobCreated": "New Job Created",
         "States": "States",
-        "Beacons": "Beacons"
+        "Beacons": "Beacons",
+        "Orchestrate": "Orchestration"
       }
     },
     "CommonSettings": {
@@ -458,6 +459,24 @@
       "status_warn": "Warnings",
       "status_fail": "Problems found",
       "status_unknown": "Unknown"
+    },
+    "OrchestrateCard": {
+      "Title": "Orchestration",
+      "Subtitle": "one runner drives the whole fleet",
+      "Sls": "Orchestration SLS",
+      "Saltenv": "Salt environment",
+      "Test": "Dry run (test=True)",
+      "Pillar": "Pillar override (optional)",
+      "DryRun": "Show what would change",
+      "Apply": "Apply for real",
+      "Output": "Output",
+      "Clear": "Clear",
+      "Cancel": "Cancel",
+      "RunDryInstead": "Dry run instead",
+      "ConfirmTitle": "Apply this orchestration?",
+      "ConfirmBody": "{0} runs on the master and can act on every minion it targets. This is not a dry run: changes are made.",
+      "StatesAvailable": "{0} SLS files available in this environment",
+      "StatesUnavailable": "Could not read the file server; type the SLS name"
     }
   },
   "views": {

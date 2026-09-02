@@ -84,7 +84,8 @@
         "JobEvent": "Événement de tâche",
         "NewJobCreated": "Nouvelle Tâche créée",
         "States": "États",
-        "Beacons": "Beacons"
+        "Beacons": "Beacons",
+        "Orchestrate": "Orchestration"
       }
     },
     "CommonSettings": {
@@ -458,6 +459,24 @@
       "status_warn": "Avertissements",
       "status_fail": "Problèmes détectés",
       "status_unknown": "Inconnu"
+    },
+    "OrchestrateCard": {
+      "Title": "Orchestration",
+      "Subtitle": "un runner pilote tout le parc",
+      "Sls": "SLS d'orchestration",
+      "Saltenv": "Environnement Salt",
+      "Test": "Simulation (test=True)",
+      "Pillar": "Surcharge de pillar (optionnel)",
+      "DryRun": "Voir ce qui changerait",
+      "Apply": "Appliquer réellement",
+      "Output": "Sortie",
+      "Clear": "Effacer",
+      "Cancel": "Annuler",
+      "RunDryInstead": "Simuler plutôt",
+      "ConfirmTitle": "Appliquer cette orchestration ?",
+      "ConfirmBody": "{0} s'exécute sur le master et peut agir sur tous les minions ciblés. Ce n'est pas une simulation : des changements seront effectués.",
+      "StatesAvailable": "{0} fichiers SLS disponibles dans cet environnement",
+      "StatesUnavailable": "Serveur de fichiers illisible ; saisissez le nom du SLS"
     }
   },
   "views": {

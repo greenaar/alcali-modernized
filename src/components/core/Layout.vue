@@ -208,6 +208,11 @@ export default {
         icon: "sensors",
       },
       {
+        name: "components.core.Layout.Orchestrate",
+        path: "/orchestrate",
+        icon: "account_tree",
+      },
+      {
         name: "components.core.Layout.Conformity",
         path: "/conformity",
         icon: "done_all",

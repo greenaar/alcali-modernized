@@ -84,7 +84,8 @@
                 "JobEvent": "Job Event",
                 "NewJobCreated": "新Job创建",
                 "States": "状态",
-                "Beacons": "Beacons"
+                "Beacons": "Beacons",
+                "Orchestrate": "编排"
             }
         },
         "CommonSettings": {
@@ -458,6 +459,24 @@
             "status_warn": "警告",
             "status_fail": "发现问题",
             "status_unknown": "未知"
+        },
+        "OrchestrateCard": {
+            "Title": "编排",
+            "Subtitle": "一个 runner 驱动整个集群",
+            "Sls": "编排 SLS",
+            "Saltenv": "Salt 环境",
+            "Test": "试运行 (test=True)",
+            "Pillar": "Pillar 覆盖（可选）",
+            "DryRun": "查看将要发生的变更",
+            "Apply": "实际执行",
+            "Output": "输出",
+            "Clear": "清除",
+            "Cancel": "取消",
+            "RunDryInstead": "改为试运行",
+            "ConfirmTitle": "执行此编排？",
+            "ConfirmBody": "{0} 在 master 上运行，可作用于其定位的所有 minion。这不是试运行：将会做出变更。",
+            "StatesAvailable": "此环境中有 {0} 个可用的 SLS 文件",
+            "StatesUnavailable": "无法读取文件服务器；请输入 SLS 名称"
         }
     },
     "views": {

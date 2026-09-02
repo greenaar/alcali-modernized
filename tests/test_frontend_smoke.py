@@ -47,7 +47,7 @@ IGNORED = (
 ROUTES = [
     "/", "/minions", "/jobs", "/run", "/job_templates", "/schedules",
     "/conformity", "/states", "/keys", "/events", "/users", "/settings",
-    "/beacons",
+    "/beacons", "/orchestrate",
     "/search?q=salt",
 ]
 

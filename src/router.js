@@ -15,6 +15,7 @@ import ConformityDetail from "./views/ConformityDetail"
 import Users from "./views/Users"
 import Schedules from "./views/Schedules"
 import Beacons from "./views/Beacons"
+import Orchestrate from "./views/Orchestrate"
 import NotFound from "./components/NotFound"
 import Search from "./views/Search"
 import JobTemplates from "./views/JobTemplates"
@@ -101,6 +102,11 @@ const router = createRouter({
       path: "/beacons",
       name: "beacons",
       component: Beacons,
+    },
+    {
+      path: "/orchestrate",
+      name: "orchestrate",
+      component: Orchestrate,
     },
     {
       path: "/users",
