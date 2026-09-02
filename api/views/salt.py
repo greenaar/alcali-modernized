@@ -1,7 +1,10 @@
+import datetime
 import json
 
 from ansi2html import Ansi2HTMLConverter
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -17,21 +20,34 @@ TRUE_VALUES = ["1", "True", "true", "yes"]
 FALSE_VALUES = ["0", "False", "false", "no", ""]
 
 
+# jids.load also carries the master's publish key and, on some versions, an
+# eauth token in kwargs. Nothing outside this allowlist is exposed.
+PUBLISHED_LOAD_FIELDS = ("user", "tgt", "tgt_type", "fun", "arg", "metadata")
+
+
+def jid_loads(jids):
+    """Map jid -> the publish payload, filtered to what is safe to show."""
+    loads = {}
+    for jid, raw in Jids.objects.filter(jid__in=list(jids)).values_list(
+        "jid", "load"
+    ):
+        try:
+            payload = json.loads(raw)
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        loads[jid] = {k: payload.get(k) for k in PUBLISHED_LOAD_FIELDS}
+    return loads
+
+
 def jid_users(jids):
     """Map jid -> submitting user in one query.
 
     `SaltReturns.user()` otherwise fetches the jids row per result, which turns
     a page of jobs into one query per row against the returner database.
     """
-    users = {}
-    for jid, load in Jids.objects.filter(jid__in=list(jids)).values_list(
-        "jid", "load"
-    ):
-        try:
-            users[jid] = json.loads(load).get("user", "")
-        except (TypeError, ValueError):
-            users[jid] = ""
-    return users
+    return {jid: load.get("user") or "" for jid, load in jid_loads(jids).items()}
 
 
 class MultipleFieldLookupMixin(object):
@@ -146,6 +162,7 @@ def job_summary(request, jid):
     # No `new` event (pruned, or the master never wrote one) means the expected
     # roster is unknown - which is not the same as "nothing is missing".
     missing = [m for m in published if m not in returned] if published else []
+    load = jid_loads([jid]).get(jid) or {}
     return Response(
         {
             "jid": jid,
@@ -155,8 +172,95 @@ def job_summary(request, jid):
             "succeeded": succeeded,
             "failed": failed,
             "missing": missing,
+            # What was actually asked for, as opposed to who happened to answer.
+            "target": load.get("tgt"),
+            "target_type": load.get("tgt_type"),
+            "function": load.get("fun"),
+            "arguments": load.get("arg"),
+            "user": load.get("user"),
+            "metadata": load.get("metadata"),
         }
     )
+
+
+@api_view(["GET"])
+def state_durations(request):
+    """Where highstate time actually goes, across the fleet.
+
+    Every state in a highstate return carries `duration` (milliseconds),
+    `start_time` and `__sls__` alongside its result. Alcali renders the newest
+    run as coloured HTML and drops the rest, so nothing answers "which state is
+    costing us a minute on every run".
+    """
+    try:
+        days = int(request.query_params.get("days", 7))
+    except (TypeError, ValueError):
+        days = 7
+    days = max(1, min(days, 365))
+    minion = request.query_params.get("id")
+
+    since = timezone.now() - datetime.timedelta(days=days)
+    rows = SaltReturns.objects.filter(
+        Q(fun="state.apply") | Q(fun="state.highstate"), alter_time__gte=since
+    ).defer("return_field")
+    if minion:
+        rows = rows.filter(id=minion)
+
+    states = {}
+    runs = 0
+    for row in rows.iterator():
+        payload = row.loaded_ret().get("return")
+        # A failed render returns a list of error strings, not a state map.
+        if not isinstance(payload, dict):
+            continue
+        runs += 1
+        for key, result in payload.items():
+            if not isinstance(result, dict):
+                continue
+            duration = result.get("duration")
+            if not isinstance(duration, (int, float)):
+                continue
+            name = result.get("__id__") or _state_name(key)
+            bucket = states.setdefault(
+                name,
+                {
+                    "state": name,
+                    "sls": result.get("__sls__") or "",
+                    "runs": 0,
+                    "total_ms": 0.0,
+                    "max_ms": 0.0,
+                    "changed": 0,
+                    "failed": 0,
+                    "minions": set(),
+                },
+            )
+            bucket["runs"] += 1
+            bucket["total_ms"] += duration
+            bucket["max_ms"] = max(bucket["max_ms"], duration)
+            bucket["minions"].add(row.id)
+            if result.get("changes"):
+                bucket["changed"] += 1
+            if result.get("result") is False:
+                bucket["failed"] += 1
+
+    summary = []
+    for bucket in states.values():
+        bucket["minions"] = len(bucket["minions"])
+        bucket["mean_ms"] = round(bucket["total_ms"] / bucket["runs"], 1)
+        bucket["total_ms"] = round(bucket["total_ms"], 1)
+        bucket["max_ms"] = round(bucket["max_ms"], 1)
+        # A state reporting changes on nearly every run is not converged; it is
+        # being re-applied each time.
+        bucket["change_rate"] = round(bucket["changed"] / bucket["runs"], 3)
+        summary.append(bucket)
+    summary.sort(key=lambda b: b["total_ms"], reverse=True)
+    return Response({"days": days, "highstates": runs, "states": summary})
+
+
+def _state_name(key):
+    """`pkg_|-nginx_|-nginx_|-installed` -> `nginx`, falling back to the key."""
+    parts = key.split("_|-")
+    return parts[1] if len(parts) > 2 else key
 
 
 @api_view(["GET"])

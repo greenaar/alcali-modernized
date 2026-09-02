@@ -64,7 +64,8 @@
                 "_published for_": "发布给",
                 "_returned for_": "返回给",
                 "JobEvent": "Job Event",
-                "NewJobCreated": "新Job创建"
+                "NewJobCreated": "新Job创建",
+                "States": "状态"
             }
         },
         "CommonSettings": {
@@ -336,6 +337,22 @@
             "Day": "24 小时",
             "ThreeDays": "3 天",
             "Week": "1 周",
+            "Month": "30 天"
+        },
+        "StateDurationsTable": {
+            "Title": "状态耗时与漂移",
+            "Subtitle": "基于最近 {1} 天内的 {0} 次 highstate 执行",
+            "State": "状态",
+            "Sls": "SLS",
+            "Total": "总耗时",
+            "Mean": "平均",
+            "Slowest": "最慢",
+            "Runs": "执行次数",
+            "Minions": "客户端",
+            "Changing": "变更率",
+            "Failed": "失败",
+            "Day": "24 小时",
+            "Week": "7 天",
             "Month": "30 天"
         }
     },

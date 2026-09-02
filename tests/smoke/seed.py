@@ -115,7 +115,21 @@ def seed(username="smoke-admin", password="smoke-password-123"):
         fun = "state.apply" if highstate else "test.ping"
         ok = i % 5 != 0
         payload = (
-            {"pkg_|-x_|-x_|-installed": {"result": ok, "comment": "ok", "changes": {}}}
+            {
+                # Real highstate returns carry per-state timing and sls, which
+                # is what the state cost view reads.
+                "pkg_|-nginx_|-nginx_|-installed": {
+                    "result": ok, "comment": "ok", "changes": {},
+                    "duration": 30000.0, "__sls__": "web.nginx", "__id__": "nginx",
+                    "start_time": "18:09:30.691635", "__run_num__": 0,
+                },
+                "file_|-conf_|-/etc/app.conf_|-managed": {
+                    "result": True, "comment": "updated",
+                    "changes": {"diff": "---"},
+                    "duration": 120.0, "__sls__": "web.conf", "__id__": "conf",
+                    "start_time": "18:09:31.691635", "__run_num__": 1,
+                },
+            }
             if highstate else "pong"
         )
         full = {"fun": fun, "jid": jid, "return": payload, "retcode": 0 if ok else 1,

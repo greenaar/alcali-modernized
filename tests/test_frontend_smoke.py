@@ -34,7 +34,8 @@ IGNORED = (
 
 ROUTES = [
     "/", "/minions", "/jobs", "/run", "/job_templates", "/schedules",
-    "/conformity", "/keys", "/events", "/users", "/settings", "/search?q=salt",
+    "/conformity", "/states", "/keys", "/events", "/users", "/settings",
+    "/search?q=salt",
 ]
 
 
@@ -170,3 +171,13 @@ def test_job_view_reports_minions_that_never_replied(page):
     page.wait_for_timeout(1500)
     body = page.locator(".v-main").inner_text()
     assert "never returned" in body or "never-returned.example.test" in body
+
+
+def test_state_costs_are_reported(page):
+    page, base, _ = page
+    page.goto(base + "/states", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    body = page.locator(".v-main").inner_text()
+    # Per-state duration and sls live in full_ret and nothing else reads them.
+    assert "nginx" in body and "web.nginx" in body
+    assert "30.0s" in body

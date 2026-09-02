@@ -64,7 +64,8 @@
         "_published for_": " published for ",
         "_returned for_": " returned for ",
         "JobEvent": "Job Event",
-        "NewJobCreated": "New Job Created"
+        "NewJobCreated": "New Job Created",
+        "States": "States"
       }
     },
     "CommonSettings": {
@@ -336,6 +337,22 @@
       "Day": "24 hours",
       "ThreeDays": "3 days",
       "Week": "1 week",
+      "Month": "30 days"
+    },
+    "StateDurationsTable": {
+      "Title": "State cost and drift",
+      "Subtitle": "from {0} highstate run(s) in the last {1} day(s)",
+      "State": "State",
+      "Sls": "SLS",
+      "Total": "Total time",
+      "Mean": "Mean",
+      "Slowest": "Slowest",
+      "Runs": "Runs",
+      "Minions": "Minions",
+      "Changing": "Changing",
+      "Failed": "Failed",
+      "Day": "24 hours",
+      "Week": "7 days",
       "Month": "30 days"
     }
   },

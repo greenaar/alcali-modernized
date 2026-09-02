@@ -17,6 +17,7 @@ import Schedules from "./views/Schedules"
 import NotFound from "./components/NotFound"
 import Search from "./views/Search"
 import JobTemplates from "./views/JobTemplates"
+import States from "./views/States"
 
 const router = createRouter({
   history: createWebHistory(),
@@ -78,6 +79,11 @@ const router = createRouter({
       path: "/conformity",
       name: "conformity",
       component: Conformity,
+    },
+    {
+      path: "/states",
+      name: "states",
+      component: States,
     },
     {
       path: "/conformity/:minion_id",

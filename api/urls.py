@@ -10,6 +10,7 @@ from api.views.salt import (
     jobs_filters,
     job_rendered,
     job_summary,
+    state_durations,
     SaltReturnsListJid,
 )
 
@@ -77,6 +78,7 @@ urlpatterns = [
         name="jobs-detail-rendered",
     ),
     path("api/jobs/graph", jobs_graph, name="jobs_graph"),
+    path("api/states/durations/", state_durations, name="state-durations"),
 ]
 
 # The frontend routes on the History API, so a direct hit or a refresh on

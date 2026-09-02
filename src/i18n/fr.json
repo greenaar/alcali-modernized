@@ -64,7 +64,8 @@
         "_published for_": " publiée pour ",
         "_returned for_": " retournée pour ",
         "JobEvent": "Événement de tâche",
-        "NewJobCreated": "Nouvelle Tâche créée"
+        "NewJobCreated": "Nouvelle Tâche créée",
+        "States": "États"
       }
     },
     "CommonSettings": {
@@ -336,6 +337,22 @@
       "Day": "24 heures",
       "ThreeDays": "3 jours",
       "Week": "1 semaine",
+      "Month": "30 jours"
+    },
+    "StateDurationsTable": {
+      "Title": "Coût et dérive des états",
+      "Subtitle": "sur {0} exécution(s) highstate ces {1} jour(s)",
+      "State": "État",
+      "Sls": "SLS",
+      "Total": "Temps total",
+      "Mean": "Moyenne",
+      "Slowest": "Plus lent",
+      "Runs": "Exécutions",
+      "Minions": "Minions",
+      "Changing": "Modifiant",
+      "Failed": "Échoués",
+      "Day": "24 heures",
+      "Week": "7 jours",
       "Month": "30 jours"
     }
   },

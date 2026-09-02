@@ -211,6 +211,11 @@ export default {
         icon: "done_all",
       },
       {
+        name: "components.core.Layout.States",
+        path: "/states",
+        icon: "timer",
+      },
+      {
         name: "components.core.Layout.Keys",
         path: "/keys",
         icon: "vpn_key",
