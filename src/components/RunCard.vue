@@ -103,6 +103,9 @@
                           :label="$t('components.RunCard.Target')"
                           v-model="target"
                           v-if="selected_client === 'local'"
+                          @update:model-value="previewTarget"
+                          :hint="targetHint"
+                          persistent-hint
                         ></v-text-field>
                       </v-col>
                       <v-col lg="2">
@@ -375,6 +378,8 @@ export default {
       ],
       selected_target_type: "glob",
       target: "",
+      preview: null,
+      previewTimer: null,
       arg: "",
       kwarg: "",
       results: "",
@@ -393,7 +398,38 @@ export default {
       scheduleName: null,
     };
   },
+  watch: {
+    selected_target_type() {
+      this.previewTarget()
+    },
+  },
   methods: {
+    previewTarget() {
+      clearTimeout(this.previewTimer)
+      if (this.selected_client !== "local" || !this.target) {
+        this.preview = null
+        return
+      }
+      this.previewTimer = setTimeout(() => {
+        this.$http
+          .get("api/minions/preview_target/", {
+            params: { tgt: this.target, tgt_type: this.targetTypeValue() },
+          })
+          .then((response) => {
+            this.preview = response.data
+          })
+          .catch(() => {
+            this.preview = null
+          })
+      }, 300)
+    },
+    // The select stores Salt's CLI flag ("--grain"); the API wants the name.
+    targetTypeValue() {
+      let entry = this.target_type.find(
+        (i) => i.value === this.selected_target_type
+      )
+      return entry ? entry.text : "glob"
+    },
     onAutoCompleteSelection() {
       if (this.dummySelectedFunc == null) {
         this.selectedFunc = null
@@ -521,6 +557,18 @@ export default {
     },
   },
   computed: {
+    // Show the blast radius before the job is published. Alcali holds the
+    // grains locally, so this costs the master nothing.
+    targetHint() {
+      if (!this.preview) return "";
+      if (!this.preview.evaluated) {
+        return this.$t("components.RunCard.TargetNotPreviewed");
+      }
+      return this.$t("components.RunCard.TargetMatches", [
+        this.preview.count,
+        this.preview.known_minions,
+      ]);
+    },
     filteredFunction: function () {
       if (this.functions === null) {
         return;

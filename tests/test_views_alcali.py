@@ -545,3 +545,58 @@ def test_silent_ignores_keys_that_are_not_accepted(admin_client, jwt):
     body = admin_client.get("/api/minions/silent/", **jwt).json()
     assert body["accepted"] == 0
     assert body["silent"] == []
+
+
+# --- targeting and search ------------------------------------------------
+
+
+@pytest.mark.django_db()
+def test_preview_target_evaluates_what_it_can(admin_client, jwt):
+    import json as _json
+
+    Minions.objects.create(
+        minion_id="web01", grain=_json.dumps({"os": "Ubuntu", "role": "web"}),
+        pillar=_json.dumps({"env": "prod"}),
+    )
+    Minions.objects.create(
+        minion_id="db01", grain=_json.dumps({"os": "Debian", "role": "db"}),
+        pillar=_json.dumps({"env": "staging"}),
+    )
+
+    def preview(tgt, tgt_type="glob"):
+        return admin_client.get(
+            "/api/minions/preview_target/?tgt={}&tgt_type={}".format(tgt, tgt_type),
+            **jwt
+        ).json()
+
+    assert preview("web*")["matched"] == ["web01"]
+    assert preview("*")["count"] == 2
+    assert preview("web01,db01", "list")["matched"] == ["db01", "web01"]
+    assert preview("os:Ubuntu", "grain")["matched"] == ["web01"]
+    assert preview("env:prod", "pillar")["matched"] == ["web01"]
+
+
+@pytest.mark.django_db()
+def test_preview_target_refuses_what_it_cannot_evaluate(admin_client, jwt):
+    # A wrong blast radius is worse than none, so compound expressions - which
+    # only the master can resolve - are reported as not evaluated.
+    body = admin_client.get(
+        "/api/minions/preview_target/?tgt=G@os:Ubuntu and web*&tgt_type=compound",
+        **jwt
+    ).json()
+    assert body["evaluated"] is False
+    assert body["matched"] == []
+    assert "compound" in body["reason"]
+
+
+@pytest.mark.django_db()
+def test_search_finds_a_minion_by_its_grains(admin_client, jwt):
+    import json as _json
+
+    Minions.objects.create(
+        minion_id="web01",
+        grain=_json.dumps({"os": "Ubuntu", "ipv4": ["10.0.3.14"]}),
+        pillar=_json.dumps({}),
+    )
+    body = admin_client.get("/api/search/?q=10.0.3.14", **jwt).json()
+    assert [m["minion_id"] for m in body["minions"]] == ["web01"]

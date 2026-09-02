@@ -65,6 +65,7 @@ from api.serializers import (
     MinionsSerializer,
 )
 from api.utils import graph_data, render_conformity, RawCommand
+from api.utils.matching import glob_match, list_match, subdict_match
 from api.utils.output import highstate_output, nested_output
 
 # Serve Vue Application
@@ -121,6 +122,7 @@ class MinionsViewSet(viewsets.ModelViewSet):
         # Salt credentials, so the master applies their eauth ACL. Deleting a
         # minion only touches Alcali's table, and stays staff only.
         if self.action in (
+            "preview_target",
             "refresh_minions",
             "conformity",
             "conformity_detail",
@@ -157,6 +159,63 @@ class MinionsViewSet(viewsets.ModelViewSet):
             if "error" in ret:
                 return Response(ret["error"], status=401)
         return Response({"refreshed": accepted_minions})
+
+    @action(detail=False)
+    def preview_target(self, request):
+        """Which stored minions a target expression would select.
+
+        Alcali holds every refreshed minion's grains and pillar, so the blast
+        radius of a job can be shown before it is published. Only the target
+        types that can be evaluated faithfully from that data are answered;
+        anything else - compound, pcre, range, nodegroup - reports that it was
+        not evaluated rather than guessing, because a wrong blast radius is
+        worse than none. The roster is also only as current as the last
+        refresh, which the response says.
+        """
+        expression = request.query_params.get("tgt", "")
+        tgt_type = request.query_params.get("tgt_type", "glob")
+        supported = {"glob", "list", "grain", "pillar"}
+        if tgt_type not in supported:
+            return Response(
+                {
+                    "evaluated": False,
+                    "tgt": expression,
+                    "tgt_type": tgt_type,
+                    "reason": "{} expressions are evaluated by the master, not "
+                    "from stored grains".format(tgt_type),
+                    "matched": [],
+                }
+            )
+
+        matched = []
+        for minion in Minions.objects.all():
+            if tgt_type == "glob":
+                hit = glob_match(minion.minion_id, expression or "*")
+            elif tgt_type == "list":
+                hit = list_match(minion.minion_id, expression)
+            else:
+                try:
+                    data = (
+                        minion.loaded_grain()
+                        if tgt_type == "grain"
+                        else minion.loaded_pillar()
+                    )
+                except ValueError:
+                    continue
+                hit = subdict_match(data, expression)
+            if hit:
+                matched.append(minion.minion_id)
+        matched.sort()
+        return Response(
+            {
+                "evaluated": True,
+                "tgt": expression,
+                "tgt_type": tgt_type,
+                "matched": matched,
+                "count": len(matched),
+                "known_minions": Minions.objects.count(),
+            }
+        )
 
     @action(detail=False)
     def silent(self, request):
@@ -486,7 +545,14 @@ def search(request):
         # First try to match minions.
         minion_results = []
         return_results = []
-        minion_query = Minions.objects.filter(minion_id__icontains=query)
+        # Grains and pillar are stored as JSON text, so a substring match over
+        # them finds a minion by anything Salt knows about it - an address, a
+        # MAC, a kernel version - not just by name.
+        minion_query = Minions.objects.filter(
+            Q(minion_id__icontains=query)
+            | Q(grain__icontains=query)
+            | Q(pillar__icontains=query)
+        )
         return_query = SaltReturns.objects.filter(
             Q(jid__icontains=query) | Q(fun__icontains=query)
         )[:200]

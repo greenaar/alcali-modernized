@@ -289,7 +289,9 @@
       "KeywordArguments": "Mots clés Arguments",
       "RunOnce": "Tâche unique:  ",
       "Running": "Lancement de",
-      "Scheduling": "Planification de"
+      "Scheduling": "Planification de",
+      "TargetMatches": "correspond à {0} minions sur {1} connus",
+      "TargetNotPreviewed": "non prévisualisé - ce type de cible est résolu par le master"
     },
     "Schedules": {
       "Refresh": "Actualiser les tâches",

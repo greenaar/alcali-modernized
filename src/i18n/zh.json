@@ -289,7 +289,9 @@
             "KeywordArguments": "关键词参数",
             "RunOnce": "一次运行： ",
             "Running": "运行中",
-            "Scheduling": "计划中"
+            "Scheduling": "计划中",
+            "TargetMatches": "匹配 {1} 个已知客户端中的 {0} 个",
+            "TargetNotPreviewed": "未预览 - 该目标类型由 master 解析"
         },
         "Schedules": {
             "Refresh": "刷新计划",

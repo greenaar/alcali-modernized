@@ -181,3 +181,15 @@ def test_state_costs_are_reported(page):
     # Per-state duration and sls live in full_ret and nothing else reads them.
     assert "nginx" in body and "web.nginx" in body
     assert "30.0s" in body
+
+
+def test_run_page_previews_the_blast_radius(page):
+    page, base, _ = page
+    page.goto(base + "/run", wait_until="networkidle")
+    page.wait_for_timeout(1500)
+    target = page.get_by_label("Target", exact=True)
+    target.fill("*")
+    page.wait_for_timeout(1500)
+    body = page.locator(".v-main").inner_text()
+    # Three minions are seeded; the roster comes from stored grains.
+    assert "matches 3 of 3 known minions" in body
