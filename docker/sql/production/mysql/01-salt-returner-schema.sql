@@ -29,7 +29,14 @@ CREATE TABLE IF NOT EXISTS `salt_returns` (
   `alter_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   KEY `id` (`id`),
   KEY `jid` (`jid`),
-  KEY `fun` (`fun`)
+  KEY `fun` (`fun`),
+  -- Not in Salt's own DDL. Almost every Alcali query orders by alter_time
+  -- (the jobs list, each minion's last job, the activity graph), and without
+  -- this the server sorts the whole table - dragging two mediumtext columns
+  -- through the filesort - on each one.
+  KEY `alter_time` (`alter_time`),
+  -- The per-minion lookups filter on id and then order by time.
+  KEY `id_alter_time` (`id`, `alter_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `salt_events` (

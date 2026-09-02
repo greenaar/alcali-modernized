@@ -49,3 +49,41 @@ def test_salt_returns_job_rendered(jid, highstate, admin_client, jwt):
         "/api/jobs/20190429180928455927/2e220fd40bc5/rendered_state/", **jwt
     )
     assert response.status_code == 200
+
+
+@pytest.mark.django_db()
+def test_jobs_filter_by_function(admin_client, jwt, highstate, jid):
+    highstate()
+    response = admin_client.get("/api/jobs/?functions[]=state.apply", **jwt)
+    assert response.status_code == 200
+    assert {row["fun"] for row in response.json()} == {"state.apply"}
+
+    response = admin_client.get("/api/jobs/?functions[]=test.ping", **jwt)
+    assert response.json() == []
+
+
+@pytest.mark.django_db()
+def test_jobs_filter_by_success(admin_client, jwt, highstate, jid):
+    highstate()
+    SaltReturns.objects.filter(fun="state.apply").update(success="0")
+    assert admin_client.get("/api/jobs/?success=true", **jwt).json() == []
+    failed = admin_client.get("/api/jobs/?success=false", **jwt).json()
+    assert len(failed) == 1
+
+
+@pytest.mark.django_db()
+def test_jobs_list_omits_the_payload_columns(admin_client, jwt, highstate, jid):
+    highstate()
+    row = admin_client.get("/api/jobs/", **jwt).json()[0]
+    # A highstate payload is large and nothing renders it; the detail view
+    # fetches formatted output from /rendered_state/ instead.
+    assert "full_ret" not in row and "return_field" not in row
+    # The fields derived from full_ret still resolve.
+    assert set(row) >= {"jid", "id", "fun", "arguments", "success", "user"}
+
+
+@pytest.mark.django_db()
+def test_jobs_filters_lists_functions(admin_client, jwt, highstate, jid):
+    highstate()
+    body = admin_client.get("/api/jobs/filters/", **jwt).json()
+    assert "state.apply" in body["functions"]

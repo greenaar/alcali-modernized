@@ -11,6 +11,12 @@ from api.serializers import SaltReturnsSerializer, EventsSerializer
 from api.utils.output import highstate_output, nested_output
 
 
+# salt_returns.success is a varchar the returner fills in; different Salt
+# versions have written "1"/"0" and "True"/"False" into it.
+TRUE_VALUES = ["1", "True", "true", "yes"]
+FALSE_VALUES = ["0", "False", "false", "no", ""]
+
+
 def jid_users(jids):
     """Map jid -> submitting user in one query.
 
@@ -50,22 +56,41 @@ class SaltReturnsList(generics.ListAPIView):
     serializer_class = SaltReturnsSerializer
 
     def get_queryset(self):
-        queryset = SaltReturns.objects.all()
+        queryset = SaltReturns.objects.all().defer("return_field")
         qry = {}
         start = self.request.query_params.get("start", None)
         end = self.request.query_params.get("end", None)
-        limit = int(self.request.query_params.get("limit", 50))
+        try:
+            limit = int(self.request.query_params.get("limit", 50))
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(limit, 5000))
         target = self.request.query_params.getlist("target[]")
         users = self.request.query_params.getlist("users[]", None)
+        functions = self.request.query_params.getlist("functions[]")
+        success = self.request.query_params.get("success")
         if target:
             if len(target) > 1:
                 qry["id__in"] = target
             else:
                 qry["id"] = target[0]
+        if functions:
+            qry["fun__in"] = functions
         if start and end:
             qry["alter_time__date__range"] = [start, end]
 
-        queryset = list(queryset.filter(**qry).order_by("-alter_time")[:limit])
+        queryset = queryset.filter(**qry)
+
+        # The returner writes its own verdict to salt_returns.success, so a
+        # "show me what failed" query can be answered in SQL instead of pulling
+        # every row into Python to re-derive it from full_ret.
+        if success in ("true", "false"):
+            wanted = success == "true"
+            queryset = queryset.filter(
+                success__in=TRUE_VALUES if wanted else FALSE_VALUES
+            )
+
+        queryset = list(queryset.order_by("-alter_time")[:limit])
         self._jid_users = jid_users({i.jid for i in queryset})
         if users:
             queryset = [i for i in queryset if self._jid_users.get(i.jid, "") in users]
@@ -82,7 +107,9 @@ class SaltReturnsListJid(generics.ListAPIView):
 
     def get_queryset(self):
         jid = self.kwargs["jid"]
-        return SaltReturns.objects.filter(jid=jid).order_by("-alter_time")
+        return SaltReturns.objects.filter(jid=jid).defer("return_field").order_by(
+            "-alter_time"
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -95,11 +122,20 @@ def jobs_filters(request):
     # Filter options.
     user_list = list(set(jid_users(Jids.objects.values_list("jid", flat=True)).values()))
     minion_list = SaltReturns.objects.values_list("id", flat=True).distinct()
-    return Response({"users": user_list, "minions": minion_list})
+    function_list = (
+        SaltReturns.objects.values_list("fun", flat=True).distinct().order_by("fun")
+    )
+    return Response(
+        {
+            "users": user_list,
+            "minions": minion_list,
+            "functions": list(function_list),
+        }
+    )
 
 
 class SaltReturnsRetrieve(MultipleFieldLookupMixin, generics.RetrieveAPIView):
-    queryset = SaltReturns.objects.all().order_by("-alter_time")
+    queryset = SaltReturns.objects.all().defer("return_field").order_by("-alter_time")
     serializer_class = SaltReturnsSerializer
     lookup_fields = ["jid", "id"]
 

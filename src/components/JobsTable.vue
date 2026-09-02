@@ -9,7 +9,7 @@
                 $t("components.JobsTable.SearchJobs")
               }}</v-card-title>
             </v-col>
-            <v-col lg="2" offset-lg="2">
+            <v-col lg="2">
               <v-menu
                 ref="menu"
                 v-model="menu"
@@ -78,6 +78,34 @@
                   >
                 </template>
               </v-autocomplete>
+            </v-col>
+            <v-col lg="2">
+              <v-autocomplete
+                :items="functions"
+                v-model="selectedFunctions"
+                :label="$t('components.JobsTable.Function')"
+                multiple
+                single-line
+              >
+                <template v-slot:selection="{ item, index }">
+                  <span v-if="index === 0">{{ item.title }}</span>
+                  <span v-if="index === 1" class="text-grey text-caption">
+                    (+{{ selectedFunctions.length - 1 }} others)</span
+                  >
+                </template>
+              </v-autocomplete>
+            </v-col>
+            <v-col lg="1">
+              <v-select
+                :items="statuses"
+                item-title="text"
+                item-value="value"
+                v-model="selectedSuccess"
+                :label="$t('components.JobsTable.Status')"
+                single-line
+                clearable
+              >
+              </v-select>
             </v-col>
             <v-col lg="1">
               <v-select
@@ -225,8 +253,15 @@ export default {
       selectedLimit: null,
       selectedUsers: null,
       selectedTarget: null,
+      selectedFunctions: null,
+      selectedSuccess: null,
       minions: [],
       users: [],
+      functions: [],
+      statuses: [
+        { text: this.$t("components.JobsTable.Success"), value: "true" },
+        { text: this.$t("components.JobsTable.Failed"), value: "false" },
+      ],
       search: "",
       headers: [
         { text: this.$t("components.JobsTable.JID"), value: "jid" },
@@ -285,6 +320,7 @@ export default {
       this.$http.get("api/jobs/filters/").then((response) => {
         this.minions = response.data.minions;
         this.users = response.data.users;
+        this.functions = response.data.functions || [];
       });
       if (this.jid) {
         this.$http.get(`api/jobs/${this.jid}`).then((response) => {
@@ -302,11 +338,17 @@ export default {
     },
     filterJobs() {
       this.loading = true;
+      // Filtering happens in SQL: the search box below only sees the rows
+      // already fetched, so narrowing here is what actually searches history.
       let params = {
         limit: this.selectedLimit,
         target: this.selectedTarget,
         users: this.selectedUsers,
+        functions: this.selectedFunctions,
       };
+      if (this.selectedSuccess !== null && this.selectedSuccess !== undefined) {
+        params.success = this.selectedSuccess;
+      }
       if (this.selectedDate.length > 0) {
         params.start = this.selectedDate[0];
         params.end = this.selectedDate[1] || this.selectedDate[0];
@@ -318,7 +360,6 @@ export default {
         .then((response) => {
           this.jobs = response.data;
           this.loading = false;
-          this.selectedUsers = this.selectedTarget = this.selectedLimit = this.selectedDate = null;
           this.selectedDate = [];
         });
     },

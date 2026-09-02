@@ -22,13 +22,41 @@ def django_db_setup(django_db_setup, django_db_blocker):
     instantiated its connection leaves the connection bound to the original
     settings, so the suite silently migrates the development database in the
     repository root and only passes on a checkout where that file is absent.
+
+    Building them from the models is not good enough: Django maps
+    ``salt_returns.id`` (the minion) as the primary key, so schema_editor's DDL
+    makes it UNIQUE and the table cannot hold two returns for one minion. Salt's
+    real schema has no primary key there, and code that assumes otherwise - a
+    delete keyed on pk, say - would pass against a table that cannot reproduce
+    the case. So the returner tables are created with Salt's own DDL.
     """
     settings.USE_TZ = False
     settings.SECRET_KEY = "alcali-tests-only-secret-key-at-least-32-bytes"
     with django_db_blocker.unblock():
-        with connection.schema_editor() as schema_editor:
-            for model in (Jids, SaltReturns, SaltEvents):
-                schema_editor.create_model(model)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "CREATE TABLE jids ("
+                " jid varchar(255) NOT NULL PRIMARY KEY,"
+                " load text NOT NULL)"
+            )
+            cursor.execute(
+                "CREATE TABLE salt_returns ("
+                " fun varchar(50) NOT NULL,"
+                " jid varchar(255) NOT NULL,"
+                ' "return" text NOT NULL,'
+                " id varchar(255) NOT NULL,"
+                " success varchar(10) NOT NULL,"
+                " full_ret text NOT NULL,"
+                " alter_time datetime NOT NULL)"
+            )
+            cursor.execute(
+                "CREATE TABLE salt_events ("
+                " id integer NOT NULL PRIMARY KEY AUTOINCREMENT,"
+                " tag varchar(255) NOT NULL,"
+                " data text NOT NULL,"
+                " alter_time datetime NOT NULL,"
+                " master_id varchar(255) NOT NULL)"
+            )
     yield
 
 

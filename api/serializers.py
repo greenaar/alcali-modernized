@@ -27,7 +27,12 @@ class SaltReturnsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SaltReturns
-        fields = "__all__"
+        # `return` and `full_ret` are the job payload, which for a highstate
+        # runs to hundreds of kilobytes. No consumer renders them - the detail
+        # view fetches formatted output from /rendered_state/ - so they are not
+        # worth putting on the wire once per row. full_ret is still loaded,
+        # because arguments, keyword_arguments and success are derived from it.
+        exclude = ("return_field", "full_ret")
 
     def get_user(self, obj):
         # SaltReturns.user() reads the jids table one row at a time. The list
