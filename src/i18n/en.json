@@ -371,6 +371,23 @@
       "Who": "Who",
       "Action": "Action",
       "Target": "Target"
+    },
+    "RetentionCard": {
+      "Title": "Returner retention",
+      "Subtitle": "Salt never removes these rows; they grow until something does",
+      "KeepJobs": "Keep jobs for",
+      "KeepEvents": "Keep events for",
+      "Days": "days",
+      "Preview": "Preview",
+      "Delete": "Delete",
+      "Cancel": "Cancel",
+      "Table": "Table",
+      "Matching": "Older than window",
+      "Total": "Total",
+      "NothingToRemove": "Nothing is older than that window.",
+      "ConfirmTitle": "Delete returner history?",
+      "ConfirmBody": "This permanently removes {0} row(s): jobs older than {1} days and events older than {2} days. It cannot be undone.",
+      "Removed": "{0} row(s) removed"
     }
   },
   "views": {

@@ -39,11 +39,16 @@ from api.backend.netapi import (
     get_keys,
     manage_schedules,
 )
+from api.management.commands.prune_returns import (
+    _delete_by_pk,
+    _delete_by_time,
+)
 from api.models import (
     SaltReturns,
     Keys,
     Minions,
     SaltEvents,
+    Jids,
     Schedule,
     Conformity,
     UserSettings,
@@ -626,6 +631,71 @@ def search(request):
 
         # Return to referer
     return HttpResponseRedirect(request.META.get("HTTP_REFERER"))
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def prune(request):
+    """Report or apply the returner retention window.
+
+    Salt's mysql returner never deletes anything - keep_jobs_seconds governs
+    the master's own job cache, not this database - so these tables grow for
+    the life of the installation. GET reports what a window would remove;
+    POST removes it. Staff only, since it destroys history.
+    """
+    try:
+        days = int(request.query_params.get("days") or request.data.get("days") or 30)
+    except (TypeError, ValueError):
+        return Response({"error": "days must be a whole number"}, status=400)
+    try:
+        events_days = int(
+            request.query_params.get("events_days")
+            or request.data.get("events_days")
+            or days
+        )
+    except (TypeError, ValueError):
+        return Response({"error": "events_days must be a whole number"}, status=400)
+    if days < 1 or events_days < 1:
+        return Response({"error": "a window of less than a day is not allowed"}, status=400)
+
+    now = timezone.now()
+    returns_before = now - datetime.timedelta(days=days)
+    events_before = now - datetime.timedelta(days=events_days)
+    returns = SaltReturns.objects.filter(alter_time__lt=returns_before)
+    events = SaltEvents.objects.filter(alter_time__lt=events_before)
+    stale_jids = Jids.objects.exclude(
+        jid__in=SaltReturns.objects.exclude(alter_time__lt=returns_before).values("jid")
+    )
+    counts = {
+        "salt_returns": returns.count(),
+        "salt_events": events.count(),
+        "jids": stale_jids.count(),
+    }
+    body = {
+        "days": days,
+        "events_days": events_days,
+        "matched": counts,
+        "totals": {
+            "salt_returns": SaltReturns.objects.count(),
+            "salt_events": SaltEvents.objects.count(),
+            "jids": Jids.objects.count(),
+        },
+    }
+    if request.method == "GET":
+        body["applied"] = False
+        return Response(body)
+
+    deleted = {
+        # salt_returns has no unique key, so this must delete on the time
+        # predicate and never by pk - see prune_returns.
+        "salt_returns": _delete_by_time(SaltReturns, returns_before),
+        "salt_events": _delete_by_pk(SaltEvents, events),
+        "jids": _delete_by_pk(Jids, stale_jids),
+    }
+    record("returner.prune", target="{} day(s)".format(days), detail=deleted)
+    body["applied"] = True
+    body["deleted"] = deleted
+    return Response(body)
 
 
 @api_view(["GET"])

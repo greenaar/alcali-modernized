@@ -1,5 +1,24 @@
 # Changelog
 
+## [3008.6.0] - 2026-09-02
+
+### Added
+
+- Returner retention in the UI. Settings gains a staff-only card that reports
+  how many rows fall outside a window before removing anything, and deletes
+  only on confirmation. Salt's mysql returner never removes rows of its own -
+  `keep_jobs_seconds` governs the master's job cache, not this database - so
+  these tables grow for the life of the installation. `GET`/`POST /api/prune/`
+  back it, and a removal is written to the audit log.
+
+### Fixed
+
+- Card headers laid their controls out vertically: the Minions "Column" button
+  sat above the search field rather than beside it, and the same applied to
+  every other card with a header control. `v-card-title` was a flex row in
+  Vuetify 2 and is a block in Vuetify 3, so the `v-spacer` in those headers did
+  nothing.
+
 ## [3008.5.2] - 2026-09-02
 
 ### Added

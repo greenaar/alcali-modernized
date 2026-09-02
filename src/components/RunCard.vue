@@ -330,7 +330,7 @@
     <v-row>
       <v-col sm="12">
         <v-card v-if="results">
-          <v-card-title>{{ $t("components.RunCard.Results") }}
+          <v-card-title class="d-flex align-center flex-wrap ga-3">{{ $t("components.RunCard.Results") }}
             <v-spacer></v-spacer>
             <v-btn color="primary" @click="results = ''">{{ $t("components.RunCard.Clear") }}</v-btn>
           </v-card-title>

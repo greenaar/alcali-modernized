@@ -1,7 +1,7 @@
 <template>
   <v-container fluid>
     <v-card>
-      <v-card-title>
+      <v-card-title class="d-flex align-center flex-wrap ga-3">
         {{ $t("components.EventsTable.Events") }}
         <span v-if="total > events.length" class="text-caption text-medium-emphasis ml-3">
           {{ $t("components.EventsTable.ShowingLatest", [events.length, total]) }}

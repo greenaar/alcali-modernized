@@ -371,6 +371,23 @@
       "Who": "Qui",
       "Action": "Action",
       "Target": "Cible"
+    },
+    "RetentionCard": {
+      "Title": "Rétention du returner",
+      "Subtitle": "Salt ne supprime jamais ces lignes ; elles s'accumulent",
+      "KeepJobs": "Conserver les tâches",
+      "KeepEvents": "Conserver les évènements",
+      "Days": "jours",
+      "Preview": "Aperçu",
+      "Delete": "Supprimer",
+      "Cancel": "Annuler",
+      "Table": "Table",
+      "Matching": "Hors fenêtre",
+      "Total": "Total",
+      "NothingToRemove": "Rien n'est plus ancien que cette fenêtre.",
+      "ConfirmTitle": "Supprimer l'historique du returner ?",
+      "ConfirmBody": "Ceci supprime définitivement {0} ligne(s) : tâches de plus de {1} jours et évènements de plus de {2} jours. Irréversible.",
+      "Removed": "{0} ligne(s) supprimée(s)"
     }
   },
   "views": {

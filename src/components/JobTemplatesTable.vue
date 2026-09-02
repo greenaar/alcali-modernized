@@ -3,7 +3,7 @@
     <v-row no-gutters>
       <v-col sm="12">
         <v-card>
-          <v-card-title>
+          <v-card-title class="d-flex align-center flex-wrap ga-3">
             {{ $t("components.JobTemplatesTable.JobTemplate") }}
             <v-spacer></v-spacer>
             <v-text-field

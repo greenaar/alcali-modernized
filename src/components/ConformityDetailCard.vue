@@ -1,7 +1,7 @@
 <template>
   <v-container fluid>
     <v-card>
-      <v-card-title>
+      <v-card-title class="d-flex align-center flex-wrap ga-3">
         {{ $t('components.ConformityDetailCard.HighstateConformity') }}
         <v-spacer></v-spacer>
         <v-checkbox

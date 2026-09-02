@@ -139,7 +139,7 @@
             {{ $t("components.JobsTable.MissingReturns", [summary.missing.length, summary.published_to.length]) }}
             <strong>{{ summary.missing.join(", ") }}</strong>
           </v-alert>
-          <v-card-title>
+          <v-card-title class="d-flex align-center flex-wrap ga-3">
             {{ $t("components.JobsTable.Job") }}
             <span v-if="summary && summary.expected_known" class="text-caption text-medium-emphasis ml-3">
               {{ $t("components.JobsTable.JobBreakdown", [summary.succeeded.length, summary.failed.length, summary.missing.length]) }}

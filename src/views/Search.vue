@@ -9,7 +9,7 @@
       <v-col sm="12" v-if="jobs.length > 0">
         <v-container fluid>
           <v-card>
-            <v-card-title>
+            <v-card-title class="d-flex align-center flex-wrap ga-3">
               {{ $t("views.Search.Jobs") }}
               <v-spacer></v-spacer>
               <v-text-field
@@ -66,7 +66,7 @@
       <v-col sm="12" v-if="minions.length > 0">
         <v-container fluid>
           <v-card>
-            <v-card-title>
+            <v-card-title class="d-flex align-center flex-wrap ga-3">
               Minions
               <v-spacer></v-spacer>
               <v-text-field

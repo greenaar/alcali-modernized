@@ -1,12 +1,12 @@
 <template>
   <v-container fluid>
     <v-card>
-      <v-card-title>
+      <v-card-title class="d-flex align-center flex-wrap ga-3">
         {{ $t("components.MinionsTable.Minion") }}
         <v-spacer></v-spacer>
         <v-menu v-model="menu" :close-on-content-click="false" offset-y offset-x left>
           <template v-slot:activator="{ props }">
-            <v-btn color="primary" v-bind="props" class="mr-5">
+            <v-btn color="primary" variant="tonal" v-bind="props">
               {{ $t("components.MinionsTable.Column") }}
             </v-btn>
           </template>

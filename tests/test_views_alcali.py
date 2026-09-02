@@ -744,3 +744,78 @@ def test_refresh_all_flags_a_master_that_answered_with_nobody(
     monkeypatch.setattr("api.views.alcali.refresh_minion", lambda m: {"result": "ok"})
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["no_minions_replied"] is False
+
+
+# --- retention -----------------------------------------------------------
+
+
+@pytest.fixture
+def old_and_new_history():
+    import datetime as _dt
+
+    from django.utils import timezone as _tz
+
+    from api.models import Jids, SaltEvents, SaltReturns
+
+    now = _tz.now()
+    for minion in ("minion1", "minion2"):
+        for age, tag in ((90, "old"), (1, "recent")):
+            jid = "2026{}{}".format(minion[-1], age)
+            Jids.objects.create(jid=jid, load='{"user": "admin"}')
+            SaltReturns.objects.create(
+                fun="test.ping", jid=jid, return_field="{}", id=minion, success="1",
+                full_ret='{"success": true, "fun_args": []}',
+                alter_time=now - _dt.timedelta(days=age),
+            )
+            SaltEvents.objects.create(
+                tag="salt/job/{}/ret/{}".format(jid, minion), data="{}",
+                alter_time=now - _dt.timedelta(days=age), master_id="master",
+            )
+
+
+@pytest.mark.django_db()
+def test_prune_preview_changes_nothing(admin_client, jwt, old_and_new_history):
+    from api.models import SaltReturns
+
+    body = admin_client.get("/api/prune/?days=30", **jwt).json()
+    assert body["applied"] is False
+    assert body["matched"]["salt_returns"] == 2
+    assert body["totals"]["salt_returns"] == 4
+    assert SaltReturns.objects.count() == 4
+
+
+@pytest.mark.django_db()
+def test_prune_applies_and_keeps_recent_rows(admin_client, jwt, old_and_new_history):
+    from api.models import Jids, SaltReturns
+
+    body = admin_client.post(
+        "/api/prune/", {"days": 30}, content_type="application/json", **jwt
+    ).json()
+    assert body["applied"] is True
+    assert body["deleted"]["salt_returns"] == 2
+    # salt_returns has no unique key; a pk-keyed delete would take every row
+    # belonging to those minions.
+    assert SaltReturns.objects.count() == 2
+    assert set(Jids.objects.values_list("jid", flat=True)) == set(
+        SaltReturns.objects.values_list("jid", flat=True)
+    )
+
+
+@pytest.mark.django_db()
+def test_prune_is_staff_only(dummy_client, jwt_dummy_user):
+    assert dummy_client.get("/api/prune/", **jwt_dummy_user).status_code == 403
+    assert dummy_client.post("/api/prune/", **jwt_dummy_user).status_code == 403
+
+
+@pytest.mark.django_db()
+def test_prune_rejects_a_nonsense_window(admin_client, jwt):
+    assert admin_client.get("/api/prune/?days=0", **jwt).status_code == 400
+    assert admin_client.get("/api/prune/?days=nope", **jwt).status_code == 400
+
+
+@pytest.mark.django_db()
+def test_prune_is_recorded_in_the_audit_log(admin_client, jwt, old_and_new_history):
+    from api.models import AuditLog
+
+    admin_client.post("/api/prune/", {"days": 30}, content_type="application/json", **jwt)
+    assert AuditLog.objects.filter(action="returner.prune").exists()
