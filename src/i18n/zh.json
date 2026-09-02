@@ -324,7 +324,9 @@
             "Running": "运行中",
             "Scheduling": "计划中",
             "TargetMatches": "匹配 {1} 个已知客户端中的 {0} 个",
-            "TargetNotPreviewed": "未预览 - 该目标类型由 master 解析"
+            "TargetNotPreviewed": "未预览 - 该目标类型由 master 解析",
+            "StatesAvailable": "master 文件服务器提供 {0} 个可用状态",
+            "StatesUnavailable": "无法读取文件服务器；请输入状态名称"
         },
         "Schedules": {
             "Refresh": "刷新计划",

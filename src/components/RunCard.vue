@@ -144,10 +144,18 @@
                         </v-combobox>
                       </v-col>
                       <v-col cols="12" sm="6" md="6" lg="3">
-                        <v-text-field
+                        <!-- A combobox rather than a select: the master's own
+                             state list is a convenience, and any argument the
+                             list does not know must still be typeable. -->
+                        <v-combobox
                           :label="$t('components.RunCard.Arguments')"
                           v-model="arg"
-                        ></v-text-field>
+                          :items="argSuggestions"
+                          :loading="loadingStates"
+                          :hint="argHint"
+                          persistent-hint
+                          hide-no-data
+                        ></v-combobox>
                       </v-col>
                       <v-col cols="12" sm="6" md="6" lg="3">
                         <v-text-field
@@ -393,6 +401,12 @@ export default {
       previewTimer: null,
       arg: "",
       kwarg: "",
+      // What the master's file server can apply. Only offered for the state
+      // functions that take a state name, and never a restriction: the field
+      // stays free text so an unlisted argument still works.
+      availableStates: [],
+      statesUnavailable: false,
+      loadingStates: false,
       results: "",
       termKey: 0,
       cron: null,
@@ -497,6 +511,23 @@ export default {
       }${this.timeout ? ` -t ${this.timeout}` : ""}`;
       return command;
     },
+    loadStates() {
+      this.loadingStates = true
+      this.$http
+        .get("api/states/available/")
+        .then((response) => {
+          this.availableStates = response.data.states || []
+          this.statesUnavailable = !!response.data.unavailable
+        })
+        .catch(() => {
+          // Never block a run on this: the field is free text regardless.
+          this.availableStates = []
+          this.statesUnavailable = true
+        })
+        .then(() => {
+          this.loadingStates = false
+        })
+    },
     saveJob() {
       let formData = new FormData();
       let command = this.createCommand(false);
@@ -568,6 +599,30 @@ export default {
     },
   },
   computed: {
+    currentFunction() {
+      let fn = this.selectedFunc
+      if (fn && Object.prototype.hasOwnProperty.call(fn, "name")) fn = fn.name
+      return typeof fn === "string" ? fn : ""
+    },
+    // Only the state functions whose first argument is a state name. Offering
+    // the file server's list against test.ping would be noise.
+    wantsStateName() {
+      return ["state.apply", "state.sls", "state.show_sls", "state.sls_id",
+              "state.orchestrate"].includes(this.currentFunction)
+    },
+    argSuggestions() {
+      return this.wantsStateName ? this.availableStates : []
+    },
+    argHint() {
+      if (!this.wantsStateName) return ""
+      if (this.statesUnavailable) {
+        return this.$t("components.RunCard.StatesUnavailable")
+      }
+      if (!this.availableStates.length) return ""
+      return this.$t("components.RunCard.StatesAvailable", [
+        this.availableStates.length,
+      ])
+    },
     // Show the blast radius before the job is published. Alcali holds the
     // grains locally, so this costs the master nothing.
     targetHint() {
@@ -600,6 +655,7 @@ export default {
     },
   },
   mounted() {
+    this.loadStates()
     this.cron = new CronUI("#cron", {
       initial: "* * * * *",
     });

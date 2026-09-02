@@ -324,7 +324,9 @@
       "Running": "Lancement de",
       "Scheduling": "Planification de",
       "TargetMatches": "correspond à {0} minions sur {1} connus",
-      "TargetNotPreviewed": "non prévisualisé - ce type de cible est résolu par le master"
+      "TargetNotPreviewed": "non prévisualisé - ce type de cible est résolu par le master",
+      "StatesAvailable": "{0} états disponibles depuis le serveur de fichiers du master",
+      "StatesUnavailable": "Serveur de fichiers illisible ; saisissez le nom de l'état"
     },
     "Schedules": {
       "Refresh": "Actualiser les tâches",

@@ -460,3 +460,38 @@ def manage_beacons(action, name, minion):
         if isinstance(refreshed, dict) and refreshed.get("error"):
             return refreshed
     return changed
+
+
+def list_state_files(saltenv="base"):
+    """Every .sls the master's file server can serve, as state names.
+
+    The Run page asked people to type a state name from memory with no way to
+    check it, and a typo comes back as a Salt error after the job has already
+    been published. This is the master's own view of what exists.
+    """
+    try:
+        api = api_connect()
+        api_ret = api.runner("fileserver.file_list", kwarg={"saltenv": saltenv})
+    except SaltApiError as e:
+        return {"error": str(e)}
+    try:
+        files = first_return(api_ret, "fileserver.file_list")
+    except SaltApiError as e:
+        return {"error": str(e)}
+    if not isinstance(files, list):
+        return {"error": "fileserver.file_list returned {}".format(type(files).__name__)}
+
+    states = set()
+    for path in files:
+        if not isinstance(path, str) or not path.endswith(".sls"):
+            continue
+        name = path[: -len(".sls")]
+        # A directory's init.sls is addressed by the directory name.
+        if name.endswith("/init"):
+            name = name[: -len("/init")]
+        name = name.replace("/", ".")
+        # top.sls is the map of what applies where, not something to apply.
+        if not name or name == "top":
+            continue
+        states.add(name)
+    return sorted(states)

@@ -30,6 +30,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from api.backend.salt_api import SaltApiError
 from api.backend.netapi import (
+    list_state_files,
     manage_beacons,
     minion_presence,
     refresh_beacons,
@@ -994,3 +995,21 @@ def diagnostics(request):
         if check["status"] == WARN:
             worst = WARN
     return Response({"status": worst, "checks": checks})
+
+
+@api_view(["GET"])
+def available_states(request):
+    """What the master's file server can actually apply.
+
+    Best effort by design: this fills an autocomplete, and a master that
+    cannot answer should leave the field free text rather than block a run.
+    """
+    saltenv = request.query_params.get("saltenv") or "base"
+    ret = list_state_files(saltenv)
+    if isinstance(ret, dict) and ret.get("error"):
+        return Response(
+            {"states": [], "saltenv": saltenv, "error": ret["error"], "unavailable": True}
+        )
+    return Response(
+        {"states": ret, "saltenv": saltenv, "error": None, "unavailable": False}
+    )

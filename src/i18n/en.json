@@ -324,7 +324,9 @@
       "Running": "Running",
       "Scheduling": "Scheduling",
       "TargetMatches": "matches {0} of {1} known minions",
-      "TargetNotPreviewed": "not previewed - the master resolves this target type"
+      "TargetNotPreviewed": "not previewed - the master resolves this target type",
+      "StatesAvailable": "{0} states available from the master's file server",
+      "StatesUnavailable": "Could not read the file server; type the state name"
     },
     "Schedules": {
       "Refresh": "Refresh schedules",
