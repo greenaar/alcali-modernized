@@ -160,3 +160,26 @@ def test_alcali_check_is_quiet_when_the_job_cache_is_written(check_env):
     out = StringIO()
     call_command("alcali_check", stdout=out)
     assert "not in jids" not in out.getvalue()
+
+
+@pytest.mark.django_db()
+def test_alcali_check_reports_both_high_water_marks(check_env):
+    """"Is the newest return's jid present" cannot tell a job cache that is
+    keeping up from one that stopped recording an hour ago."""
+    from api.models import Jids, SaltReturns
+
+    Jids.objects.create(jid="20260902010000000000", load='{"user": "admin"}')
+    for jid, when in (
+        ("20260902010000000000", "2026-09-02 01:00:00"),
+        ("20260902020000000000", "2026-09-02 02:00:00"),
+    ):
+        SaltReturns.objects.create(
+            fun="test.ping", jid=jid, return_field="{}", id="minion1", success="1",
+            full_ret='{"success": true, "fun_args": []}', alter_time=when,
+        )
+    out = StringIO()
+    call_command("alcali_check", stdout=out)
+    text = out.getvalue()
+    assert "newest job in salt_returns 20260902020000000000" in text
+    assert "newest in jids 20260902010000000000" in text
+    assert "job cache is behind the returns" in text

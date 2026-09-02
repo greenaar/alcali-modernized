@@ -176,11 +176,28 @@ class Command(BaseCommand):
         if not returns:
             return problems
 
+        # Both sides' high-water marks. A jid is a timestamp, so comparing the
+        # newest of each says whether the job cache is keeping up, is behind,
+        # or has stopped - which "is the newest return's jid present" alone
+        # cannot distinguish.
         newest = (
             SaltReturns.objects.order_by("-alter_time")
             .values_list("jid", flat=True)
             .first()
         )
+        newest_jid = Jids.objects.order_by("-jid").values_list("jid", flat=True).first()
+        self.stdout.write(
+            "returner:\tnewest job in salt_returns {}, newest in jids {}".format(
+                newest or "none", newest_jid or "none"
+            )
+        )
+        if newest and newest_jid and newest_jid < newest:
+            self.stdout.write(
+                "note: the job cache is behind the returns. Jobs are being\n"
+                "      recorded that the master did not write to jids, which is\n"
+                "      what makes it log 'jid does not exist' and abandon a job\n"
+                "      it just published."
+            )
         if newest and not Jids.objects.filter(jid=newest).exists():
             problems.append(
                 "the most recent job ({}) has a row in salt_returns but none in "
