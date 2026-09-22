@@ -1,5 +1,64 @@
 # Changelog
 
+## [3008.12.0] - 2026-09-22
+
+### Added
+
+- A log file. `LOG_FILE` adds one alongside stderr (the journal, under
+  systemd), `LOG_LEVEL` sets the level, and `LOG_CONSOLE=false` makes the file
+  the only destination. It is reopened after logrotate moves it, and a file
+  the service cannot write is reported on stderr and skipped rather than
+  stopping the site from starting. Python warnings now go through logging as
+  well, so they reach the file too. Before this, `LOGGING` was a placeholder
+  and everything went to stderr only.
+
+- `SALT_SUPPRESS_TLS_WARNING`. With `SALT_VERIFY_TLS=false` set explicitly,
+  urllib3's `InsecureRequestWarning` was logged for every salt-api request,
+  on purpose, since that setting may be a mistake. This says it is not. Only
+  the warning for the `SALT_URL` host is silenced.
+
+- Indexes on Salt's returner tables. Migration 0010 adds
+  `salt_returns (alter_time)`, `(id, alter_time)` and `(id, fun, jid)`, and
+  `salt_events (alter_time)`, but only where no existing index already starts
+  with the same columns. They are built online (`LOCK=NONE` on MySQL/MariaDB,
+  `CONCURRENTLY` on PostgreSQL), so the master keeps writing returns
+  meanwhile. A database user without `INDEX` on those tables gets a warning,
+  not a failed migrate. `alcali returner_indexes` reports what is missing and
+  adds it with `--apply`, for returner tables created after the migration ran.
+  `(id, fun, jid)` is new. It serves the state-run lookup made for every
+  minion on the minions list, which previously had no index that fit.
+
+- Indexes on `minion_id` in Alcali's own minion, key, schedule and beacon
+  tables, which are looked up by minion on nearly every page.
+
+### Fixed
+
+- The loopback default's warning suppression did not hold under gunicorn's
+  threaded workers. It wrapped each request in `warnings.catch_warnings()`,
+  which is not thread-safe: one request restoring its saved filters dropped
+  another's mid-flight. Each restore also reset the registry that makes a
+  warning print only once, so the line came back on nearly every call. The
+  filter is now installed once per process.
+
+- The jobs page's filter options loaded every jid in `jids` and passed the
+  whole list back as a single `IN (...)`. On a long job history that exceeds
+  SQLite's parameter limit and can exceed MySQL's `max_allowed_packet`.
+
+- "When was each minion last heard from", used by the dashboard and the
+  silence alerts, now counts `saltutil.find_job` answers. They are the minion
+  answering, and excluding them kept the query from using the
+  `(id, alter_time)` index: on MariaDB, 1200 rows read become a 3-row loose
+  index scan.
+
+- The jobs list's `start`/`end` range filtered on `DATE(alter_time)`, which
+  cannot use an index. It is now a plain range on the column, and a malformed
+  date is ignored rather than raising.
+
+### Changed
+
+- LDAP authentication no longer logs at `DEBUG` unconditionally. It follows
+  `LOG_LEVEL`; set that to `DEBUG` while troubleshooting a bind.
+
 ## [3008.11.1] - 2026-09-02
 
 ### Fixed

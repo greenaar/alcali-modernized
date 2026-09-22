@@ -20,11 +20,6 @@ logger = logging.getLogger(__name__)
 
 OK, WARN, FAIL, UNKNOWN = "ok", "warn", "fail", "unknown"
 
-WANTED_INDEX_COLUMNS = {
-    "salt_returns": (("alter_time",), ("id", "alter_time")),
-    "salt_events": (("alter_time",),),
-}
-
 
 def _check(key, label, status, detail="", hint=""):
     return {
@@ -211,38 +206,26 @@ def index_checks():
     Matched on leading columns rather than by name: an operator may well have
     made an equivalent index under another name.
     """
-    try:
-        present = set(connection.introspection.table_names())
-    except DatabaseError as exc:
-        return [_check("db.indexes", "Returner indexes", UNKNOWN, str(exc))]
+    from api.returner_indexes import missing_indexes
 
-    missing = []
-    for table, wanted in WANTED_INDEX_COLUMNS.items():
-        if table not in present:
-            continue
-        try:
-            with connection.cursor() as cursor:
-                constraints = connection.introspection.get_constraints(cursor, table)
-        except (DatabaseError, NotImplementedError):
-            continue
-        indexed = [
-            tuple(c["columns"])
-            for c in constraints.values()
-            if c.get("index") or c.get("unique") or c.get("primary_key")
-        ]
-        for columns in wanted:
-            if not any(existing[: len(columns)] == columns for existing in indexed):
-                missing.append("{}({})".format(table, ", ".join(columns)))
+    try:
+        missing = missing_indexes(connection)
+    except (DatabaseError, NotImplementedError) as exc:
+        return [_check("db.indexes", "Returner indexes", UNKNOWN, str(exc))]
 
     if not missing:
         return [_check("db.indexes", "Returner indexes", OK,
                        "the columns Alcali filters and sorts on are indexed")]
     return [_check(
         "db.indexes", "Returner indexes", WARN,
-        "missing: {}".format(", ".join(missing)),
-        "These are Salt's tables, so Alcali will not alter them. Adding these "
-        "indexes by hand speeds up the jobs list, the states page and the "
-        "retention counts, all of which filter on alter_time.",
+        "missing: {}".format(", ".join(
+            "{}({})".format(table, ", ".join(columns)) for _n, table, columns in missing
+        )),
+        "Migrations add these, so they are missing either because the returner "
+        "tables were created after `alcali migrate` ran or because the database "
+        "user lacks INDEX on them. Run `alcali returner_indexes --apply`. "
+        "Without them the jobs list, the minions list and the retention counts "
+        "scan the whole table.",
     )]
 
 

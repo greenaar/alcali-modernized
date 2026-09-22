@@ -239,3 +239,15 @@ def test_preview_shows_what_would_fire_without_sending(staff_client):
     hook.assert_not_called()
     assert [e["minion"] for e in response.json()["events"]] == ["web1"]
     assert not NotificationState.objects.exists()
+
+
+@pytest.mark.django_db()
+def test_a_find_job_answer_counts_as_hearing_from_the_minion():
+    # The master's own saltutil.find_job polls are answered by live minions;
+    # counting them keeps the last-seen query on the (id, alter_time) index.
+    Keys.objects.create(minion_id="polled", status="accepted")
+    SaltReturns.objects.create(
+        fun="saltutil.find_job", jid="20260902010000000004", return_field="{}",
+        id="polled", success="1", full_ret="{}", alter_time=timezone.now(),
+    )
+    assert "polled" not in notifications._silent_offenders(days=1)

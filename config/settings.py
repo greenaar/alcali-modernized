@@ -196,14 +196,73 @@ REST_FRAMEWORK = {
 #     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
 #     'REFRESH_TOKEN_LIFETIME': timedelta(days=1)}
 
-# # TODO!
+# Logging. stderr is kept by default because under systemd that is the journal,
+# and in a container it is `docker logs`. LOG_FILE adds a file alongside it;
+# LOG_CONSOLE=false then makes the file the only destination.
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").strip().upper() or "INFO"
+LOG_FILE = os.environ.get("LOG_FILE", "").strip()
+LOG_CONSOLE = env_bool("LOG_CONSOLE", default=True)
+
+
+def _log_file_usable(path):
+    """Can this process append to the log file?
+
+    Checked up front because logging.config raises on a handler it cannot
+    open, and that would take the whole site down over a log file - most often
+    one a management command run as root left behind, owned by root.
+    """
+    try:
+        with open(path, "a", encoding="utf-8"):
+            return True
+    except OSError as exc:
+        import sys
+
+        print(
+            "alcali: cannot write LOG_FILE {}: {}; logging to stderr only".format(
+                path, exc
+            ),
+            file=sys.stderr,
+        )
+        return False
+
+
+_log_handlers = {}
+if LOG_CONSOLE:
+    _log_handlers["console"] = {
+        "class": "logging.StreamHandler",
+        "formatter": "console",
+    }
+if LOG_FILE and _log_file_usable(LOG_FILE):
+    # Watched rather than rotating: gunicorn runs several worker processes,
+    # and RotatingFileHandler in more than one process loses and interleaves
+    # lines at rollover. This one reopens the file after logrotate moves it.
+    _log_handlers["file"] = {
+        "class": "logging.handlers.WatchedFileHandler",
+        "filename": LOG_FILE,
+        "formatter": "file",
+    }
+if not _log_handlers:
+    # LOG_CONSOLE=false with no usable file would otherwise discard errors.
+    _log_handlers["console"] = {
+        "class": "logging.StreamHandler",
+        "formatter": "console",
+    }
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler", "level": "DEBUG"}},
-    "loggers": {"django_auth_ldap": {"level": "DEBUG", "handlers": ["console"]}},
+    "formatters": {
+        # The journal already stamps the time and the pid.
+        "console": {"format": "%(levelname)s %(name)s: %(message)s"},
+        "file": {
+            "format": "%(asctime)s %(levelname)s [%(process)d] %(name)s: %(message)s"
+        },
+    },
+    "handlers": _log_handlers,
+    # Python warnings reach this through py.warnings (see ApiConfig.ready).
+    "root": {"level": LOG_LEVEL, "handlers": list(_log_handlers)},
 }
-#
+
 # Get version from file.
 try:
     with open(os.path.join(BASE_DIR, "VERSION"), "r") as fh:

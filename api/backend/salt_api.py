@@ -10,9 +10,10 @@ from __future__ import annotations
 import ipaddress
 import logging
 import os
+import re
+import threading
 import warnings
 from collections.abc import Iterator
-from contextlib import contextmanager
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -49,6 +50,37 @@ def _is_loopback(base_url: str) -> bool:
         return False
 
 
+_quiet_hosts: set[str] = set()
+_quiet_hosts_lock = threading.Lock()
+
+
+def _silence_unverified_warning(base_url: str) -> None:
+    """Stop urllib3 warning about unverified requests to this one host.
+
+    Installed once, process-wide, and matched on the host in the message, so
+    an unverified request anywhere else still warns. This used to be a
+    warnings.catch_warnings() block around each request, which is not
+    thread-safe: under gunicorn's threaded workers one request restoring the
+    filters it saved put back another's warning mid-flight, and every such
+    restore also reset the registry that makes a warning print only once - so
+    the line came back on nearly every call rather than going away.
+    """
+    host = (urlsplit(base_url).hostname or "").strip("[]")
+    if not host:
+        return
+    with _quiet_hosts_lock:
+        if host in _quiet_hosts:
+            return
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Unverified HTTPS request is being made to host '{}'".format(
+                re.escape(host)
+            ),
+            category=InsecureRequestWarning,
+        )
+        _quiet_hosts.add(host)
+
+
 def _response_detail(exc: Exception, limit: int = 500) -> str:
     """The body salt-api sent with an error, when there is one worth showing."""
     response = getattr(exc, "response", None)
@@ -73,11 +105,8 @@ class SaltApiClient:
         self.base_url = base_url.rstrip("/") + "/"
         self.timeout = float(os.environ.get("SALT_TIMEOUT", "30"))
         self.verify: bool | str = self._verification_for(base_url)
-        self._loopback_default = (
-            self.verify is False
-            and os.environ.get("SALT_VERIFY_TLS") is None
-            and not os.environ.get("SALT_CA_BUNDLE")
-        )
+        if self.verify is False and self._quiet_unverified():
+            _silence_unverified_warning(base_url)
         self.session = requests.Session()
         self.session.headers.update({"Accept": "application/json"})
 
@@ -105,35 +134,34 @@ class SaltApiClient:
             return False
         return True
 
-    @contextmanager
-    def _request_context(self):
-        """Silence the unverified-request warning for the loopback default.
+    @staticmethod
+    def _quiet_unverified() -> bool:
+        """Whether an unverified request to salt-api should go unremarked.
 
-        urllib3 warns on every unverified request. Where Alcali itself decided
-        to skip the check that is one line of noise per call for something
-        deliberate; an operator who set SALT_VERIFY_TLS=false still gets the
-        warning, because that one may well be a mistake.
+        Always for the loopback default: Alcali decided to skip that check
+        itself, so a warning per call is noise about something deliberate. An
+        operator who set SALT_VERIFY_TLS=false still gets the warning, because
+        that one may well be a mistake - unless SALT_SUPPRESS_TLS_WARNING says
+        they know.
         """
-        if not self._loopback_default:
-            yield
-            return
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", InsecureRequestWarning)
-            yield
+        if _env_bool("SALT_SUPPRESS_TLS_WARNING", False):
+            return True
+        return os.environ.get("SALT_VERIFY_TLS") is None and not os.environ.get(
+            "SALT_CA_BUNDLE"
+        )
 
     def _url(self, path: str = "") -> str:
         return urljoin(self.base_url, path.lstrip("/"))
 
     def _json_request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         try:
-            with self._request_context():
-                response = self.session.request(
-                    method,
-                    self._url(path),
-                    timeout=self.timeout,
-                    verify=self.verify,
-                    **kwargs,
-                )
+            response = self.session.request(
+                method,
+                self._url(path),
+                timeout=self.timeout,
+                verify=self.verify,
+                **kwargs,
+            )
             response.raise_for_status()
             payload = response.json()
         except (requests.RequestException, ValueError) as exc:
@@ -177,7 +205,7 @@ class SaltApiClient:
 
     def req_stream(self, path: str) -> Iterator[bytes]:
         try:
-            with self._request_context(), self.session.get(
+            with self.session.get(
                 self._url(path),
                 headers={"Accept": "text/event-stream"},
                 timeout=(self.timeout, None),

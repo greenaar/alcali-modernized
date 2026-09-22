@@ -335,7 +335,7 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
         )
         # One grouped query for the whole roster rather than one per minion.
         last_seen = dict(
-            SaltReturns.objects.filter(id__in=accepted)
+            SaltReturns.all_objects.filter(id__in=accepted)
             .values_list("id")
             .annotate(last=Max("alter_time"))
             .values_list("id", "last")

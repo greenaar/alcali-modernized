@@ -109,6 +109,7 @@ alcali <command>
 | `diagnose` | Report the database, environment, returner tables and caches. `--salt-user <name>` also exercises the Salt API and each netapi client. |
 | `notify` | Evaluate the notification rules and send what changed. `--dry-run` reports without sending or recording; `--json` emits the events as JSON. Meant for a timer - see [Notifications](configuration.md#notifications). |
 | `prune_returns` | Delete returner history older than a window. `--days` is required; `--events-days` sets a separate window for events; `--dry-run` counts without deleting and `--yes` skips the confirmation. The same thing is available in **Settings -> Returner retention**. |
+| `returner_indexes` | Report the indexes Alcali needs on Salt's returner tables. `--apply` adds the missing ones; `--check` exits 1 while any are missing. See [Returner indexes](configuration.md#returner-indexes). |
 | `manage_token` | Show the Salt API token for a user, or `-r` to revoke and reissue it. |
 | `current_version` | Print the installed version. |
 | `location` | Print the installed package directory, for `gunicorn --chdir`. |

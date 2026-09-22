@@ -43,6 +43,10 @@ class SaltReturns(models.Model):
     alter_time = models.DateTimeField()
 
     objects = FindJobManager()
+    # Every row, saltutil.find_job included. A find_job answer is still the
+    # minion answering, and leaving the fun filter out lets "when was each
+    # minion last heard from" run on the (id, alter_time) index alone.
+    all_objects = models.Manager()
 
     def loaded_ret(self):
         return json.loads(self.full_ret)
@@ -144,7 +148,7 @@ class JobTemplate(models.Model):
 
 
 class Minions(models.Model):
-    minion_id = models.CharField(max_length=128, null=False, blank=False)
+    minion_id = models.CharField(max_length=128, null=False, blank=False, db_index=True)
     grain = models.TextField()
     pillar = models.TextField()
 
@@ -314,7 +318,7 @@ class Keys(models.Model):
         ("denied", "denied"),
         ("unaccepted", "unaccepted"),
     )
-    minion_id = models.CharField(max_length=255)
+    minion_id = models.CharField(max_length=255, db_index=True)
     pub = models.TextField(blank=True)
     status = models.CharField(max_length=64, choices=KEY_STATUS)
 
@@ -344,7 +348,7 @@ class MinionsCustomFields(models.Model):
 
 
 class Schedule(models.Model):
-    minion = models.CharField(max_length=128, null=False, blank=False)
+    minion = models.CharField(max_length=128, null=False, blank=False, db_index=True)
     name = models.CharField(max_length=255, blank=False, null=False)
     job = models.TextField()
 
@@ -363,7 +367,7 @@ class Beacon(models.Model):
     refreshed from the minion and never treated as the source of truth.
     """
 
-    minion = models.CharField(max_length=128, null=False, blank=False)
+    minion = models.CharField(max_length=128, null=False, blank=False, db_index=True)
     name = models.CharField(max_length=255, blank=False, null=False)
     config = models.TextField()
 

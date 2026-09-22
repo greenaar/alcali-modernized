@@ -2,7 +2,8 @@
 --
 -- This is the mysql returner's own schema, matching Salt's documented DDL for
 -- salt.returners.mysql. Alcali reads these three tables as unmanaged Django
--- models; `manage.py migrate` neither creates nor alters them.
+-- models; `manage.py migrate` does not create them, though it adds any of the
+-- indexes below that are missing.
 --
 -- Unlike docker/sql/mysql/salt.sql, which the demo stack uses, nothing here
 -- drops. The MariaDB entrypoint only runs initdb.d against an empty data
@@ -36,7 +37,10 @@ CREATE TABLE IF NOT EXISTS `salt_returns` (
   -- through the filesort - on each one.
   KEY `alter_time` (`alter_time`),
   -- The per-minion lookups filter on id and then order by time.
-  KEY `id_alter_time` (`id`, `alter_time`)
+  KEY `id_alter_time` (`id`, `alter_time`),
+  -- Each minion's newest state runs, looked up for every minion on the
+  -- minions list to judge conformity.
+  KEY `id_fun_jid` (`id`, `fun`, `jid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `salt_events` (

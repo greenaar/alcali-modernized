@@ -2,6 +2,7 @@ import datetime
 import json
 
 from ansi2html import Ansi2HTMLConverter
+from django.conf import settings
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -70,6 +71,14 @@ class MultipleFieldLookupMixin(object):
         return obj
 
 
+def _day_start(day):
+    """Midnight at the start of `day`, in the current time zone."""
+    moment = datetime.datetime.combine(day, datetime.time.min)
+    if settings.USE_TZ:
+        moment = timezone.make_aware(moment)
+    return moment
+
+
 class SaltReturnsList(generics.ListAPIView):
     serializer_class = SaltReturnsSerializer
 
@@ -95,7 +104,18 @@ class SaltReturnsList(generics.ListAPIView):
         if functions:
             qry["fun__in"] = functions
         if start and end:
-            qry["alter_time__date__range"] = [start, end]
+            # A plain range on the column, not __date__range: wrapping
+            # alter_time in DATE() keeps the database from using its index,
+            # and the newest-first scan below then reads everything newer
+            # than the window before reaching it.
+            try:
+                first = datetime.date.fromisoformat(start)
+                last = datetime.date.fromisoformat(end)
+            except ValueError:
+                first = last = None
+            if first and last:
+                qry["alter_time__gte"] = _day_start(first)
+                qry["alter_time__lt"] = _day_start(last + datetime.timedelta(days=1))
 
         queryset = queryset.filter(**qry)
 
@@ -300,7 +320,18 @@ def _state_name(key):
 @api_view(["GET"])
 def jobs_filters(request):
     # Filter options.
-    user_list = list(set(jid_users(Jids.objects.values_list("jid", flat=True)).values()))
+    # Straight from the loads. Passing every jid back through jid_users()
+    # built one IN clause the size of the whole job history, which SQLite
+    # rejects outright and MySQL can refuse as over max_allowed_packet.
+    users = set()
+    for raw in Jids.objects.values_list("load", flat=True).iterator():
+        try:
+            payload = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(payload, dict):
+            users.add(payload.get("user") or "")
+    user_list = list(users)
     minion_list = SaltReturns.objects.values_list("id", flat=True).distinct()
     function_list = (
         SaltReturns.objects.values_list("fun", flat=True).distinct().order_by("fun")

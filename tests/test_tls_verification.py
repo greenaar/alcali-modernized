@@ -54,17 +54,45 @@ def test_a_ca_bundle_wins_over_everything(monkeypatch):
     assert SaltApiClient("https://127.0.0.1:8080").verify == "/etc/alcali/tls/salt-ca.pem"
 
 
-def _warns_on_request(url):
-    """Whether an actual unverified request warns, not just construction."""
+@pytest.fixture(autouse=True)
+def isolated_warning_filters():
+    """The quiet-host filter is process-wide; keep each test's to itself."""
+    import warnings as _warnings
+
+    from api.backend import salt_api
+
+    with _warnings.catch_warnings():
+        salt_api._quiet_hosts.clear()
+        yield
+        salt_api._quiet_hosts.clear()
+
+
+def _unverified_warning(host):
+    """What urllib3 emits for an unverified request, message included."""
     import warnings as _warnings
 
     from urllib3.exceptions import InsecureRequestWarning
 
-    client = SaltApiClient(url)
+    _warnings.warn(
+        "Unverified HTTPS request is being made to host '{}'. Adding certificate "
+        "verification is strongly advised.".format(host),
+        InsecureRequestWarning,
+    )
+
+
+def _warns_on_request(url, host=None):
+    """Whether an unverified request to `host` warns once the client exists."""
+    import warnings as _warnings
+    from urllib.parse import urlsplit
+
+    from urllib3.exceptions import InsecureRequestWarning
+
+    host = host or urlsplit(url).hostname
     with _warnings.catch_warnings(record=True) as caught:
-        _warnings.simplefilter("always")
-        with client._request_context():
-            _warnings.warn("Unverified HTTPS request", InsecureRequestWarning)
+        # "always" first, so only the client's own filter can hide it.
+        _warnings.filterwarnings("always", category=InsecureRequestWarning)
+        SaltApiClient(url)
+        _unverified_warning(host)
     return [w for w in caught if issubclass(w.category, InsecureRequestWarning)]
 
 
@@ -72,9 +100,58 @@ def test_the_loopback_default_does_not_warn_on_every_request():
     # urllib3 warns per unverified request; for a check Alcali deliberately
     # skipped that is a line of noise in the log for every single call.
     assert _warns_on_request("https://127.0.0.1:8080") == []
+    assert _warns_on_request("https://[::1]:8080") == []
 
 
 def test_an_operator_who_disabled_verification_still_gets_the_warning(monkeypatch):
     # That one may well be a mistake, so it keeps warning.
     monkeypatch.setenv("SALT_VERIFY_TLS", "false")
     assert _warns_on_request("https://salt.example.test:8080")
+    assert _warns_on_request("https://127.0.0.1:8080")
+
+
+def test_the_warning_can_be_suppressed_explicitly(monkeypatch):
+    monkeypatch.setenv("SALT_VERIFY_TLS", "false")
+    monkeypatch.setenv("SALT_SUPPRESS_TLS_WARNING", "true")
+    assert _warns_on_request("https://127.0.0.1:8080") == []
+    assert _warns_on_request("https://salt.example.test:8080") == []
+
+
+def test_suppression_is_limited_to_the_salt_api_host(monkeypatch):
+    # Some other unverified request in the same process is not Alcali's call
+    # to excuse.
+    monkeypatch.setenv("SALT_VERIFY_TLS", "false")
+    monkeypatch.setenv("SALT_SUPPRESS_TLS_WARNING", "true")
+    assert _warns_on_request("https://salt.example.test:8080", host="elsewhere.test")
+    assert _warns_on_request("https://127.0.0.1:8080", host="127.0.0.10")
+
+
+def test_a_verified_client_suppresses_nothing(monkeypatch):
+    monkeypatch.setenv("SALT_SUPPRESS_TLS_WARNING", "true")
+    assert _warns_on_request("https://salt.example.test:8080")
+
+
+def test_suppression_holds_across_threads():
+    # The old per-request catch_warnings() block raced under gunicorn's
+    # threaded workers: one thread restoring its saved filters dropped the
+    # other's suppression mid-request.
+    import threading
+    import warnings as _warnings
+
+    from urllib3.exceptions import InsecureRequestWarning
+
+    with _warnings.catch_warnings(record=True) as caught:
+        _warnings.filterwarnings("always", category=InsecureRequestWarning)
+        SaltApiClient("https://127.0.0.1:8080")
+
+        def hammer():
+            for _ in range(200):
+                SaltApiClient("https://127.0.0.1:8080")
+                _unverified_warning("127.0.0.1")
+
+        threads = [threading.Thread(target=hammer) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+    assert not [w for w in caught if issubclass(w.category, InsecureRequestWarning)]

@@ -54,6 +54,86 @@ How you choose to [authenticate](installation.md#authentication) to the salt-api
 
 Must be set to  `rest` or `alcali`.
 
+### `SALT_VERIFY_TLS`, `SALT_CA_BUNDLE`
+
+Whether Alcali verifies the salt-api certificate. Unset, it verifies a real
+host and skips the check for a loopback `SALT_URL` (`127.0.0.1`, `::1`,
+`localhost`), where salt-api usually serves a certificate for the master's
+public name and the traffic never leaves the host. `SALT_VERIFY_TLS=true` or
+`false` forces either behaviour; `SALT_CA_BUNDLE` points at an internal CA and
+takes precedence over both.
+
+### `SALT_SUPPRESS_TLS_WARNING`
+
+With verification off, urllib3 logs an `InsecureRequestWarning` for every
+request to salt-api. Alcali already silences it for the loopback default
+above, but not when `SALT_VERIFY_TLS=false` was set by hand, since that may
+be a mistake. Set `SALT_SUPPRESS_TLS_WARNING=true` to say it is not. Only the
+warning for the `SALT_URL` host is silenced.
+
+## Logging
+
+By default Alcali logs to stderr, which under systemd is the journal and in a
+container is `docker logs`.
+
+| Variable | Meaning |
+| --- | --- |
+| `LOG_FILE` | Also write to this file. The directory must exist and be writable by the service user; if it is not, Alcali says so on stderr and carries on without the file rather than refusing to start. |
+| `LOG_LEVEL` | `DEBUG`, `INFO` (default), `WARNING`, `ERROR`. `DEBUG` also shows LDAP authentication detail. |
+| `LOG_CONSOLE` | `false` to stop logging to stderr once `LOG_FILE` is set. |
+
+The file is opened with a `WatchedFileHandler`, so logrotate can move it
+aside and Alcali reopens it; no `copytruncate` or signal is needed for
+Alcali's own log. gunicorn's own access and error logs are separate: pass
+`--access-logfile` and `--error-logfile` to gunicorn, and send it `USR1`
+after rotating them.
+
+```
+/var/log/alcali/*.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 alcali alcali
+    sharedscripts
+    postrotate
+        systemctl kill --signal=USR1 --kill-whom=main alcali.service >/dev/null 2>&1 || true
+    endscript
+}
+```
+
+## Returner indexes
+
+Salt's own schema indexes `salt_returns` by `id`, `jid` and `fun` only. Alcali
+orders by `alter_time` almost everywhere and looks up each minion's state runs
+by `(id, fun)`, so `alcali migrate` adds the indexes it needs to Salt's
+tables:
+
+- `salt_returns (alter_time)`
+- `salt_returns (id, alter_time)`
+- `salt_returns (id, fun, jid)`
+- `salt_events (alter_time)`
+
+An index is added only if no existing one already starts with the same
+columns, whatever its name. They are built online (`ALGORITHM=INPLACE,
+LOCK=NONE` on MySQL/MariaDB, `CONCURRENTLY` on PostgreSQL), so the master
+keeps writing returns meanwhile, but on a large history the build still takes
+a while.
+
+If the returner tables did not exist yet when the migration ran, or the
+database user lacked the `INDEX` privilege, the migration reports it and
+carries on. Add them later with:
+
+```commandline
+alcali returner_indexes          # report what is missing
+alcali returner_indexes --apply  # add it
+```
+
+`--check` prints nothing and exits 1 while any are missing, for use as a
+state's `unless`.
+
 ## LDAP configuration
 
 Please refer to django-auth-ldap [documentation reference](https://django-auth-ldap.readthedocs.io/en/latest/reference.html).

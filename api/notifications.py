@@ -45,7 +45,7 @@ def _silent_offenders(days):
     if not accepted:
         return {}
     seen = dict(
-        SaltReturns.objects.filter(id__in=accepted)
+        SaltReturns.all_objects.filter(id__in=accepted)
         .values_list("id")
         .annotate(last=Max("alter_time"))
     )
