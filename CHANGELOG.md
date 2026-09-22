@@ -1,5 +1,20 @@
 # Changelog
 
+## [3008.12.1] - 2026-09-22
+
+### Fixed
+
+- A wheel install reported its version as `unknown`, in the UI and in
+  `alcali current_version`. `VERSION` ships only in the sdist; the version now
+  falls back to the installed package's metadata.
+
+### Security
+
+- svgo 2.8.4, colord 2.9.4 and js-yaml 4.3.2 are pinned, through overrides,
+  over the vulnerable versions the webpack CSS minimizer resolved
+  (GHSA-4vpr-x523-8j87 and three other advisories). They are build-time only:
+  none of them ships in the bundle.
+
 ## [3008.12.0] - 2026-09-22
 
 ### Added

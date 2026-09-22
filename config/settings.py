@@ -263,12 +263,18 @@ LOGGING = {
     "root": {"level": LOG_LEVEL, "handlers": list(_log_handlers)},
 }
 
-# Get version from file.
+# Get version from file. A wheel install does not ship VERSION - it lands only
+# in the sdist - so fall back to the installed distribution's own metadata.
 try:
     with open(os.path.join(BASE_DIR, "VERSION"), "r") as fh:
-        VERSION = fh.read()
+        VERSION = fh.read().strip()
 except FileNotFoundError:
-    VERSION = "unknown"
+    from importlib.metadata import PackageNotFoundError, version as _dist_version
+
+    try:
+        VERSION = _dist_version("alcali")
+    except PackageNotFoundError:
+        VERSION = "unknown"
 
 # LDAP Authentication.
 if os.environ.get("AUTH_BACKEND") and os.environ["AUTH_BACKEND"].lower() == "ldap":
