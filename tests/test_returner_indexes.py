@@ -161,17 +161,33 @@ def test_jobs_date_range_includes_the_whole_last_day(admin_client, jwt):
     assert response.status_code == 200
 
 
+def _child_env(**env):
+    """This process's environment, minus anything that would steer logging.
+
+    Inherited rather than built from scratch: a CI Python is often linked
+    against a shared libpython found through LD_LIBRARY_PATH, and a child
+    without it cannot even start.
+    """
+    import os
+
+    full_env = {
+        k: v for k, v in os.environ.items()
+        if not k.startswith("LOG_") and k not in ("DJANGO_SETTINGS_MODULE",)
+    }
+    full_env.update({"SECRET_KEY": "x", "DB_BACKEND": "sqlite3"})
+    full_env.update(env)
+    return full_env
+
+
 def _logging_for(tmp_path, **env):
     """Import settings fresh in a child process and report its LOGGING."""
     script = (
         "import json, os; os.environ.setdefault('DB_BACKEND', 'sqlite3');"
         "import config.settings as s; print(json.dumps(s.LOGGING))"
     )
-    full_env = {"SECRET_KEY": "x", "DB_BACKEND": "sqlite3", "PATH": "/usr/bin:/bin"}
-    full_env.update(env)
     result = subprocess.run(
-        [sys.executable, "-c", script], env=full_env, capture_output=True, text=True,
-        check=True,
+        [sys.executable, "-c", script], env=_child_env(**env), capture_output=True,
+        text=True, check=True,
     )
     return json.loads(result.stdout.strip().splitlines()[-1]), result.stderr
 
@@ -214,10 +230,7 @@ def test_the_log_file_receives_application_logs(tmp_path):
     )
     subprocess.run(
         [sys.executable, "-c", script],
-        env={
-            "SECRET_KEY": "x", "DB_BACKEND": "sqlite3", "PATH": "/usr/bin:/bin",
-            "DJANGO_SETTINGS_MODULE": "config.settings", "LOG_FILE": str(path),
-        },
+        env=_child_env(DJANGO_SETTINGS_MODULE="config.settings", LOG_FILE=str(path)),
         check=True, capture_output=True,
     )
     text = path.read_text()

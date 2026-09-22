@@ -7,6 +7,15 @@ overrides:
   # patched version here. Drop this once `pnpm why fast-uri` shows >=4.1.3
   # without the override.
   fast-uri: ">=4.1.3"
+  # The same build chain (webpack's CSS minimizer, cssnano) resolves svgo
+  # 2.8.3 (GHSA-4vpr-x523-8j87 and a second removeScripts advisory, fixed in
+  # 2.8.4), colord 2.9.3 (slow rejection of malformed colours, fixed in
+  # 2.9.4) and js-yaml 4.3.1 (maxTotalMergeKeys CPU, fixed in 4.3.2). Each is
+  # pinned within its own major so nothing that depends on it moves API.
+  # Drop them once `pnpm why` shows patched versions without the override.
+  "svgo@>=1.0.0 <2.8.4": "^2.8.4"
+  "colord@<2.9.4": "^2.9.4"
+  "js-yaml@>=4.0.0 <4.3.2": "^4.3.2"
 
 packages:
   - '.'
