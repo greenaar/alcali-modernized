@@ -106,7 +106,9 @@ def seed(username="smoke-admin", password="smoke-password-123"):
     SaltReturns.objects.all().delete()
     Jids.objects.all().delete()
     SaltEvents.objects.all().delete()
-    base = datetime.datetime(2026, 9, 1, 18, 0, 0)
+    # Relative, not fixed: the states page only reads the last seven days, so
+    # a hard-coded date turned its smoke tests red a week after it was written.
+    base = datetime.datetime.now().replace(microsecond=0) - datetime.timedelta(hours=1)
     first = None
     for i in range(12):
         jid = "20260902010000%06d" % i
