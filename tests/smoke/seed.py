@@ -63,7 +63,12 @@ def seed(username="smoke-admin", password="smoke-password-123"):
     user.is_staff = user.is_superuser = True
     user.set_password(password)
     user.save()
-    UserSettings.objects.get_or_create(user=user)
+    settings, _ = UserSettings.objects.get_or_create(user=user)
+    # There is no master here, so a refresh on load answers 502 and the route
+    # walk would fail on every page that does one. The smoke tests switch it
+    # back on per page where they test it.
+    settings.settings["UserSettings"]["refresh_on_load"] = False
+    settings.save()
 
     Minions.objects.all().delete()
     for name in MINIONS:
