@@ -41,6 +41,8 @@ export default function defaultSettings() {
     UserSettings: {
       notifs: { created: true, published: true, returned: true, event: false },
       max_notifs: 15,
+      // Pull fresh data from the master when a page that caches it opens.
+      refresh_on_load: true,
     },
     selected_master: "",
     language: "en",

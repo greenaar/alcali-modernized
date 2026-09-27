@@ -27,10 +27,12 @@
   import NetworkCard from "../components/NetworkCard"
   import MinionDetailCard from "../components/MinionDetailCard"
   import Fab from "../components/core/Fab"
+  import refreshOnLoadMixin from "../components/mixins/refreshOnLoadMixin"
 
   export default {
     name: "MinionDetail",
     components: { Fab, MinionDetailCard, InfosCard, NetworkCard },
+    mixins: [refreshOnLoadMixin],
     data() {
       return {
         minion: null,
@@ -69,12 +71,17 @@
       fabAction(action) {
         this[action]()
       },
-      refreshMinion() {
-        this.$toast(this.$i18n.t("components.MinionDetail.Refreshing", [this.minion_id]))
+      refreshOnLoad() {
+        this.refreshMinion(true)
+      },
+      refreshMinion(quiet = false) {
+        if (!quiet) this.$toast(this.$i18n.t("components.MinionDetail.Refreshing", [this.minion_id]))
         let formData = new FormData
         formData.set('minion_id', this.minion_id)
         this.$http.post("/api/minions/refresh_minions/", formData).then(() => {
-          this.$toast(this.$i18n.t("components.MinionDetail.MinionRefreshed"))
+          if (!quiet) this.$toast(this.$i18n.t("components.MinionDetail.MinionRefreshed"))
+          // The cards were drawn from the copy the refresh just replaced.
+          this.loadData()
         }).catch((error) => {
           this.$toast.error(error.response.data)
         })

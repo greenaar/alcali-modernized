@@ -1,5 +1,22 @@
 # Changelog
 
+## [3008.13.0] - 2026-09-27
+
+### Added
+
+- Pages that show Alcali's copy of master data now pull it fresh from the
+  master when they open: Minions, a minion's detail page, Keys, Schedules and
+  Beacons. Before this, each one showed whatever was last pulled until you
+  clicked its refresh button. "Refresh from the master on page load", under
+  Settings → User Settings, turns it off; it is on by default. The automatic
+  refresh only toasts when it fails, and the refresh buttons still work as
+  before.
+
+### Fixed
+
+- Refreshing a minion from its detail page now redraws the page with the new
+  data. Before, it only fetched the data and left the page as it was.
+
 ## [3008.12.1] - 2026-09-22
 
 ### Fixed

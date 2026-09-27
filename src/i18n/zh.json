@@ -352,7 +352,9 @@
             "returned": "已返回",
             "event": "事件",
             "UserSettingsUpdated": "用户已更新",
-            "Language": "语言"
+            "Language": "语言",
+            "RefreshOnLoad": "页面加载时从 master 刷新",
+            "Pages": "页面"
         },
         "AlcaliStatusCard": {
             "Status": "状态",

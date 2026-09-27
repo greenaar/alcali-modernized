@@ -352,7 +352,9 @@
       "returned": "résultat reçu",
       "event": "évènement",
       "UserSettingsUpdated": "Préférences utilisateur mises à jour",
-      "Language": "Langage"
+      "Language": "Langage",
+      "RefreshOnLoad": "Actualiser depuis le master au chargement",
+      "Pages": "Pages"
     },
     "AlcaliStatusCard": {
       "Status": "Statut",

@@ -97,7 +97,8 @@
       "returned": true,
       "event": false
     },
-    "max_notifs": 15
+    "max_notifs": 15,
+    "refresh_on_load": true
   },
   "selected_master": "",
   "language": "en"

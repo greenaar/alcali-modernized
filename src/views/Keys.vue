@@ -13,10 +13,12 @@
 
   import KeysTable from "../components/KeysTable"
   import Fab from "../components/core/Fab"
+  import refreshOnLoadMixin from "../components/mixins/refreshOnLoadMixin"
 
   export default {
     name: "Keys",
     components: { Fab, KeysTable },
+    mixins: [refreshOnLoadMixin],
     data() {
       return {
         fabs: [
@@ -46,10 +48,13 @@
       fabAction(action) {
         this[action]()
       },
-      refreshKeys() {
-        this.$toast(this.$i18n.t("components.Keys.RefreshingKeys"))
+      refreshOnLoad() {
+        this.refreshKeys(true)
+      },
+      refreshKeys(quiet = false) {
+        if (!quiet) this.$toast(this.$i18n.t("components.Keys.RefreshingKeys"))
         this.$http.post("/api/keys/refresh/").then((response) => {
-          this.$toast(this.$i18n.t("components.Keys.KeysRefreshed"))
+          if (!quiet) this.$toast(this.$i18n.t("components.Keys.KeysRefreshed"))
         }).then(() => {
           this.refreshKey += 1
         }).catch((error) => {

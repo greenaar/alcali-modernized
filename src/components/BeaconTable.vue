@@ -14,7 +14,7 @@
           density="compact"
           style="max-width: 260px"
         ></v-text-field>
-        <v-btn variant="tonal" :loading="refreshing" @click="refresh">
+        <v-btn variant="tonal" :loading="refreshing" @click="refresh()">
           {{ $t("components.BeaconTable.Refresh") }}
         </v-btn>
       </v-card-title>
@@ -94,8 +94,11 @@
 </template>
 
 <script>
+import refreshOnLoadMixin from "./mixins/refreshOnLoadMixin"
+
 export default {
   name: "BeaconTable",
+  mixins: [refreshOnLoadMixin],
   data() {
     return {
       beacons: [],
@@ -159,14 +162,17 @@ export default {
           this.loading = false
         })
     },
-    refresh() {
+    refreshOnLoad() {
+      this.refresh(true)
+    },
+    refresh(quiet = false) {
       this.refreshing = true
       this.$http
         .post("api/beacons/refresh/", {})
         .then((response) => {
           if (response.data.no_minions_replied) {
             this.$toast.error(this.$i18n.t("components.BeaconTable.NoReply"))
-          } else {
+          } else if (!quiet) {
             this.$toast(
               this.$i18n.t("components.BeaconTable.Refreshed", [
                 response.data.minions,

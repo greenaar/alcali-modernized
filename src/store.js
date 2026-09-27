@@ -2,6 +2,10 @@ import { createStore } from "vuex"
 import axios from "axios"
 import defaultSettings, { mergeSettings } from "./settings-defaults"
 
+// Pages mount while the stored settings are still in flight, so anything that
+// acts on a preference at load (rather than just rendering it) waits on this.
+let settingsReady = null
+
 export default createStore({
   state: {
     username: localStorage.getItem("username") || "",
@@ -51,11 +55,15 @@ export default createStore({
       commit("toggleTheme")
     },
     fetchSettings(context) {
-      axios.get(`api/userssettings/${context.getters.user_id}/`).then(response => {
+      settingsReady = axios.get(`api/userssettings/${context.getters.user_id}/`).then(response => {
         context.commit("setSettings", response.data.settings)
       }).catch(err => {
         console.log(err)
       })
+      return settingsReady
+    },
+    settingsReady() {
+      return settingsReady || Promise.resolve()
     },
     login({ commit }, user_data) {
       return new Promise((resolve, reject) => {
