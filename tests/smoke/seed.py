@@ -67,7 +67,8 @@ def seed(username="smoke-admin", password="smoke-password-123"):
     # There is no master here, so a refresh on load answers 502 and the route
     # walk would fail on every page that does one. The smoke tests switch it
     # back on per page where they test it.
-    settings.settings["UserSettings"]["refresh_on_load"] = False
+    refresh = settings.settings["UserSettings"]["refresh_on_load"]
+    settings.settings["UserSettings"]["refresh_on_load"] = dict.fromkeys(refresh, False)
     settings.save()
 
     Minions.objects.all().delete()

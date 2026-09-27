@@ -18,6 +18,7 @@
     name: "Schedules",
     components: { Fab, ScheduleTable },
     mixins: [refreshOnLoadMixin],
+    refreshOnLoadPage: "Schedules",
     data() {
       return {
         fabs: [

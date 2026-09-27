@@ -416,35 +416,44 @@ def test_overview_chart_dropdowns_redraw_the_graph(page):
     )
 
 
-def _refresh_posts(page, refresh_on_load):
-    """Visit /keys with refresh_on_load forced, and return the refresh calls.
+def _refresh_posts(page, route, pages):
+    """Visit route with refresh_on_load forced per page; return refresh calls.
 
-    The setting is flipped in this tab's copy of the settings response rather
-    than on the server, which every other test shares.
+    The seeded user has every page off. Pages are switched on in this tab's
+    copy of the settings response rather than on the server, which every other
+    test shares.
     """
     page, base, _ = page
 
-    def settings(route):
-        response = route.fetch()
+    def settings(fetched):
+        response = fetched.fetch()
         body = response.json()
-        body["settings"]["UserSettings"]["refresh_on_load"] = refresh_on_load
-        route.fulfill(response=response, json=body)
+        body["settings"]["UserSettings"]["refresh_on_load"].update(pages)
+        fetched.fulfill(response=response, json=body)
 
     page.route("**/api/userssettings/**", settings)
     posts = []
     page.on("request", lambda r: posts.append(r.url)
             if r.method == "POST" and "/refresh" in r.url else None)
-    visit(page, base + "/keys", settle=2000)
+    visit(page, base + route, settle=2000)
     return posts
 
 
 def test_keys_refresh_from_the_master_on_load(page):
-    posts = _refresh_posts(page, True)
+    posts = _refresh_posts(page, "/keys", {"Keys": True})
     assert any("/api/keys/refresh/" in url for url in posts), (
-        "refresh_on_load is set but /keys never asked the master: {}".format(posts)
+        "refresh_on_load is set for Keys but /keys never asked the master: {}".format(posts)
     )
 
 
 def test_keys_leave_the_master_alone_when_refresh_on_load_is_off(page):
-    posts = _refresh_posts(page, False)
+    posts = _refresh_posts(page, "/keys", {"Keys": False})
     assert not posts, "refresh_on_load is off but /keys refreshed: {}".format(posts)
+
+
+def test_refresh_on_load_is_per_page(page):
+    # Every page but Minions on: the heavy one is the reason it is per page.
+    posts = _refresh_posts(page, "/minions", {
+        "MinionDetail": True, "Keys": True, "Schedules": True, "Beacons": True,
+    })
+    assert not posts, "Minions is off but /minions refreshed: {}".format(posts)

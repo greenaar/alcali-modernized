@@ -33,6 +33,7 @@
     name: "MinionDetail",
     components: { Fab, MinionDetailCard, InfosCard, NetworkCard },
     mixins: [refreshOnLoadMixin],
+    refreshOnLoadPage: "MinionDetail",
     data() {
       return {
         minion: null,

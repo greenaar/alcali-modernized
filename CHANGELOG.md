@@ -1,5 +1,15 @@
 # Changelog
 
+## [3008.14.0] - 2026-09-27
+
+### Changed
+
+- Refresh on load is now set per page. Settings → User Settings has a switch
+  for each of Minions, Minion detail, Keys, Schedules and Beacons, so the
+  heavy one (Minions, which asks every minion for its grains) can be turned
+  off while the rest stay on. All are on by default. A choice made in
+  3008.13.0, where one switch covered every page, carries over to each page.
+
 ## [3008.13.0] - 2026-09-27
 
 ### Added

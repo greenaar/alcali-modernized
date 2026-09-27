@@ -354,7 +354,13 @@
       "UserSettingsUpdated": "Préférences utilisateur mises à jour",
       "Language": "Langage",
       "RefreshOnLoad": "Actualiser depuis le master au chargement",
-      "Pages": "Pages"
+      "RefreshPages": {
+        "Minions": "Minions",
+        "MinionDetail": "Détail d'un minion",
+        "Keys": "Clés",
+        "Schedules": "Plannings",
+        "Beacons": "Beacons"
+      }
     },
     "AlcaliStatusCard": {
       "Status": "Statut",

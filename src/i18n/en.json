@@ -353,8 +353,14 @@
       "event": "event",
       "UserSettingsUpdated": "user settings updated",
       "Language": "Language",
-      "RefreshOnLoad": "Refresh from the master on page load",
-      "Pages": "Pages"
+      "RefreshOnLoad": "Refresh from the master on load",
+      "RefreshPages": {
+        "Minions": "Minions",
+        "MinionDetail": "Minion detail",
+        "Keys": "Keys",
+        "Schedules": "Schedules",
+        "Beacons": "Beacons"
+      }
     },
     "AlcaliStatusCard": {
       "Status": "Status",

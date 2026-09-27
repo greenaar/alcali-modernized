@@ -18,6 +18,7 @@
     name: "Minions",
     components: { Fab, MinionsTable },
     mixins: [refreshOnLoadMixin],
+    refreshOnLoadPage: "Minions",
     data() {
       return {
         refreshKey: 0,

@@ -23,13 +23,15 @@
               <v-text-field v-model="settings.UserSettings.max_notifs" type="number"></v-text-field>
             </v-col>
             <v-col lg="2">
-              <span>{{ $t("components.UserSettings.Pages") }}</span>
-              <v-switch
-                v-model="settings.UserSettings.refresh_on_load"
-                :label="$t('components.UserSettings.RefreshOnLoad')"
-                color="primary"
-                hide-details
-              ></v-switch>
+              <span>{{ $t("components.UserSettings.RefreshOnLoad") }}</span>
+              <div v-for="(val, page) in settings.UserSettings.refresh_on_load" :key="page">
+                <v-switch
+                  v-model="settings.UserSettings.refresh_on_load[page]"
+                  :label="$t(`components.UserSettings.RefreshPages.${page}`)"
+                  color="primary"
+                  hide-details
+                ></v-switch>
+              </div>
             </v-col>
             <v-col lg="2">
               <div class="locale-changer" style="margin-left: 20px">

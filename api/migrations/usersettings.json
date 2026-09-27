@@ -98,7 +98,13 @@
       "event": false
     },
     "max_notifs": 15,
-    "refresh_on_load": true
+    "refresh_on_load": {
+      "Minions": true,
+      "MinionDetail": true,
+      "Keys": true,
+      "Schedules": true,
+      "Beacons": true
+    }
   },
   "selected_master": "",
   "language": "en"

@@ -19,6 +19,7 @@
     name: "Keys",
     components: { Fab, KeysTable },
     mixins: [refreshOnLoadMixin],
+    refreshOnLoadPage: "Keys",
     data() {
       return {
         fabs: [

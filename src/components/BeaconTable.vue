@@ -99,6 +99,7 @@ import refreshOnLoadMixin from "./mixins/refreshOnLoadMixin"
 export default {
   name: "BeaconTable",
   mixins: [refreshOnLoadMixin],
+  refreshOnLoadPage: "Beacons",
   data() {
     return {
       beacons: [],

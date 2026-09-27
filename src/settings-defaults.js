@@ -41,8 +41,14 @@ export default function defaultSettings() {
     UserSettings: {
       notifs: { created: true, published: true, returned: true, event: false },
       max_notifs: 15,
-      // Pull fresh data from the master when a page that caches it opens.
-      refresh_on_load: true,
+      // Per page: pull fresh data from the master when it opens.
+      refresh_on_load: {
+        Minions: true,
+        MinionDetail: true,
+        Keys: true,
+        Schedules: true,
+        Beacons: true,
+      },
     },
     selected_master: "",
     language: "en",
@@ -52,6 +58,7 @@ export default function defaultSettings() {
 // Server settings may predate a key added since the row was written, so merge
 // onto the defaults rather than replacing them.
 export function mergeSettings(defaults, stored) {
+  stored = upgradeStored(stored)
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) return defaults
   const merged = { ...defaults }
   Object.keys(stored).forEach(key => {
@@ -64,4 +71,20 @@ export function mergeSettings(defaults, stored) {
     }
   })
   return merged
+}
+
+// 3008.13.0 stored refresh_on_load as one switch for every page. Carry that
+// choice over to each page rather than letting the merge drop it for the
+// defaults, which would switch refreshing back on for anyone who turned it off.
+function upgradeStored(stored) {
+  const refresh = stored && stored.UserSettings && stored.UserSettings.refresh_on_load
+  if (typeof refresh !== "boolean") return stored
+  const pages = {}
+  Object.keys(defaultSettings().UserSettings.refresh_on_load).forEach(page => {
+    pages[page] = refresh
+  })
+  return {
+    ...stored,
+    UserSettings: { ...stored.UserSettings, refresh_on_load: pages },
+  }
 }
