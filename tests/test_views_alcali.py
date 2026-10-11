@@ -892,6 +892,87 @@ def test_custom_fields_are_collected_once_for_the_whole_fleet(
 
 
 @pytest.mark.django_db()
+def test_a_page_load_refresh_reads_the_master_cache(admin_client, jwt, monkeypatch):
+    """The refresh a page does for itself must not publish a job or make 45
+    minions recompile their pillar every time someone opens it."""
+    api = _fleet(monkeypatch, grains={"minion1": {"os": "Debian"}})
+    monkeypatch.setattr(
+        "api.backend.netapi.refresh_minions_from_cache",
+        lambda: {"refreshed": ["web01", "db01"]},
+    )
+
+    body = admin_client.post(
+        "/api/minions/refresh_minions/",
+        {"from_cache": True},
+        content_type="application/json",
+        **jwt,
+    ).json()
+
+    assert body["source"] == "master cache"
+    assert sorted(body["refreshed"]) == ["db01", "web01"]
+    assert body["no_minions_replied"] is False
+    assert api.calls == [], "nothing should have been asked of the fleet"
+
+
+@pytest.mark.django_db()
+def test_a_page_load_refresh_asks_the_fleet_when_the_cache_is_empty(
+    admin_client, jwt, monkeypatch
+):
+    """An empty cache is a master that has not seen these minions yet. Leaving
+    the page empty is worse than one live refresh."""
+    api = _fleet(monkeypatch, grains={"minion1": {"os": "Debian"}})
+    monkeypatch.setattr(
+        "api.backend.netapi.refresh_minions_from_cache", lambda: {"refreshed": []}
+    )
+
+    body = admin_client.post(
+        "/api/minions/refresh_minions/",
+        {"from_cache": True},
+        content_type="application/json",
+        **jwt,
+    ).json()
+
+    assert body["source"] == "minions"
+    assert body["refreshed"] == ["minion1"]
+    assert api.calls == [("*", "grains.items"), ("*", "pillar.items")]
+
+
+@pytest.mark.django_db()
+def test_an_explicit_refresh_asks_the_fleet(admin_client, jwt, monkeypatch):
+    api = _fleet(monkeypatch, grains={"minion1": {"os": "Debian"}})
+    called = []
+    monkeypatch.setattr(
+        "api.backend.netapi.refresh_minions_from_cache",
+        lambda: called.append(1) or {"refreshed": ["web01"]},
+    )
+
+    body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
+
+    assert body["source"] == "minions"
+    assert called == [], "the cache must not be read for a refresh someone asked for"
+    assert api.calls == [("*", "grains.items"), ("*", "pillar.items")]
+
+
+@pytest.mark.django_db()
+def test_a_form_posted_false_is_not_read_as_yes(admin_client, jwt, monkeypatch):
+    """A form post gives the string "false", which is truthy in Python."""
+    api = _fleet(monkeypatch, grains={"minion1": {"os": "Debian"}})
+    called = []
+    monkeypatch.setattr(
+        "api.backend.netapi.refresh_minions_from_cache",
+        lambda: called.append(1) or {"refreshed": ["web01"]},
+    )
+
+    body = admin_client.post(
+        "/api/minions/refresh_minions/", {"from_cache": "false"}, **jwt
+    ).json()
+
+    assert body["source"] == "minions"
+    assert called == []
+    assert api.calls == [("*", "grains.items"), ("*", "pillar.items")]
+
+
+@pytest.mark.django_db()
 def test_refresh_falls_back_to_the_master_cache(admin_client, jwt, monkeypatch):
     """A local client that collects nothing is usually a job cache that is not
     being written, not an empty fleet. The master's grain cache needs neither a

@@ -1,5 +1,23 @@
 # Changelog
 
+## [3008.17.0] - 2026-10-11
+
+### Changed
+
+- The refresh the Minions page does for itself when it opens now reads the
+  master's own cache instead of asking the fleet. `cache.grains` and
+  `cache.pillar` are runners the master answers from what it already holds, so
+  nothing is published, nobody has to reply, and - unlike `pillar.items` - no
+  minion recompiles its pillar. On a master whose pillar is assembled from
+  PillarStack and an external secret store, those 45 compiles were the
+  expensive part of a refresh even after 3008.16.0 brought the job count down
+  to two.
+
+  The refresh button still asks the fleet, so an explicit refresh is still
+  live data. If the master's cache has nothing - it has not seen these minions
+  yet - the page-load refresh asks the fleet rather than leaving the table
+  empty.
+
 ## [3008.16.0] - 2026-10-11
 
 ### Changed

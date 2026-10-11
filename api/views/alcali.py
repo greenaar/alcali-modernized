@@ -35,6 +35,7 @@ from api.backend.netapi import (
     minion_presence,
     refresh_beacons,
     refresh_minion,
+    refresh_minions_cached,
     refresh_minions_fleet,
     manage_key,
     get_events,
@@ -92,6 +93,18 @@ from api.utils.output import highstate_output, nested_output
 
 # Serve Vue Application
 index_view = never_cache(TemplateView.as_view(template_name="index.html"))
+
+
+def _is_true(value):
+    """Whether a request field means yes.
+
+    A JSON body gives a real boolean, but a form post gives the string
+    "false" - which is truthy in Python, so a plain `if` on it reads every
+    value as yes.
+    """
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
 
 
 class KeysViewSet(viewsets.ReadOnlyModelViewSet):
@@ -193,7 +206,13 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
         # cannot be reached used to produce an empty minion list and a 200, so
         # the UI called it a successful refresh of nobody and left the table
         # empty with nothing to explain why.
-        ret = refresh_minions_fleet()
+        # The page refreshes itself when it opens, and that one reads the
+        # master's cache: no job published, no minion asked, and no pillar
+        # recompiled. An explicit refresh asks the fleet.
+        if _is_true(request.data.get("from_cache")):
+            ret = refresh_minions_cached()
+        else:
+            ret = refresh_minions_fleet()
         if not isinstance(ret, dict):
             return Response(
                 {"error": "unexpected response from the Salt API"}, status=502

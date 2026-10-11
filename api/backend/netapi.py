@@ -328,6 +328,36 @@ def refresh_minions_fleet():
     }
 
 
+def refresh_minions_cached():
+    """Refresh from the master's own cache: no job, no minion, no pillar compile.
+
+    What the page-load refresh asks for. `cache.grains` and `cache.pillar` are
+    runners the master answers from what it already holds, so nothing is
+    published and nobody has to reply - and, unlike `pillar.items`, no minion
+    recompiles its pillar. On a master whose pillar is assembled from
+    PillarStack and an external secret store, 45 compiles every time a page
+    opens is the expensive part of a refresh even once the job count is down to
+    two.
+
+    The data is only as fresh as the last time each minion checked in, which is
+    the right trade for a refresh nobody asked for. The refresh button still
+    asks the fleet.
+
+    Falls through to the live path when the cache has nothing, rather than
+    leaving the page empty on a master that has not seen these minions yet.
+    """
+    cached = refresh_minions_from_cache()
+    if "error" not in cached and cached.get("refreshed"):
+        refreshed = cached["refreshed"]
+        return {
+            "refreshed": refreshed,
+            "responded": len(refreshed),
+            "no_minions_replied": False,
+            "source": "master cache",
+        }
+    return refresh_minions_fleet()
+
+
 def refresh_minions_from_cache():
     """Fill the minion table from the master's own data cache.
 

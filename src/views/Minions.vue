@@ -47,7 +47,11 @@
       },
       refreshMinions(quiet = false) {
         if (!quiet) this.$toast(this.$i18n.t("components.Minions.Refreshing"))
-        this.$http.post("/api/minions/refresh_minions/").then((response) => {
+        // `quiet` is the refresh the page does for itself when it opens. That
+        // one reads the master's cache: it publishes no job, waits for no
+        // minion and makes nobody recompile their pillar. Asking the fleet is
+        // reserved for a refresh someone asked for.
+        this.$http.post("/api/minions/refresh_minions/", { from_cache: quiet }).then((response) => {
           // "0 minions refreshed" reads like success. A master that answers
           // with nobody almost always means it could not read the job back.
           if (response.data.source === "master cache") {
