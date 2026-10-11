@@ -224,6 +224,110 @@ def refresh_minion(minion_id):
     return {"result": "{} refreshed".format(minion_id)}
 
 
+def refresh_minions_fleet():
+    """Refresh every minion's row, in two Salt calls rather than two per minion.
+
+    This used to loop `refresh_minion()` over the fleet: a test.ping to find
+    who was alive, then grains.items and pillar.items targeted at one minion at
+    a time, plus one call per custom field per minion. On 45 minions that was
+    91 jobs for a single page load - and since 3008.13.0 the page refreshes
+    itself when it opens, so navigating back to it paid that again.
+
+    One glob-targeted call returns the same data for the whole fleet, and the
+    grains response is itself the list of who answered, so the ping is
+    redundant as well. Custom fields go the same way: one call per field for
+    every minion, rather than per field per minion.
+
+    Returns what the view reports - `refreshed`, `responded`,
+    `no_minions_replied`, `source` - or `{"error": ...}`.
+    """
+    try:
+        api = api_connect()
+        grains = first_return(api.local("*", "grains.items"), "grains.items")
+    except SaltApiError as e:
+        return {"error": str(e)}
+
+    if not isinstance(grains, dict):
+        return {"error": "unexpected response from grains.items"}
+
+    # A minion that is listed but answered with nothing is not refreshable: its
+    # row would be overwritten with an empty grain set.
+    answered = {
+        minion_id: grain
+        for minion_id, grain in grains.items()
+        if isinstance(grain, dict) and grain
+    }
+
+    if not answered:
+        # The master answered and nobody replied. That is usually not an empty
+        # fleet: the local client has to read the job back out of the job
+        # cache to collect returns, and when that is not being written it
+        # gives up with "jid does not exist" and returns nothing. The master's
+        # own grain cache needs neither a minion reply nor the job cache, so
+        # fall back to it rather than reporting an empty fleet.
+        cached = refresh_minions_from_cache()
+        if "error" not in cached and cached.get("refreshed"):
+            return {
+                "refreshed": cached["refreshed"],
+                "responded": len(grains),
+                "no_minions_replied": True,
+                "source": "master cache",
+            }
+        # Say why the fallback did not help. Swallowing that leaves the same
+        # "0 minions refreshed" as a fleet with no minions, with nothing to
+        # say the fallback was even attempted.
+        return {
+            "refreshed": [],
+            "responded": len(grains),
+            "no_minions_replied": True,
+            "source": "none",
+            "cache_error": cached.get("error")
+            or "the master's grain cache named no minions",
+        }
+
+    try:
+        pillars = first_return(api.local("*", "pillar.items"), "pillar.items")
+    except SaltApiError as e:
+        return {"error": str(e)}
+    if not isinstance(pillars, dict):
+        pillars = {}
+
+    minions = {}
+    for minion_id, grain in answered.items():
+        pillar = pillars.get(minion_id)
+        minion, _ = Minions.objects.update_or_create(
+            minion_id=minion_id,
+            defaults={
+                "grain": json.dumps(grain),
+                "pillar": json.dumps(pillar if isinstance(pillar, dict) else {}),
+            },
+        )
+        minions[minion_id] = minion
+
+    for field in MinionsCustomFields.objects.values("name", "function").distinct():
+        # shlex strips the quotes; the target reaches Salt as a glob.
+        command = RawCommand("salt '*' {}".format(field["function"]))
+        values = run_raw(command.parse())
+        if "error" in values:
+            return values
+        for minion_id, minion in minions.items():
+            if minion_id not in values:
+                continue
+            MinionsCustomFields.objects.update_or_create(
+                name=field["name"],
+                function=field["function"],
+                minion=minion,
+                defaults={"value": json.dumps(values[minion_id])},
+            )
+
+    return {
+        "refreshed": sorted(minions),
+        "responded": len(grains),
+        "no_minions_replied": False,
+        "source": "minions",
+    }
+
+
 def refresh_minions_from_cache():
     """Fill the minion table from the master's own data cache.
 

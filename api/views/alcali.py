@@ -35,7 +35,7 @@ from api.backend.netapi import (
     minion_presence,
     refresh_beacons,
     refresh_minion,
-    refresh_minions_from_cache,
+    refresh_minions_fleet,
     manage_key,
     get_events,
     init_db,
@@ -185,78 +185,22 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
 
             return Response({"result": "refreshed {}".format(minion_id)})
 
-        # Run test.ping to list currently connected minions
-        connected = run_raw(
-            [
-                {
-                    "client": "local",
-                    "batch": None,
-                    "tgt_type": "glob",
-                    "tgt": "*",
-                    "fun": "test.ping",
-                }
-            ]
-        )
-        # run_raw reports a failure by returning {"error": ...}. Without this
-        # check a master that cannot be reached produced an empty minion list
-        # and a 200, so the UI reported "0 minions refreshed" as a success and
-        # the table stayed empty with nothing explaining why.
-        if not isinstance(connected, dict):
+        # Two glob-targeted calls for the whole fleet. The per-minion loop this
+        # replaces cost two jobs per minion plus a ping - 91 of them on 45
+        # minions - every time the page opened.
+        #
+        # The failure cases are reported rather than swallowed: a master that
+        # cannot be reached used to produce an empty minion list and a 200, so
+        # the UI called it a successful refresh of nobody and left the table
+        # empty with nothing to explain why.
+        ret = refresh_minions_fleet()
+        if not isinstance(ret, dict):
             return Response(
                 {"error": "unexpected response from the Salt API"}, status=502
             )
-        if "error" in connected:
-            return Response(connected["error"], status=401)
-
-        accepted_minions = [i for i in connected if connected.get(i) is True]
-        if not accepted_minions:
-            # The master answered and nobody replied. That is usually not an
-            # empty fleet: the local client has to read the job back out of
-            # the job cache to collect returns, and when that is not being
-            # written it gives up with "jid does not exist" and returns
-            # nothing. The master's own grain cache needs neither a minion
-            # reply nor the job cache, so fall back to it rather than
-            # reporting an empty fleet.
-            cached = refresh_minions_from_cache()
-            if "error" not in cached and cached.get("refreshed"):
-                return Response(
-                    {
-                        "refreshed": cached["refreshed"],
-                        "responded": len(connected),
-                        "no_minions_replied": True,
-                        "source": "master cache",
-                    }
-                )
-            # Say why the fallback did not help. Swallowing that leaves the
-            # same "0 minions refreshed" as a fleet with no minions, with
-            # nothing to say the fallback was even attempted.
-            return Response(
-                {
-                    "refreshed": [],
-                    "responded": len(connected),
-                    "no_minions_replied": True,
-                    "source": "none",
-                    "cache_error": cached.get("error")
-                    or "the master's grain cache named no minions",
-                }
-            )
-        for minion in accepted_minions:
-            ret = refresh_minion(minion)
-            if "error" in ret:
-                return Response(ret["error"], status=401)
-        # A reachable master that answers with nobody is not the same as a
-        # successful refresh, and reporting it as one is how an empty Minions
-        # page ends up looking like a fleet with no minions. It usually means
-        # the master could not read the job back - see the job cache check in
-        # `manage.py diagnose`.
-        return Response(
-            {
-                "refreshed": accepted_minions,
-                "responded": len(connected),
-                "no_minions_replied": not connected,
-                "source": "minions",
-            }
-        )
+        if "error" in ret:
+            return Response(ret["error"], status=401)
+        return Response(ret)
 
     @action(detail=False)
     def preview_target(self, request):

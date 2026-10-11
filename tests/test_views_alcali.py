@@ -1,3 +1,4 @@
+import json
 import datetime
 import os
 
@@ -673,15 +674,49 @@ def test_minion_actions_still_require_a_login(client):
     assert client.post("/api/minions/refresh_minions/").status_code in (401, 403)
 
 
+class FakeFleetApi:
+    """Answers the two glob-targeted calls the fleet refresh makes."""
+
+    def __init__(self, grains=None, pillars=None, error=None):
+        self.grains = {} if grains is None else grains
+        self.pillars = {} if pillars is None else pillars
+        self.error = error
+        self.calls = []
+
+    def local(self, tgt, fun, **kwargs):
+        from api.backend.salt_api import SaltApiError
+
+        self.calls.append((tgt, fun))
+        if self.error:
+            raise SaltApiError(self.error)
+        if fun == "grains.items":
+            return {"return": [self.grains]}
+        if fun == "pillar.items":
+            return {"return": [self.pillars]}
+        raise AssertionError("unexpected function {}".format(fun))
+
+    def runner(self, fun, **kwargs):
+        """cache.grains / cache.pillar, for the fallback path.
+
+        Empty by default: a test that wants the master cache to answer patches
+        refresh_minions_from_cache directly.
+        """
+        self.calls.append(("runner", fun))
+        return {"return": [{}]}
+
+
+def _fleet(monkeypatch, **kwargs):
+    api = FakeFleetApi(**kwargs)
+    monkeypatch.setattr("api.backend.netapi.api_connect", lambda: api)
+    return api
+
+
 @pytest.mark.django_db()
 def test_refresh_all_surfaces_a_salt_failure(admin_client, jwt, monkeypatch):
-    # run_raw signals failure by returning {"error": ...}. Treating that as a
-    # minion list produced a 200 and "0 minions refreshed", so an unreachable
-    # master looked like an empty fleet.
-    monkeypatch.setattr(
-        "api.views.alcali.run_raw",
-        lambda load: {"error": "Salt API request failed: connection refused"},
-    )
+    # A failure must not read as a minion list. Treating it as one produced a
+    # 200 and "0 minions refreshed", so an unreachable master looked like an
+    # empty fleet.
+    _fleet(monkeypatch, error="Salt API request failed: connection refused")
     response = admin_client.post("/api/minions/refresh_minions/", **jwt)
     assert response.status_code == 401
     assert "connection refused" in str(response.json())
@@ -689,15 +724,18 @@ def test_refresh_all_surfaces_a_salt_failure(admin_client, jwt, monkeypatch):
 
 @pytest.mark.django_db()
 def test_refresh_all_reports_minions_that_answered(admin_client, jwt, monkeypatch):
-    monkeypatch.setattr(
-        "api.views.alcali.run_raw", lambda load: {"minion1": True, "minion2": False}
-    )
-    monkeypatch.setattr(
-        "api.views.alcali.refresh_minion", lambda minion_id: {"result": "ok"}
+    # minion2 is listed but answered with nothing, which is not refreshable:
+    # its row would be overwritten with an empty grain set.
+    api = _fleet(
+        monkeypatch,
+        grains={"minion1": {"os": "Debian"}, "minion2": {}},
+        pillars={"minion1": {"roles": ["web"]}},
     )
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["refreshed"] == ["minion1"]
     assert body["responded"] == 2
+    # Two calls for the whole fleet, not two per minion.
+    assert api.calls == [("*", "grains.items"), ("*", "pillar.items")]
 
 
 @pytest.mark.django_db()
@@ -735,13 +773,12 @@ def test_refresh_all_flags_a_master_that_answered_with_nobody(
     # happens when it cannot read its own job back. Reporting that as a
     # successful refresh of zero minions is how an empty Minions page comes to
     # look like a fleet with no minions.
-    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    _fleet(monkeypatch)
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["refreshed"] == []
     assert body["no_minions_replied"] is True
 
-    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {"minion1": True})
-    monkeypatch.setattr("api.views.alcali.refresh_minion", lambda m: {"result": "ok"})
+    _fleet(monkeypatch, grains={"minion1": {"os": "Debian"}})
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["no_minions_replied"] is False
 
@@ -822,15 +859,48 @@ def test_prune_is_recorded_in_the_audit_log(admin_client, jwt, old_and_new_histo
 
 
 @pytest.mark.django_db()
+def test_custom_fields_are_collected_once_for_the_whole_fleet(
+    admin_client, jwt, monkeypatch
+):
+    """A field used to be fetched per minion, so the fanout was N per field."""
+    from api.models import Minions, MinionsCustomFields
+
+    minion = Minions.objects.create(minion_id="minion1", grain="{}", pillar="{}")
+    MinionsCustomFields.objects.create(
+        name="disk", function="disk.usage", minion=minion, value="{}"
+    )
+    _fleet(
+        monkeypatch,
+        grains={"minion1": {"os": "Debian"}, "minion2": {"os": "Debian"}},
+    )
+    loads = []
+    monkeypatch.setattr(
+        "api.backend.netapi.run_raw",
+        lambda load: loads.append(load) or {"minion1": "41%", "minion2": "12%"},
+    )
+
+    admin_client.post("/api/minions/refresh_minions/", **jwt)
+
+    assert len(loads) == 1, "one call per field, not one per field per minion"
+    assert loads[0][0]["tgt"] == "*"
+    assert loads[0][0]["fun"] == "disk.usage"
+    values = {
+        f.minion.minion_id: json.loads(f.value)
+        for f in MinionsCustomFields.objects.select_related("minion")
+    }
+    assert values == {"minion1": "41%", "minion2": "12%"}
+
+
+@pytest.mark.django_db()
 def test_refresh_falls_back_to_the_master_cache(admin_client, jwt, monkeypatch):
     """A local client that collects nothing is usually a job cache that is not
     being written, not an empty fleet. The master's grain cache needs neither a
     minion reply nor the job cache, so it is worth asking."""
     from api.models import Minions
 
-    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    _fleet(monkeypatch)
     monkeypatch.setattr(
-        "api.views.alcali.refresh_minions_from_cache",
+        "api.backend.netapi.refresh_minions_from_cache",
         lambda: {"refreshed": ["web01", "db01"]},
     )
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
@@ -841,10 +911,9 @@ def test_refresh_falls_back_to_the_master_cache(admin_client, jwt, monkeypatch):
 @pytest.mark.django_db()
 def test_refresh_prefers_live_minions_over_the_cache(admin_client, jwt, monkeypatch):
     called = []
-    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {"minion1": True})
-    monkeypatch.setattr("api.views.alcali.refresh_minion", lambda m: {"result": "ok"})
+    _fleet(monkeypatch, grains={"minion1": {"os": "Debian"}})
     monkeypatch.setattr(
-        "api.views.alcali.refresh_minions_from_cache",
+        "api.backend.netapi.refresh_minions_from_cache",
         lambda: called.append(1) or {"refreshed": []},
     )
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
@@ -856,9 +925,9 @@ def test_refresh_prefers_live_minions_over_the_cache(admin_client, jwt, monkeypa
 def test_refresh_still_reports_an_empty_fleet_when_the_cache_is_empty_too(
     admin_client, jwt, monkeypatch
 ):
-    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    _fleet(monkeypatch)
     monkeypatch.setattr(
-        "api.views.alcali.refresh_minions_from_cache", lambda: {"refreshed": []}
+        "api.backend.netapi.refresh_minions_from_cache", lambda: {"refreshed": []}
     )
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["no_minions_replied"] is True
@@ -886,9 +955,9 @@ def test_refresh_reports_why_the_cache_fallback_did_not_help(
 ):
     """A fallback whose failure is invisible is no better than no fallback:
     the page looks the same as a fleet with no minions."""
-    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    _fleet(monkeypatch)
     monkeypatch.setattr(
-        "api.views.alcali.refresh_minions_from_cache",
+        "api.backend.netapi.refresh_minions_from_cache",
         lambda: {"error": "Salt API request failed: 500 - Function unavailable"},
     )
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
@@ -898,9 +967,9 @@ def test_refresh_reports_why_the_cache_fallback_did_not_help(
 
 @pytest.mark.django_db()
 def test_refresh_reports_an_empty_master_cache(admin_client, jwt, monkeypatch):
-    monkeypatch.setattr("api.views.alcali.run_raw", lambda load: {})
+    _fleet(monkeypatch)
     monkeypatch.setattr(
-        "api.views.alcali.refresh_minions_from_cache", lambda: {"refreshed": []}
+        "api.backend.netapi.refresh_minions_from_cache", lambda: {"refreshed": []}
     )
     body = admin_client.post("/api/minions/refresh_minions/", **jwt).json()
     assert body["source"] == "none"

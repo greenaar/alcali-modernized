@@ -1,5 +1,25 @@
 # Changelog
 
+## [3008.16.0] - 2026-10-11
+
+### Changed
+
+- Refreshing the Minions page now asks the whole fleet at once instead of each
+  minion in turn. It ran `test.ping` to find who was alive and then
+  `grains.items` and `pillar.items` targeted at one minion at a time, plus one
+  call per custom field per minion: 91 jobs on a 45-minion master, for one
+  page. Two glob-targeted calls return the same data, the grains response is
+  itself the list of who answered - so the ping is redundant - and each custom
+  field is collected for every minion in one call.
+
+  This matters more than it looks, because since 3008.13.0 the page refreshes
+  itself when it opens: on that master, opening it five times published 460
+  jobs and asked the master to compile pillar 397 times.
+
+  A minion that is listed but answers with nothing is skipped rather than
+  having its row overwritten with an empty grain set, and the fallback to the
+  master's own `cache.grains`/`cache.pillar` when nobody replies is unchanged.
+
 ## [3008.15.0] - 2026-10-11
 
 ### Changed
