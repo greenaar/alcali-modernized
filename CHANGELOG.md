@@ -1,5 +1,34 @@
 # Changelog
 
+## [3008.17.1] - 2026-10-11
+
+### Security
+
+- Dependency advisories published since 3008.14.0 broke `pnpm audit --prod`,
+  and with it the frontend CI job, on every push. Twenty-two findings, now
+  none:
+
+  - axios 1.19.0 → 1.20.0 (twelve advisories, high and moderate)
+  - dompurify 3.4.13 → 3.4.16
+  - shell-quote 1.10.0 → 1.12.0 (one critical)
+  - vue 3.5.41 → 3.5.43, which also moves `@vue/server-renderer` past its
+    high advisory
+  - `source-map-js` pinned to >=1.2.2 and `postcss-selector-parser` to
+    >=7.1.6 through overrides, both reached only through the webpack build
+    chain
+
+  The `fast-uri` override was already there, pinned to ">=4.1.3" for four
+  advisories fixed in that version - and two later advisories moved the floor
+  to 4.1.5 while the pin went on being satisfied by 4.1.3. A range override
+  floors a version, it does not track the advisory, so the pin has to be
+  raised as new ones land rather than assumed to still cover them.
+
+  `postcss-selector-parser` is pinned across the whole tree rather than within
+  the 7 line, because the advisory has no fix in 6.x: cssnano's own plugins
+  resolve 6.1.4, so scoping the pin to 7 left them flagged. That is a major
+  bump for build-time tooling, which the CSS minifier's own output in a full
+  `pnpm build` is what justifies.
+
 ## [3008.17.0] - 2026-10-11
 
 ### Changed
