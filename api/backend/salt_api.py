@@ -13,7 +13,7 @@ import os
 import re
 import threading
 import warnings
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -100,6 +100,17 @@ def _response_detail(exc: Exception, limit: int = 500) -> str:
     return " - {}".format(detail)
 
 
+def _is_auth_failure(exc: Exception) -> bool:
+    """Whether salt-api refused the request for want of a valid token.
+
+    A token the master has expired or forgotten - it restarted, or
+    `token_expire` elapsed - is indistinguishable from any other 401 here, so
+    both are treated as "log in again and retry once".
+    """
+    response = getattr(exc, "response", None)
+    return getattr(response, "status_code", None) in (401, 403)
+
+
 class SaltApiClient:
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/") + "/"
@@ -109,6 +120,9 @@ class SaltApiClient:
             _silence_unverified_warning(base_url)
         self.session = requests.Session()
         self.session.headers.update({"Accept": "application/json"})
+        # Set by the caller that owns the credential. Called with no arguments
+        # when salt-api rejects a token, and expected to return a fresh one.
+        self.reauth: Callable[[], str | None] | None = None
 
     @staticmethod
     def _verification_for(base_url: str) -> bool | str:
@@ -150,10 +164,27 @@ class SaltApiClient:
             "SALT_CA_BUNDLE"
         )
 
+    def use_token(self, token: str) -> None:
+        """Authenticate with a token obtained earlier, instead of logging in.
+
+        A login is not cheap. With the `rest` eauth backend the master answers
+        one by calling Alcali back to verify the credential, so logging in per
+        request turns a single page into a storm of logins, each with its own
+        round trip back to this process. A caller holding a live token hands it
+        over here instead.
+        """
+        self.session.headers["X-Auth-Token"] = token
+
     def _url(self, path: str = "") -> str:
         return urljoin(self.base_url, path.lstrip("/"))
 
-    def _json_request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+    def _json_request(
+        self,
+        method: str,
+        path: str,
+        _allow_reauth: bool = True,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         try:
             response = self.session.request(
                 method,
@@ -165,6 +196,16 @@ class SaltApiClient:
             response.raise_for_status()
             payload = response.json()
         except (requests.RequestException, ValueError) as exc:
+            # A cached token the master no longer honours. Log in again, once,
+            # and repeat the call; `_allow_reauth` stops a persistently
+            # refused credential from recursing.
+            if _allow_reauth and self.reauth is not None and _is_auth_failure(exc):
+                token = self.reauth()
+                if token:
+                    self.use_token(token)
+                    return self._json_request(
+                        method, path, _allow_reauth=False, **kwargs
+                    )
             # salt-api puts the reason in the body - an unknown function, a
             # client the master has not enabled, a rejected ACL. Without it
             # the caller only ever sees "500 Server Error", which says

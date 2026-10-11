@@ -1,5 +1,34 @@
 # Changelog
 
+## [3008.15.0] - 2026-10-11
+
+### Changed
+
+- The salt-api token is now held per process and reused, instead of logging in
+  again for every call. Every view that touches Salt goes through
+  `api_connect()`, and some of them loop over the fleet: refreshing the
+  Minions page asks each minion for its grains and its pillar in turn, which
+  on 45 minions was 46 logins for one page. With the `rest` eauth backend each
+  of those makes the master call Alcali back to verify the credential, so one
+  page refresh cost 46 logins, 46 verification round trips into this process,
+  and 46 writes of the same permissions row. Measured on a 45-minion master:
+  301 logins in twenty minutes, for five page loads.
+
+  The cached token is keyed on the credential as well as the user, so
+  regenerating someone's Salt token stops the token issued against the old one
+  from being reused rather than leaving that session alive until
+  `token_expire`. It is treated as spent 30 seconds before the master says it
+  expires, and if salt-api refuses it anyway - across a master restart, say -
+  the call logs in again once and retries. `SALT_TOKEN_CACHE=false` turns the
+  whole thing off.
+
+### Fixed
+
+- A user's Salt permissions were never actually stored. `api_connect()`
+  assigned `salt_permissions` on the settings row and then called
+  `user.save()`, which saves the user and not the related row. It is now saved
+  on the row it belongs to, and only when it changes.
+
 ## [3008.14.0] - 2026-09-27
 
 ### Changed

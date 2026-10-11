@@ -1,5 +1,8 @@
+import hashlib
 import os
 import json
+import threading
+import time
 from django_currentuser.middleware import get_current_user
 
 from .salt_api import SaltApiClient, SaltApiError
@@ -7,6 +10,95 @@ from ..utils.input import RawCommand
 from ..models import Minions, Functions, MinionsCustomFields, Keys, Schedule, Beacon
 
 url = os.environ.get("SALT_URL", "https://127.0.0.1:8080")
+
+# salt-api tokens held per process, so that a page does not pay for a login per
+# call. Every view that touches Salt goes through api_connect(), and some of
+# them loop: refreshing the Minions page asks each minion for its grains and
+# its pillar in turn, which on a fleet of 45 was 46 logins for one page. With
+# the `rest` eauth backend each of those makes the master call back to this
+# process to verify the credential, so the cost is a round trip to Alcali, a
+# master authentication and a database write, per call.
+#
+# Keyed on the credential as well as the user: regenerating someone's Salt
+# token has to stop the token issued for the old one from being reused, and a
+# key that ignored it would keep that session alive until `token_expire`.
+#
+# Per process rather than shared: with several gunicorn workers this is one
+# login each per token lifetime, which is cheap, and it keeps a cache miss from
+# depending on anything outside this process.
+_TOKEN_CACHE: dict[tuple[str, str, str], dict] = {}
+_TOKEN_LOCK = threading.Lock()
+
+# Treat a token as spent slightly before the master does, so a call cannot be
+# issued with one that expires in flight.
+_TOKEN_EXPIRY_MARGIN = 30.0
+
+# How long to trust a login response that does not say when it expires. The
+# master always sends `expire`, so this is only reached against something that
+# does not behave like salt-api.
+_TOKEN_FALLBACK_TTL = 600.0
+
+
+def _token_cache_enabled() -> bool:
+    return os.environ.get("SALT_TOKEN_CACHE", "true").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def _cache_key(username: str, credential: str, eauth: str) -> tuple[str, str, str]:
+    digest = hashlib.sha256(credential.encode("utf-8")).hexdigest()[:16]
+    return (username, eauth, digest)
+
+
+def forget_salt_token(username: str, credential: str, eauth: str) -> None:
+    """Drop a cached token, so the next call logs in again."""
+    with _TOKEN_LOCK:
+        _TOKEN_CACHE.pop(_cache_key(username, credential, eauth), None)
+
+
+def _login(api, username: str, credential: str, eauth: str) -> dict:
+    """Log in and cache the result. Returns the cache entry."""
+    login_ret = api.login(username, credential, eauth)
+    expire = login_ret.get("expire")
+    try:
+        expire = float(expire)
+    except (TypeError, ValueError):
+        expire = time.time() + _TOKEN_FALLBACK_TTL
+    entry = {
+        "token": login_ret["token"],
+        "expire": expire,
+        "perms": login_ret.get("perms"),
+    }
+    if _token_cache_enabled():
+        now = time.time()
+        with _TOKEN_LOCK:
+            # Regenerating a token leaves its old entry unreachable, since the
+            # key covers the credential. Clear anything spent while here, so
+            # the cache cannot grow one dead entry per regeneration.
+            for key in [
+                key
+                for key, held in _TOKEN_CACHE.items()
+                if held["expire"] - _TOKEN_EXPIRY_MARGIN <= now
+            ]:
+                del _TOKEN_CACHE[key]
+            _TOKEN_CACHE[_cache_key(username, credential, eauth)] = entry
+    return entry
+
+
+def _cached_entry(username: str, credential: str, eauth: str) -> dict | None:
+    if not _token_cache_enabled():
+        return None
+    with _TOKEN_LOCK:
+        entry = _TOKEN_CACHE.get(_cache_key(username, credential, eauth))
+    if entry is None:
+        return None
+    if entry["expire"] - _TOKEN_EXPIRY_MARGIN <= time.time():
+        forget_salt_token(username, credential, eauth)
+        return None
+    return entry
 
 
 def first_return(api_ret, what="the Salt API"):
@@ -33,17 +125,33 @@ def api_connect():
     user = get_current_user()
     if user is None or not user.is_authenticated:
         raise SaltApiError("An authenticated Alcali user is required")
+    username = str(user.username)
+    credential = user.user_settings.token
+    eauth = os.environ.get("SALT_AUTH", "rest")
+
     api = SaltApiClient(url)
-    try:
-        login_ret = api.login(
-            str(user.username),
-            user.user_settings.token,
-            os.environ.get("SALT_AUTH", "rest"),
-        )
-    except SaltApiError:
-        raise
-    user.user_settings.salt_permissions = json.dumps(login_ret["perms"])
-    user.save()
+    entry = _cached_entry(username, credential, eauth)
+    if entry is None:
+        entry = _login(api, username, credential, eauth)
+    else:
+        api.use_token(entry["token"])
+
+    # The master can expire or forget a token before it says it will - most
+    # obviously across a restart. The client calls this when salt-api refuses a
+    # request, and retries it once with what comes back.
+    def reauth():
+        forget_salt_token(username, credential, eauth)
+        return _login(api, username, credential, eauth)["token"]
+
+    api.reauth = reauth
+
+    # Written only when it changes. This used to be assigned on the settings
+    # row and then saved through `user.save()`, which saves the user and not
+    # the related row, so the value never actually reached the database.
+    perms = json.dumps(entry["perms"])
+    if user.user_settings.salt_permissions != perms:
+        user.user_settings.salt_permissions = perms
+        user.user_settings.save(update_fields=["salt_permissions"])
     return api
 
 

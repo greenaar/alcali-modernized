@@ -2,6 +2,7 @@ import json
 from unittest import mock
 
 import pytest
+import requests
 
 from api.backend.salt_api import SaltApiClient, SaltApiError
 
@@ -197,3 +198,72 @@ def test_refresh_schedules_keeps_the_minions_that_did_answer(monkeypatch):
     result = netapi.refresh_schedules()
     assert set(result) == {"m1"}
     assert Schedule.objects.filter(minion="m1", name="highstate").exists()
+
+
+def test_a_token_can_be_supplied_without_logging_in():
+    """The cache hands over a live token; that must not cost a login."""
+    client = SaltApiClient("https://salt.example.test:8080")
+
+    client.use_token("held-token")
+
+    assert client.session.headers["X-Auth-Token"] == "held-token"
+
+
+def test_a_refused_token_is_retried_once_with_a_fresh_one(monkeypatch):
+    """A token the master has forgotten - across a restart, say - should cost
+    one re-login and then succeed, not surface as a failure."""
+    client = SaltApiClient("https://salt.example.test:8080")
+    client.use_token("stale")
+    attempts = []
+
+    def request(method, url, **kwargs):
+        attempts.append(client.session.headers.get("X-Auth-Token"))
+        if attempts[-1] == "stale":
+            response = FakeResponse({"error": "no"}, status_code=401)
+            raise requests.HTTPError("401", response=response)
+        return FakeResponse({"return": [{"minion": True}]})
+
+    monkeypatch.setattr(client.session, "request", request)
+    client.reauth = lambda: "fresh"
+
+    result = client.runner("manage.up")
+
+    assert attempts == ["stale", "fresh"]
+    assert result == {"return": [{"minion": True}]}
+
+
+def test_a_token_that_stays_refused_is_an_error_not_a_loop(monkeypatch):
+    client = SaltApiClient("https://salt.example.test:8080")
+    client.use_token("stale")
+    attempts = []
+
+    def request(method, url, **kwargs):
+        attempts.append(client.session.headers.get("X-Auth-Token"))
+        response = FakeResponse({"error": "no"}, status_code=401)
+        raise requests.HTTPError("401", response=response)
+
+    monkeypatch.setattr(client.session, "request", request)
+    client.reauth = lambda: "fresh"
+
+    with pytest.raises(SaltApiError):
+        client.runner("manage.up")
+
+    assert len(attempts) == 2
+
+
+def test_a_non_auth_failure_is_not_retried(monkeypatch):
+    client = SaltApiClient("https://salt.example.test:8080")
+    attempts = []
+
+    def request(method, url, **kwargs):
+        attempts.append(1)
+        response = FakeResponse({"error": "boom"}, status_code=500)
+        raise requests.HTTPError("500", response=response)
+
+    monkeypatch.setattr(client.session, "request", request)
+    client.reauth = lambda: "fresh"
+
+    with pytest.raises(SaltApiError):
+        client.runner("manage.up")
+
+    assert len(attempts) == 1
