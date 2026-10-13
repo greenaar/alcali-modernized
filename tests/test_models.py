@@ -39,14 +39,19 @@ def test_not_present_highstate(minion):
 
 
 @pytest.mark.django_db
-def test_not_conform_highstate(minion, highstate_diff):
-    ret = highstate_diff
-    assert minion.conformity() is False
+def test_a_dry_run_alone_gives_no_verdict(minion, highstate_diff):
+    # highstate_diff is a test=True run with a state reporting None. In test
+    # mode that is what Salt reports for anything it cannot predict, so it is
+    # not evidence of drift; only real runs are judged. A failing real run is
+    # covered in test_conformity.py.
+    assert minion.conformity() is None
 
 
 @pytest.mark.django_db
-def test_failed_highstate(minion, highstate_failed):
-    assert minion.conformity() is False
+def test_a_dry_run_that_failed_to_compile_gives_no_verdict(minion, highstate_failed):
+    # Also a test=True run. The compile error will be in the next real run,
+    # which is what gets judged.
+    assert minion.conformity() is None
 
 
 @pytest.mark.django_db

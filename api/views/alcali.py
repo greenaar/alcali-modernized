@@ -1,5 +1,8 @@
 import datetime
 import json
+import logging
+import queue
+import threading
 from collections import Counter, OrderedDict
 
 from ansi2html import Ansi2HTMLConverter
@@ -44,12 +47,14 @@ from api.backend.netapi import (
     run_raw,
     get_keys,
     manage_schedules,
+    sync_keys,
 )
 from api.management.commands.prune_returns import (
     _delete_by_pk,
     _delete_by_time,
 )
 from api.models import (
+    conformity_entry_for,
     SaltReturns,
     Keys,
     Minions,
@@ -91,8 +96,42 @@ from api.utils import graph_data, render_conformity, RawCommand
 from api.utils.matching import glob_match, list_match, subdict_match
 from api.utils.output import highstate_output, nested_output
 
+logger = logging.getLogger(__name__)
+
 # Serve Vue Application
 index_view = never_cache(TemplateView.as_view(template_name="index.html"))
+
+
+def _sync_keys_or_use_cache():
+    """Refresh salt_keys from the master if it is due; True if it is current.
+
+    The overview cards count from salt_keys, which only the Keys page's
+    refresh button used to update. When the master cannot be reached the
+    cards fall back to what was last stored rather than failing - the
+    diagnostics page is where an unreachable master is reported.
+    """
+    ret = sync_keys()
+    if "error" in ret:
+        logger.warning("key sync failed, using stored keys: %s", ret["error"])
+        return False
+    return True
+
+
+def _accepted_minion_ids():
+    """The roster the overview reports on: minions with an accepted key.
+
+    Falls back to the inventory when no keys are known at all, so a master
+    Alcali cannot reach still shows something rather than an empty fleet.
+    """
+    _sync_keys_or_use_cache()
+    accepted = list(
+        Keys.objects.filter(status="accepted")
+        .values_list("minion_id", flat=True)
+        .distinct()
+    )
+    if accepted:
+        return sorted(accepted)
+    return sorted(Minions.objects.values_list("minion_id", flat=True).distinct())
 
 
 def _is_true(value):
@@ -120,6 +159,7 @@ class KeysViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False)
     def keys_status(self, request):
+        _sync_keys_or_use_cache()
         keys_status = list(Keys.objects.values_list("status", flat=True))
         keys_status = dict(Counter(keys_status))
         od = OrderedDict()
@@ -293,6 +333,10 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
         days = max(1, min(days, 365))
         cutoff = timezone.now() - datetime.timedelta(days=days)
 
+        # The roster is the master's accepted keys. Read from a salt_keys that
+        # nobody had refreshed, a new master reported no accepted minions and
+        # so nobody silent, while its Jobs page showed them all returning.
+        _sync_keys_or_use_cache()
         accepted = list(
             Keys.objects.filter(status="accepted").values_list("minion_id", flat=True)
         )
@@ -335,8 +379,13 @@ class MinionsViewSet(AuditedModelViewSet, viewsets.ModelViewSet):
     @action(detail=False)
     def conformity(self, request):
         highstate_conformity = {"conform": 0, "conflict": 0, "unknown": 0}
-        for minion in Minions.objects.all():
-            conformity = minion.conformity()
+        # Every minion with an accepted key, not only those in the inventory:
+        # salt_minions holds whoever was last refreshed, so the chart's total
+        # disagreed with the key count and the jobs pages whenever the fleet
+        # had changed since. A minion is judged from its returns, which does
+        # not need an inventory row.
+        for minion_id in _accepted_minion_ids():
+            conformity = conformity_entry_for(minion_id).verdict
             if conformity is True:
                 highstate_conformity["conform"] += 1
             elif conformity is False:
@@ -833,6 +882,9 @@ def stats(request):
     # Status widget.
     jobs_nb = SaltReturns.objects.count()
     events_nb = SaltEvents.objects.count()
+    # A key sync also drops schedules belonging to minions whose key is gone,
+    # which nothing else ever removed - so they stayed in this count forever.
+    _sync_keys_or_use_cache()
     schedules_nb = Schedule.objects.count()
     return Response({"jobs": jobs_nb, "events": events_nb, "schedules": schedules_nb})
 
@@ -852,10 +904,71 @@ def event_stream(request):
         # cannot reach, instead of both looking like a 200.
         return Response({"error": str(exc)}, status=503)
     response = StreamingHttpResponse(
-        stream, status=200, content_type="text/event-stream"
+        with_keepalive(stream), status=200, content_type="text/event-stream"
     )
     response["Cache-Control"] = "no-cache"
+    # Stop a buffering proxy holding the keep-alives back, which would undo
+    # the point of sending them.
+    response["X-Accel-Buffering"] = "no"
     return response
+
+
+# The browser's EventSource polyfill declares a stream dead after 45 seconds
+# with no bytes, and salt-api sends nothing between events. A quiet master -
+# one beacon a minute, say - therefore had every page's status indicator
+# flip to NOT OK and reconnect over and over while the stream was perfectly
+# healthy. An SSE comment line is ignored by every client, so one is sent
+# whenever the stream has been idle this long.
+KEEPALIVE_SECONDS = 15
+_KEEPALIVE = b": keepalive\n\n"
+_STREAM_END = object()
+
+
+def with_keepalive(stream, interval=KEEPALIVE_SECONDS):
+    """Yield the stream's chunks, plus a comment line whenever it goes quiet.
+
+    The upstream read blocks, so it runs in its own thread and hands chunks
+    over a queue; the response side waits on the queue with a timeout. A
+    keep-alive is only sent between events - a chunk can end part way through
+    one, and a comment line in the middle of an event would corrupt it.
+    """
+    chunks = queue.Queue()
+
+    def pump():
+        try:
+            for chunk in stream:
+                if chunk:
+                    chunks.put(chunk)
+        except Exception:  # noqa: BLE001 - any failure just ends the stream
+            logger.debug("event stream ended", exc_info=True)
+        finally:
+            chunks.put(_STREAM_END)
+
+    reader = threading.Thread(target=pump, name="alcali-event-stream", daemon=True)
+    reader.start()
+    at_boundary = True
+    try:
+        while True:
+            try:
+                chunk = chunks.get(timeout=interval)
+            except queue.Empty:
+                if at_boundary:
+                    yield _KEEPALIVE
+                continue
+            if chunk is _STREAM_END:
+                return
+            at_boundary = chunk.endswith(b"\n\n")
+            yield chunk
+    finally:
+        # Runs when the client goes away, too: closing the upstream response
+        # unblocks the reader so the thread and the connection to salt-api are
+        # not left behind for every page that was ever closed.
+        close = getattr(stream, "close", None)
+        if close is not None:
+            try:
+                close()
+            except Exception:  # noqa: BLE001
+                logger.debug("closing the event stream failed", exc_info=True)
 
 
 @api_view(["POST"])

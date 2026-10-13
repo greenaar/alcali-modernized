@@ -147,6 +147,138 @@ class JobTemplate(models.Model):
         app_label = "api"
 
 
+# How far back to look for a highstate. Whether a run counts depends on its
+# arguments, which live inside the JSON payload and cannot be filtered in SQL,
+# so a bounded window is read and examined here.
+HIGHSTATE_SEARCH_DEPTH = 20
+
+
+def _is_test_arg(arg):
+    if isinstance(arg, dict):
+        return str(arg.get("test")).strip().lower() in ("true", "1", "yes")
+    if isinstance(arg, str) and "=" in arg:
+        name, _, value = arg.partition("=")
+        return name.strip() == "test" and value.strip().lower() in ("true", "1", "yes")
+    return False
+
+
+def is_real_highstate(fun_args):
+    """Whether a state.apply/state.highstate return is a full, real run.
+
+    Only a positional argument targets specific states (`state.apply users`).
+    Keyword options do not: `state.apply saltenv=base` is still a highstate,
+    and so is the dict form Salt records for keywords passed through the API
+    or a schedule, {"__kwarg__": true, ...}.
+
+    Test runs are not counted. In test mode Salt reports None for any state
+    it cannot predict - pkgrepo entries, archives, services that do not exist
+    yet - whether or not a real run would change anything, so a clean dry run
+    reads as drift. A minion whose real highstate passed was reported as
+    conflicting the moment someone ran test=True after it. They were also only
+    recognised in one of the two forms Salt records them in ("test=True" but
+    not {"__kwarg__": true, "test": true}), so the same run was judged
+    differently depending on how it was launched.
+    """
+    for arg in fun_args or []:
+        if _is_test_arg(arg):
+            return False
+        if isinstance(arg, dict) and arg.get("__kwarg__"):
+            continue
+        if isinstance(arg, str) and "=" in arg:
+            continue
+        return False
+    return True
+
+
+def state_run_jids(minion_id):
+    """The newest state run ids for a minion, newest first.
+
+    Only the ids: a state return carries the whole run in `full_ret`, and
+    pulling twenty of those to look at one field each is what made listing
+    minions expensive.
+    """
+    return list(
+        SaltReturns.objects.filter(
+            Q(fun="state.apply") | Q(fun="state.highstate"), id=minion_id
+        )
+        .order_by("-jid")
+        .values_list("jid", flat=True)[:HIGHSTATE_SEARCH_DEPTH]
+    )
+
+
+def compute_last_highstate(minion_id, jids=None):
+    # Newest first. This used to take the two most recent state runs and then
+    # re-sort them oldest-first before returning the first match, so "last
+    # highstate" was really the one before last: a minion whose most recent
+    # highstate passed still reported the previous failure.
+    #
+    # Rows are pulled one at a time because the first is almost always the
+    # answer, and each one parsed is a full run's worth of JSON.
+    for jid in state_run_jids(minion_id) if jids is None else jids:
+        state = SaltReturns.objects.filter(jid=jid, id=minion_id).first()
+        if state is None:
+            continue
+        try:
+            fun_args = state.loaded_ret().get("fun_args") or []
+        except ValueError:
+            continue
+        if is_real_highstate(fun_args):
+            return state
+    return None
+
+
+def verdict_for(highstate):
+    """Whether a highstate return describes a conformant minion."""
+    if not highstate:
+        return None
+    try:
+        highstate_ret = highstate.loaded_ret()
+    except ValueError:
+        return False
+
+    # Flat out error(return is a string)
+    return_item = highstate_ret.get("return")
+    if not return_item or isinstance(return_item, list):
+        return False
+
+    for result in return_item.values():
+        # Not every entry is guaranteed to be a state result mapping: a module
+        # that returns a bare value puts a string or a list here, and calling
+        # .get on it raised AttributeError - a 500 for the whole minions list
+        # rather than one odd state.
+        if not isinstance(result, dict):
+            return False
+        # Only real runs are judged, so anything but True is a failure.
+        if result.get("result") is not True:
+            return False
+    return True
+
+
+def conformity_entry_for(minion_id):
+    """The stored verdict for a minion, recomputed only when a newer state
+    run exists.
+
+    Takes an id rather than a Minions row: the overview judges every minion
+    with an accepted key, and a minion nobody has refreshed into the
+    inventory yet still has highstates to judge.
+    """
+    jids = state_run_jids(minion_id)
+    newest = jids[0] if jids else ""
+    entry = ConformityCache.objects.filter(minion_id=minion_id).first()
+    if entry is None or entry.source_jid != newest:
+        highstate = compute_last_highstate(minion_id, jids)
+        entry, _ = ConformityCache.objects.update_or_create(
+            minion_id=minion_id,
+            defaults={
+                "source_jid": newest,
+                "verdict": verdict_for(highstate),
+                "highstate_jid": highstate.jid if highstate else "",
+                "highstate_time": highstate.alter_time if highstate else None,
+            },
+        )
+    return entry
+
+
 class Minions(models.Model):
     minion_id = models.CharField(max_length=128, null=False, blank=False, db_index=True)
     grain = models.TextField()
@@ -165,79 +297,17 @@ class Minions(models.Model):
             .first()
         )
 
-    # How far back to look for a highstate. Whether a run counts depends on
-    # its arguments, which live inside the JSON payload and cannot be filtered
-    # in SQL, so a bounded window is read and examined here.
-    HIGHSTATE_SEARCH_DEPTH = 20
-
+    # The highstate logic lives in module functions keyed by minion id (see
+    # conformity_entry_for); these keep the per-row interface.
     def _state_run_jids(self):
-        """The newest state run ids for this minion, newest first.
-
-        Only the ids: a state return carries the whole run in `full_ret`, and
-        pulling twenty of those to look at one field each is what made listing
-        minions expensive.
-        """
-        return list(
-            SaltReturns.objects.filter(
-                Q(fun="state.apply") | Q(fun="state.highstate"), id=self.minion_id
-            )
-            .order_by("-jid")
-            .values_list("jid", flat=True)[: self.HIGHSTATE_SEARCH_DEPTH]
-        )
+        return state_run_jids(self.minion_id)
 
     def _compute_last_highstate(self, jids=None):
-        # Newest first. This used to take the two most recent state runs and
-        # then re-sort them oldest-first before returning the first match, so
-        # "last highstate" was really the one before last: a minion whose most
-        # recent highstate passed still reported the previous failure.
-        #
-        # A run with arguments is a targeted state, not a highstate; a test run
-        # still describes the minion's conformity. Rows are pulled one at a
-        # time because the first is almost always the answer, and each one
-        # parsed is a full run's worth of JSON.
-        for jid in self._state_run_jids() if jids is None else jids:
-            state = SaltReturns.objects.filter(jid=jid, id=self.minion_id).first()
-            if state is None:
-                continue
-            try:
-                fun_args = state.loaded_ret().get("fun_args") or []
-            except ValueError:
-                continue
-            if (
-                not fun_args
-                or fun_args[0] == {"test": True}
-                or fun_args[0] == "test=True"
-            ):
-                return state
-        return None
+        return compute_last_highstate(self.minion_id, jids)
 
     @staticmethod
     def _verdict_for(highstate):
-        """Whether a highstate return describes a conformant minion."""
-        if not highstate:
-            return None
-        try:
-            highstate_ret = highstate.loaded_ret()
-        except ValueError:
-            return False
-
-        # Flat out error(return is a string)
-        return_item = highstate_ret.get("return")
-        if not return_item or isinstance(return_item, list):
-            return False
-
-        for result in return_item.values():
-            # Not every entry is guaranteed to be a state result mapping: a
-            # module that returns a bare value puts a string or a list here,
-            # and calling .get on it raised AttributeError - a 500 for the
-            # whole minions list rather than one odd state.
-            if not isinstance(result, dict):
-                return False
-            # A state reports None when it made no changes but would have,
-            # which is a highstate that has drifted, not one that passed.
-            if not result.get("result"):
-                return False
-        return True
+        return verdict_for(highstate)
 
     def conformity_entry(self):
         """The stored verdict, recomputed only when a newer state run exists.
@@ -245,25 +315,9 @@ class Minions(models.Model):
         Memoised per instance as well: the serializer asks for the verdict and
         for the highstate time, and both come from here.
         """
-        if hasattr(self, "_conformity_entry_cache"):
-            return self._conformity_entry_cache
-
-        jids = self._state_run_jids()
-        newest = jids[0] if jids else ""
-        entry = ConformityCache.objects.filter(minion_id=self.minion_id).first()
-        if entry is None or entry.source_jid != newest:
-            highstate = self._compute_last_highstate(jids)
-            entry, _ = ConformityCache.objects.update_or_create(
-                minion_id=self.minion_id,
-                defaults={
-                    "source_jid": newest,
-                    "verdict": self._verdict_for(highstate),
-                    "highstate_jid": highstate.jid if highstate else "",
-                    "highstate_time": highstate.alter_time if highstate else None,
-                },
-            )
-        self._conformity_entry_cache = entry
-        return entry
+        if not hasattr(self, "_conformity_entry_cache"):
+            self._conformity_entry_cache = conformity_entry_for(self.minion_id)
+        return self._conformity_entry_cache
 
     def last_highstate(self):
         # Memoised: kept returning the return itself for callers that want the

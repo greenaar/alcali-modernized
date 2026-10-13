@@ -245,15 +245,55 @@ class SaltApiClient:
         return self.low({"client": "wheel", "fun": function, **kwargs})
 
     def req_stream(self, path: str) -> Iterator[bytes]:
+        with self.open_stream(path) as stream:
+            yield from stream
+
+    def open_stream(self, path: str) -> "EventStream":
+        """Connect to a streaming endpoint now, not on first iteration.
+
+        req_stream is a generator, so nothing in it ran until the response had
+        already been started: a master that could not be reached raised after
+        the 200 was sent, and the 503 the event stream view returns for it
+        could never happen.
+        """
         try:
-            with self.session.get(
+            response = self.session.get(
                 self._url(path),
                 headers={"Accept": "text/event-stream"},
                 timeout=(self.timeout, None),
                 verify=self.verify,
                 stream=True,
-            ) as response:
-                response.raise_for_status()
-                yield from response.iter_content(chunk_size=None)
+            )
+            response.raise_for_status()
         except requests.RequestException as exc:
             raise SaltApiError(f"Salt event stream failed: {exc}") from exc
+        return EventStream(response)
+
+
+class EventStream:
+    """An open event stream: iterate it for chunks, close it from anywhere.
+
+    close() is safe to call from another thread while one is blocked reading,
+    which is how a stream whose client has gone away gets torn down.
+    """
+
+    def __init__(self, response: requests.Response):
+        self._response = response
+
+    def __iter__(self) -> Iterator[bytes]:
+        try:
+            yield from self._response.iter_content(chunk_size=None)
+        except (requests.RequestException, AttributeError, ValueError, OSError):
+            # Closing the response under a blocked read surfaces as one of
+            # these, depending on where in urllib3 the read was. Either way
+            # the stream is over.
+            return
+
+    def close(self) -> None:
+        self._response.close()
+
+    def __enter__(self) -> "EventStream":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()

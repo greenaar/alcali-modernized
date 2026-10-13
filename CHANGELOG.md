@@ -1,5 +1,55 @@
 # Changelog
 
+## [3008.17.2] - 2026-10-13
+
+### Fixed
+
+The overview disagreed with the master, and with Alcali's own Jobs pages,
+because every card counted from Alcali's snapshot tables - `salt_keys`,
+`salt_minions`, `api_schedule` - which changed only when someone pressed
+refresh on the Keys, Minions or Schedules page.
+
+- **Key counts** lagged the master: one production master showed 45 accepted
+  keys while it held 55. The overview now syncs `salt_keys` with the master's
+  `key.list_all` when it loads - one wheel call answered from the master's own
+  pki directory, at most every 30 seconds per worker, writing only what
+  changed and fetching a fingerprint only for a key it has not seen. If the
+  master cannot be reached the cards use what is stored, as before.
+- **"Reporting" (silent minions)** took its roster from those same stored
+  keys, so a newly built master, whose `salt_keys` nobody had refreshed,
+  reported no accepted minions while its Jobs page showed them all returning.
+  It now uses the synced roster.
+- **The highstate chart** only counted minions in the inventory, so its total
+  matched neither the key count nor the jobs pages once the fleet had changed
+  since the last Minions refresh, and it still counted decommissioned minions.
+  It now judges every minion with an accepted key, from its returns, whether
+  or not it has been inventoried.
+- **Highstate verdicts** no longer come from test runs. In test mode Salt
+  reports `None` for any state it cannot predict - pkgrepo entries, archives,
+  services that do not exist yet - whether or not a real run would change
+  anything, so a clean dry run read as drift: a minion whose real highstate
+  passed was reported as conflicting as soon as anyone ran `test=True` after
+  it. Test runs were also only recognised in one of the two forms Salt records
+  them in (`"test=True"`, not `{"__kwarg__": true, "test": true}`), so the same
+  run was judged differently depending on how it was launched. Conversely, a
+  real highstate given only keyword options (`state.apply saltenv=base`) was
+  skipped as if it targeted specific states; only positional arguments do.
+  Migration `0011` clears the cached verdicts so they are recomputed under
+  this rule rather than on each minion's next run.
+- **The schedules count** included schedules of minions whose key had since
+  been removed - nothing ever deleted them. They are dropped when keys sync.
+- **The stream status showed NOT OK while the stream was working.** The
+  browser's EventSource gives up on a stream after 45 seconds without a byte,
+  and salt-api sends nothing between events, so on a quiet master - one beacon
+  a minute - the indicator flipped to NOT OK and the page reconnected
+  continuously. The event stream now sends an SSE comment line after 15 idle
+  seconds, only between events, and closes its connection to salt-api when the
+  browser goes away.
+- **An unreachable master returned 200 on the event stream after all.** The
+  503 added for it in an earlier release could not fire: the connection to
+  salt-api was made lazily, after the response had started. It is now opened
+  before the response is returned.
+
 ## [3008.17.1] - 2026-10-11
 
 ### Security

@@ -183,7 +183,92 @@ def get_keys(refresh=False):
                     pub=finger_ret[minion],
                 )
 
+    _mark_keys_synced()
     return {"result": "refreshed"}
+
+
+# Salt's key.list_all bucket -> the status Alcali stores.
+_KEY_STATUS = {
+    "minions": "accepted",
+    "minions_pre": "unaccepted",
+    "minions_rejected": "rejected",
+    "minions_denied": "denied",
+}
+
+# The overview reads keys on every load, and salt_keys used to change only when
+# someone pressed refresh on the Keys page - so the overview counted whatever
+# the fleet looked like then (45 keys against a master holding 55), and a new
+# master showed no accepted minions at all. key.list_all is one wheel call
+# answered from the master's own pki directory, no minion involved, so it is
+# cheap enough to make on demand. Bounded anyway, because several cards ask at
+# once. Per process, like the token cache.
+KEY_SYNC_INTERVAL = 30
+_key_sync = {"at": 0.0}
+_KEY_SYNC_LOCK = threading.Lock()
+
+
+def _mark_keys_synced():
+    _key_sync["at"] = time.monotonic()
+
+
+def sync_keys(max_age=KEY_SYNC_INTERVAL):
+    """Bring salt_keys into line with the master's key list.
+
+    Only what changed is written, and a fingerprint is fetched only for a key
+    Alcali has not seen - get_keys(refresh=True) asks for every fingerprint,
+    one wheel call per minion, which is right for the explicit refresh and
+    far too slow for a page load.
+
+    Schedules belonging to a minion whose key is gone are dropped too: nothing
+    can refresh them, so they would otherwise be counted forever.
+
+    Returns {"result": ...}, or {"error": ...} with the cache left as it was.
+    """
+    with _KEY_SYNC_LOCK:
+        if max_age and time.monotonic() - _key_sync["at"] < max_age:
+            return {"result": "fresh"}
+        try:
+            api = api_connect()
+            listing = api.wheel("key.list_all")["return"][0]["data"]["return"]
+        except SaltApiError as e:
+            return {"error": str(e)}
+        except (KeyError, IndexError, TypeError):
+            return {"error": "key.list_all returned an unexpected response"}
+        # Every bucket must be present. A partial answer treated as complete
+        # would delete every key in the bucket it left out.
+        if not isinstance(listing, dict) or not all(
+            isinstance(listing.get(bucket), list) for bucket in _KEY_STATUS
+        ):
+            return {"error": "key.list_all returned an unexpected response"}
+
+        wanted = {
+            (minion_id, status)
+            for bucket, status in _KEY_STATUS.items()
+            for minion_id in listing[bucket]
+        }
+        have = {(k.minion_id, k.status): k.pk for k in Keys.objects.all()}
+
+        stale = [pk for pair, pk in have.items() if pair not in wanted]
+        if stale:
+            Keys.objects.filter(pk__in=stale).delete()
+
+        for minion_id, status in sorted(wanted - set(have)):
+            bucket = next(b for b, s in _KEY_STATUS.items() if s == status)
+            try:
+                finger = api.wheel("key.finger", match=minion_id, hash_type="sha256")[
+                    "return"
+                ][0]["data"]["return"][bucket][minion_id]
+            except (SaltApiError, KeyError, IndexError, TypeError):
+                # The count is what the overview needs; the fingerprint is
+                # filled in by the next explicit refresh.
+                finger = ""
+            Keys.objects.create(minion_id=minion_id, status=status, pub=finger)
+
+        accepted = {m for m, s in wanted if s == "accepted"}
+        Schedule.objects.exclude(minion__in=accepted).delete()
+
+        _mark_keys_synced()
+        return {"result": "synced"}
 
 
 def refresh_minion(minion_id):
@@ -492,7 +577,7 @@ def get_events():
     connection to a master it had never reached.
     """
     api = api_connect()
-    return api.req_stream("/events")
+    return api.open_stream("/events")
 
 
 def init_db(target):

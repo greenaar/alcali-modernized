@@ -174,3 +174,69 @@ def test_a_minion_with_no_state_runs_is_unknown_and_stays_cached():
     assert entry.source_jid == ""
     assert entry.verdict is None
     assert Minions.objects.get(pk=minion.pk).conformity() is None
+
+
+# --- which runs are highstates ----------------------------------------------
+
+
+def real_run(minion, jid, states, fun_args=None, retcode=0):
+    return SaltReturns.objects.create(
+        fun="state.apply", jid=jid, return_field="{}", id=minion, success="1",
+        full_ret=json.dumps({"fun": "state.apply", "fun_args": fun_args or [],
+                             "retcode": retcode, "return": states}),
+        alter_time="2026-09-0{} 00:00:00".format(jid[-1]),
+    )
+
+
+@pytest.mark.django_db()
+@pytest.mark.parametrize(
+    "dry_run_args",
+    [["test=True"], [{"__kwarg__": True, "test": True}], ["test=true"]],
+)
+def test_a_dry_run_does_not_displace_a_real_highstate(dry_run_args):
+    # Salt reports None in test mode for states it cannot predict (pkgrepo,
+    # archive, a service not yet installed) even when a real run changes
+    # nothing. Judging the dry run turned a minion whose real highstate passed
+    # into a conflict. Both forms Salt records a test run in are recognised.
+    highstate("m1", "20260901000000000001", True)
+    highstate("m1", "20260902000000000002", None, fun_args=dry_run_args)
+    assert Minions.objects.create(minion_id="m1", grain="{}", pillar="{}").conformity() is True
+
+
+@pytest.mark.django_db()
+@pytest.mark.parametrize(
+    "keyword_args",
+    [["saltenv=base"], [{"__kwarg__": True, "saltenv": "base"}]],
+)
+def test_keyword_options_still_make_a_highstate(keyword_args):
+    # Only a positional argument targets states; `state.apply saltenv=base`
+    # is the whole highstate and was being skipped as if it were targeted.
+    highstate("m1", "20260901000000000001", True)
+    highstate("m1", "20260902000000000002", False, fun_args=keyword_args)
+    assert Minions.objects.create(minion_id="m1", grain="{}", pillar="{}").conformity() is False
+
+
+@pytest.mark.django_db()
+def test_a_real_run_with_a_failed_state_is_a_conflict():
+    real_run("m1", "20260901000000000001", {
+        "pkg_|-a_|-a_|-installed": {"result": True, "changes": {}},
+        "file_|-b_|-b_|-managed": {"result": False, "changes": {}},
+    }, retcode=2)
+    assert Minions.objects.create(minion_id="m1", grain="{}", pillar="{}").conformity() is False
+
+
+@pytest.mark.django_db()
+def test_a_real_run_that_failed_to_compile_is_a_conflict():
+    real_run("m1", "20260901000000000001", ["SLS Data failed to compile"], retcode=1)
+    assert Minions.objects.create(minion_id="m1", grain="{}", pillar="{}").conformity() is False
+
+
+@pytest.mark.django_db()
+def test_a_minion_without_an_inventory_row_is_still_judged():
+    # The overview judges every accepted minion; one nobody has refreshed
+    # into salt_minions yet still has returns to judge.
+    from api.models import conformity_entry_for
+
+    highstate("m9", "20260901000000000001", True)
+    assert not Minions.objects.filter(minion_id="m9").exists()
+    assert conformity_entry_for("m9").verdict is True
