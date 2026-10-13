@@ -195,8 +195,7 @@ def test_stats_do_not_count_schedules_of_departed_minions(master, admin_client, 
 # --- the event stream ---------------------------------------------------------
 
 
-def _drain(gen, count):
-    return [next(gen) for _ in range(count)]
+KEEPALIVE = b": keepalive\n"
 
 
 def test_a_quiet_stream_gets_keepalives():
@@ -212,38 +211,46 @@ def test_a_quiet_stream_gets_keepalives():
             yield item
 
     gen = with_keepalive(stream(), interval=0.05)
-    upstream.put(b"retry: 400\n\n")
-    assert next(gen) == b"retry: 400\n\n"
-    # Nothing from the master: a comment line keeps the client from giving up.
-    assert next(gen) == b": keepalive\n\n"
-    upstream.put(b"data: {}\n\n")
-    out = _drain(gen, 1)
-    while out[-1] == b": keepalive\n\n":
-        out = _drain(gen, 1)
-    assert out[-1] == b"data: {}\n\n"
+    # What salt-api actually opens with: one newline, not a finished event.
+    # Waiting for an event boundary sent nothing until the first event.
+    upstream.put(b"retry: 400\n")
+    assert next(gen) == b"retry: 400\n"
+    assert next(gen) == KEEPALIVE
+    upstream.put(b"tag: t\ndata: {}\n\n")
+    out = next(gen)
+    while out == KEEPALIVE:
+        out = next(gen)
+    assert out == b"tag: t\ndata: {}\n\n"
     upstream.put(None)
-    assert list(gen) in ([], [b": keepalive\n\n"])
+    assert set(gen) <= {KEEPALIVE}
 
 
-def test_no_keepalive_is_sent_inside_an_event():
+def test_a_keepalive_never_dispatches_an_event():
+    # A blank line dispatches the pending event, so a keep-alive inside one
+    # must not carry it - otherwise a tag would arrive without its data.
+    assert not KEEPALIVE.endswith(b"\n\n")
+    from api.views import alcali
+
+    assert alcali._KEEPALIVE == KEEPALIVE
+
+
+def test_no_keepalive_is_sent_part_way_through_a_line():
     from api.views.alcali import with_keepalive
 
     release = threading.Event()
 
     def stream():
-        yield b"tag: salt/job/1/new\n"   # half an event
+        yield b"tag: salt/jo"   # a chunk can end mid-line
         release.wait(1)
-        yield b"data: {}\n\n"
+        yield b"b/1/new\ndata: {}\n\n"
 
     gen = with_keepalive(stream(), interval=0.05)
     first = next(gen)
     started = time.monotonic()
-    release_timer = threading.Timer(0.3, release.set)
-    release_timer.start()
+    threading.Timer(0.3, release.set).start()
     second = next(gen)
-    # Waited for the rest of the event rather than splitting it with a comment.
-    assert first == b"tag: salt/job/1/new\n"
-    assert second == b"data: {}\n\n"
+    # Waited for the line to finish rather than splitting it.
+    assert (first, second) == (b"tag: salt/jo", b"b/1/new\ndata: {}\n\n")
     assert time.monotonic() - started >= 0.2
 
 

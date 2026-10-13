@@ -1,5 +1,17 @@
 # Changelog
 
+## [3008.17.3] - 2026-10-13
+
+### Fixed
+
+- The event stream keep-alive added in 3008.17.2 waited for an event
+  boundary, but salt-api opens the stream with `retry: 400` and a single
+  newline, so nothing was sent until the first event arrived - 26 seconds on
+  a quiet master in testing, and on a quieter one still past the browser's 45.
+  A keep-alive is now sent at any line boundary, as `: keepalive` with one
+  newline: a comment line is legal between any two lines, and without a
+  blank line it can never dispatch an event early.
+
 ## [3008.17.2] - 2026-10-13
 
 ### Fixed
@@ -44,7 +56,8 @@ refresh on the Keys, Minions or Schedules page.
   a minute - the indicator flipped to NOT OK and the page reconnected
   continuously. The event stream now sends an SSE comment line after 15 idle
   seconds, only between events, and closes its connection to salt-api when the
-  browser goes away.
+  browser goes away. (Corrected in 3008.17.3: "only between events" was too
+  strict.)
 - **An unreachable master returned 200 on the event stream after all.** The
   503 added for it in an earlier release could not fire: the connection to
   salt-api was made lazily, after the response had started. It is now opened

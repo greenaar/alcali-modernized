@@ -919,8 +919,12 @@ def event_stream(request):
 # flip to NOT OK and reconnect over and over while the stream was perfectly
 # healthy. An SSE comment line is ignored by every client, so one is sent
 # whenever the stream has been idle this long.
+#
+# One newline, not two: a blank line dispatches whatever event is pending, so
+# a keep-alive must never carry one. A comment line on its own is legal
+# between any two lines, even inside an event.
 KEEPALIVE_SECONDS = 15
-_KEEPALIVE = b": keepalive\n\n"
+_KEEPALIVE = b": keepalive\n"
 _STREAM_END = object()
 
 
@@ -929,8 +933,11 @@ def with_keepalive(stream, interval=KEEPALIVE_SECONDS):
 
     The upstream read blocks, so it runs in its own thread and hands chunks
     over a queue; the response side waits on the queue with a timeout. A
-    keep-alive is only sent between events - a chunk can end part way through
-    one, and a comment line in the middle of an event would corrupt it.
+    keep-alive is only sent at a line boundary - a chunk can end part way
+    through a line, and text inserted there would corrupt it. Requiring an
+    event boundary instead was too strict: salt-api opens with `retry: 400`
+    and a single newline, so nothing went out until the first event, and on a
+    quiet master that could still be past the client's 45 seconds.
     """
     chunks = queue.Queue()
 
@@ -946,18 +953,18 @@ def with_keepalive(stream, interval=KEEPALIVE_SECONDS):
 
     reader = threading.Thread(target=pump, name="alcali-event-stream", daemon=True)
     reader.start()
-    at_boundary = True
+    at_line_boundary = True
     try:
         while True:
             try:
                 chunk = chunks.get(timeout=interval)
             except queue.Empty:
-                if at_boundary:
+                if at_line_boundary:
                     yield _KEEPALIVE
                 continue
             if chunk is _STREAM_END:
                 return
-            at_boundary = chunk.endswith(b"\n\n")
+            at_line_boundary = chunk.endswith(b"\n")
             yield chunk
     finally:
         # Runs when the client goes away, too: closing the upstream response
